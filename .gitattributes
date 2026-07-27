@@ -1,0 +1,40 @@
+# Forzar LF en todos los archivos de texto
+* text=auto eol=lf
+
+# Archivos binarios: sin conversión de línea
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.jar binary
+*.apk binary
+*.aab binary
+*.aar binary
+*.class binary
+*.keystore binary
+*.jks binary
+*.p12 binary
+
+# Archivos de texto explícitos
+*.md text eol=lf
+*.txt text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.java text eol=lf
+*.kt text eol=lf
+*.kts text eol=lf
+*.gradle text eol=lf
+*.sql text eol=lf
+*.sh text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.ts text eol=lf
+*.js text eol=lf
+*.env.example text eol=lf

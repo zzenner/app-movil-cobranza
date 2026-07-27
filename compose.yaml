@@ -1,0 +1,47 @@
+name: ${COMPOSE_PROJECT_NAME:-cobranza}
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: cobranza_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cobranza_db}
+      POSTGRES_USER: ${POSTGRES_USER:-cobranza_dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - cobranza_postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - cobranza_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cobranza_dev} -d ${POSTGRES_DB:-cobranza_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  adminer:
+    image: adminer:4
+    container_name: cobranza_adminer
+    restart: unless-stopped
+    ports:
+      - "${ADMINER_PORT:-8080}:8080"
+    networks:
+      - cobranza_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
+
+volumes:
+  cobranza_postgres_data:
+    name: cobranza_postgres_data
+
+networks:
+  cobranza_net:
+    name: ${NETWORK_NAME:-cobranza_net}
+    driver: bridge

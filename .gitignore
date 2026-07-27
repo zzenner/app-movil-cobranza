@@ -1,0 +1,69 @@
+# Secretos y entornos locales
+.env
+.env.local
+.env.*.local
+*.env
+
+# Credenciales y claves privadas
+*.pem
+*.key
+*.p12
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Java / Spring Boot
+apps/api/target/
+apps/api/build/
+apps/api/*.jar
+apps/api/*.war
+apps/api/*.class
+apps/api/.mvn/wrapper/maven-wrapper.jar
+
+# Android / Kotlin
+apps/mobile-android/build/
+apps/mobile-android/.gradle/
+apps/mobile-android/local.properties
+apps/mobile-android/*.apk
+apps/mobile-android/*.aab
+apps/mobile-android/*.aar
+apps/mobile-android/.cxx/
+apps/mobile-android/captures/
+
+# Angular / Node
+apps/admin-web/node_modules/
+apps/admin-web/dist/
+apps/admin-web/.angular/
+apps/admin-web/.sass-cache/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Temporales
+*.tmp
+*.temp
+*.bak
+*.orig
+*.swp
+~$*
+
+# Carpetas de sistema
+__MACOSX/
