@@ -4,11 +4,9 @@ Este documento registra deuda técnica real identificada, con contexto suficient
 
 ## Deuda activa
 
-### DT-001 — Mecanismo de autenticación offline por confirmar
-**Área:** API, Android.
-**Descripción:** El primer login es online. La app debe poder seguir operando cuando pierda conectividad. El mecanismo exacto para reabrir la app estando offline (¿huella dactilar, PIN de app, PIN del teléfono, sin desbloqueo adicional?) no está definido.
-**Impacto:** Afecta el diseño del módulo de autenticación, el almacenamiento de tokens en Android y la experiencia de usuario en campo. Es una decisión de seguridad con implicaciones operacionales.
-**Decisión recomendada:** Resolver antes de implementar autenticación. Los teléfonos son corporativos, lo que simplifica algunas opciones.
+### ~~DT-001 — Mecanismo de autenticación offline por confirmar~~ → Resuelto
+
+Ver **DT-R04** en la sección de deuda resuelta.
 
 ---
 
@@ -20,11 +18,9 @@ Este documento registra deuda técnica real identificada, con contexto suficient
 
 ---
 
-### DT-003 — Versión mínima de Android sin definir
-**Área:** Android.
-**Descripción:** No se ha definido `minSdk` porque el inventario de dispositivos corporativos no está disponible. La recomendación preliminar es Android 10 (API 29), sujeta al inventario real.
-**Impacto:** Determina qué APIs del sistema están disponibles y qué porcentaje de dispositivos son compatibles.
-**Decisión recomendada:** Obtener el inventario de modelos y versiones Android de los dispositivos corporativos antes de iniciar el proyecto Android.
+### ~~DT-003 — Versión mínima de Android sin definir~~ → Resuelta provisionalmente
+
+Ver **DT-R05** en la sección de deuda resuelta.
 
 ---
 
@@ -62,6 +58,14 @@ Este documento registra deuda técnica real identificada, con contexto suficient
 ---
 
 ## Deuda resuelta
+
+### DT-R04 — Mecanismo de reapertura de la app estando offline (resuelto 2026-07-26)
+**Descripción:** No se usa PIN local ni biometría dentro de la app en el MVP. La sesión local Android persiste hasta que el usuario ejecute logout explícitamente. La seguridad física del dispositivo la gestiona el SO del teléfono corporativo (bloqueo de pantalla del sistema).
+**Referencia:** RN-24, RF-01b, RF-01d.
+
+### DT-R05 — Versión mínima de Android (provisionalmente resuelta 2026-07-26)
+**Descripción:** Se establece `minSdk = API 29` (Android 10) como valor provisional. La decisión definitiva depende del inventario de dispositivos corporativos. No se crea el proyecto Android hasta confirmar con el inventario.
+**Referencia:** ADR-0011, RN-27, STATUS.md P-07.
 
 ### DT-R01 — Formato de RUT (resuelto 2026-07-26)
 **Descripción:** Se almacena como `rut_numero` + `rut_dv` en dos columnas separadas.

@@ -1,23 +1,46 @@
 # Estado del proyecto
 
 **Última actualización:** 2026-07-26
-**Fase actual:** Fase 0 — Inicialización del repositorio (completada) / En espera de inicio de Fase 1
+**Fase actual:** Fase 1A completada ✅ — Fase 1B pendiente de inicio
 
 ## Resumen
 
-| Item                                      | Estado                |
-|-------------------------------------------|-----------------------|
-| Estructura del monorepo                   | Completado            |
-| Documentación base (Fase 0)               | Completado            |
-| Decisiones funcionales del dominio        | Completado            |
-| ADR iniciales (0001–0010)                 | Completado            |
-| Docker Compose (PostgreSQL)               | Completado            |
-| Scripts de entorno local                  | Completado            |
-| Plantillas GitHub                         | Completado            |
-| API (Spring Boot)                         | No iniciado           |
-| Admin Web (Angular)                       | No iniciado           |
-| App Android (Kotlin)                      | No iniciado           |
-| Despliegue en VPS                         | No iniciado           |
+| Item                                                      | Estado                |
+|-----------------------------------------------------------|-----------------------|
+| Estructura del monorepo                                   | Completado            |
+| Documentación base (Fase 0)                               | Completado            |
+| Decisiones funcionales del dominio (Fase 1A)              | Completado            |
+| ADR de dominio (0001–0014)                                | Completado            |
+| Documentos obligatorios de dominio                        | Completado            |
+| Docker Compose (PostgreSQL)                               | Completado            |
+| Scripts de entorno local                                  | Completado            |
+| Plantillas GitHub                                         | Completado            |
+| **API — base técnica (Fase 1B)**                          | **Pendiente de inicio**|
+| Admin Web (Angular)                                       | No iniciado           |
+| App Android (Kotlin)                                      | No iniciado           |
+| Despliegue en VPS                                         | No iniciado           |
+
+## Resultado de auditoría Fase 1A (2026-07-26)
+
+**Veredicto: FASE 1A APROBADA**
+
+Documentos revisados: todos los de `docs/dominio/`, `docs/sincronizacion/`, `docs/producto/`, `docs/contexto/`, todos los ADR.
+
+**Correcciones aplicadas:**
+- `HISTORIAS_USUARIO.md` — eliminado "monto" en COMPROMISO_PAGO (contradicción con RF-05c, RN-12).
+- `ALCANCE.md` — pendientes resueltos movidos a sección "Resuelto" (reapertura offline, alcance de operaciones).
+- `DEUDA_TECNICA.md` — DT-001 y DT-003 movidos a deuda resuelta (DT-R04, DT-R05).
+
+**Documentos creados en auditoría:**
+- `docs/dominio/DIAGRAMA_ENTIDAD_RELACION.md`
+- `docs/dominio/DICCIONARIO_DATOS_PRELIMINAR.md`
+- `docs/dominio/MATRIZ_AUTORIDAD_DATOS.md`
+- `docs/dominio/DECISIONES_PENDIENTES.md`
+- `docs/adr/0012-persona-como-unidad-principal.md`
+- `docs/adr/0013-uuid-generado-en-dispositivo.md`
+- `docs/adr/0014-copia-operacional-datos-externos.md`
+
+**Sin contradicciones activas.** Ver detalles en CHANGELOG.md.
 
 ## Bloqueantes activos
 
@@ -80,11 +103,15 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 
 ## Próximo paso recomendado
 
-Iniciar la **Fase 1** con la creación del proyecto Spring Boot base (`apps/api/`) y el módulo de autenticación.
-Resolver las preguntas P-01 y P-02 antes de implementar la autenticación offline.
+Iniciar la **Fase 1B** con la creación del proyecto Spring Boot base (`apps/api/`) y el módulo de autenticación.
+
+Prerequisito: resolver DT-007 (Docker Desktop integrado con WSL2) para poder levantar PostgreSQL localmente.
+
+Las preguntas DP-01 y DP-02 (gestiones fuera de asignación, visibilidad de gestiones ajenas) deben resolverse antes de implementar los endpoints de sincronización (Fase 2), pero no bloquean la Fase 1B.
 
 ## Historial de fases
 
-| Fase   | Descripción                              | Estado     | Fecha      |
-|--------|------------------------------------------|------------|------------|
-| Fase 0 | Inicialización del repositorio           | Completado | 2026-07-26 |
+| Fase    | Descripción                                              | Estado     | Fecha      |
+|---------|----------------------------------------------------------|------------|------------|
+| Fase 0  | Inicialización del repositorio                           | Completado | 2026-07-26 |
+| Fase 1A | Decisiones funcionales y documentación de dominio        | Completado | 2026-07-26 |

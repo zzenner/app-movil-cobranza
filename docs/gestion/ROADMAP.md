@@ -1,6 +1,6 @@
 # Roadmap
 
-## Fase actual: Fase 0 — Inicialización del repositorio
+## Fase actual: Fase 1A completada — preparando Fase 1B
 
 ## Fase 0 — Inicialización del repositorio ✅
 
@@ -19,24 +19,50 @@
 
 ---
 
-## Fase 1 — API base y modelo de datos (PENDIENTE)
+## Fase 1A — Decisiones funcionales y documentación de dominio ✅
 
-**Objetivo:** Crear el proyecto Spring Boot con Spring Modulith, el esquema de base de datos inicial con Flyway, y los módulos de autenticación y usuarios.
+**Objetivo:** Confirmar y documentar todas las decisiones funcionales del dominio antes de iniciar la implementación técnica.
+
+**Incluye:**
+- Modelo de dominio confirmado: jerarquía `cartera → persona → operaciones → cuotas`.
+- Decisiones de negocio confirmadas: roles, tipos de gestión, inmutabilidad, geolocalización, avales, observaciones de dirección, asignaciones diarias.
+- ADR de dominio: ADR-0007 a ADR-0014 (11 ADR en total).
+- Documentación de sincronización: estrategia offline, protocolo, resolución de conflictos.
+- Ciclos de vida: asignación diaria, gestión (estados técnicos), sesión Android, retención de datos.
+- Requisitos funcionales y no funcionales documentados.
+- Documentos obligatorios: DIAGRAMA_ENTIDAD_RELACION.md, DICCIONARIO_DATOS_PRELIMINAR.md, MATRIZ_AUTORIDAD_DATOS.md, DECISIONES_PENDIENTES.md.
+- Decisiones pendientes identificadas (DP-01 a DP-08).
+
+**No incluye:** código de aplicación, migraciones SQL, proyectos Spring Boot, Angular ni Android.
+
+---
+
+## Fase 1B — Base técnica de la API (SIGUIENTE PASO)
+
+**Objetivo:** Crear el proyecto Spring Boot con Spring Modulith, el esquema inicial de base de datos con Flyway, y el módulo de autenticación y usuarios.
 
 **Incluye (borrador):**
 - Proyecto Spring Boot 3.x con Spring Modulith en `apps/api/`.
-- Esquema PostgreSQL con Flyway: tablas `usuarios`, `carteras`, `asignaciones`, `personas`.
-- Módulo de autenticación (login + JWT o sesión).
-- Módulo de usuarios (CRUD de administradores y cobradores).
-- Contrato OpenAPI básico en `contracts/openapi/`.
+- Esquema PostgreSQL inicial con Flyway: tablas `usuarios`, `roles`, `dispositivos`, `supervision_usuarios`.
+- Módulo de autenticación: login con usuario y contraseña, emisión de JWT (access token + refresh token).
+- Módulo de usuarios: CRUD básico de usuarios con roles.
+- Contrato OpenAPI 3 básico en `contracts/openapi/`.
 - Pruebas de integración con Testcontainers.
-- Docker Compose actualizado con la API.
+- Docker Compose actualizado con el servicio de la API.
 
-**PENDIENTE:** Definir exactamente el mecanismo de autenticación y el alcance del módulo de personas.
+**Prerequisitos para iniciar:**
+- Resolver DT-007 (Docker Desktop integrado con WSL2 para poder levantar PostgreSQL localmente).
+- Confirmar mecanismo de autenticación (JWT stateless recomendado; ver RNF-03).
+
+**PENDIENTE antes de implementar:**
+- Elegir biblioteca JWT (Spring Security + JJWT o Spring Authorization Server).
+- Definir duración del access token y del refresh token.
 
 ---
 
 ## Fase 2 — Módulos de cartera y gestiones (PENDIENTE)
+
+> Anteriormente llamado "segunda mitad de Fase 1". Se inicia después de que Fase 1B esté estable.
 
 **Objetivo:** Implementar los módulos de carteras, asignaciones, personas, créditos y gestiones en la API.
 
