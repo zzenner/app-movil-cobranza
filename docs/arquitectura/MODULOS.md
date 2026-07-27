@@ -3,29 +3,35 @@
 ## Módulos de la API (Spring Modulith)
 
 Los módulos son unidades de negocio con fronteras explícitas. Cada módulo expone solo lo necesario hacia los demás.
+Paquete raíz: `cl.zzenner.cobranza`. Los módulos son sub-paquetes directos detectados automáticamente por Spring Modulith.
 
-| Módulo           | Responsabilidad                                                    | Estado       |
-|------------------|--------------------------------------------------------------------|--------------|
-| `autenticacion`  | Login, emisión y validación de tokens, control de sesiones.        | PENDIENTE    |
-| `usuarios`       | Gestión de cuentas de usuario, roles y credenciales.               | PENDIENTE    |
-| `carteras`       | Creación y gestión de carteras de cobranza.                        | PENDIENTE    |
-| `asignaciones`   | Asignación de carteras a cobradores con fechas de vigencia.        | PENDIENTE    |
-| `personas`       | Datos de personas (titulares de créditos). Solo lectura en Fase 1. | PENDIENTE    |
-| `creditos`       | Créditos y cuotas asociados a personas.                            | PENDIENTE    |
-| `gestiones`      | Recepción, persistencia y consulta de gestiones registradas.       | PENDIENTE    |
-| `sincronizacion` | Exposición de endpoints de sincronización para Android.            | PENDIENTE    |
-| `auditoria`      | Registro transversal de operaciones (si se implementa como módulo).| PENDIENTE    |
+| Módulo           | Responsabilidad                                                          | Estado            |
+|------------------|--------------------------------------------------------------------------|-------------------|
+| `autenticacion`  | Login, emisión y renovación de tokens JWT, logout.                       | Stub (Fase 1B)    |
+| `usuarios`       | Gestión de usuarios, roles y relaciones de supervisión.                  | Stub (Fase 1B)    |
+| `dispositivos`   | Registro, activación y revocación de dispositivos Android.               | Stub (Fase 1B)    |
+| `carteras`       | Carteras de cobranza y su relación con personas.                         | Stub (Fase 1B)    |
+| `asignaciones`   | Asignaciones mensuales y diarias de personas a ejecutivos.               | Stub (Fase 1B)    |
+| `personas`       | Copia operacional de personas, avales, direcciones y observaciones.      | Stub (Fase 1B)    |
+| `operaciones`    | Copia operacional de créditos y cuotas asociados a personas.             | Stub (Fase 1B)    |
+| `gestiones`      | Recepción idempotente, persistencia y consulta de gestiones de terreno.  | Stub (Fase 1B)    |
+| `sincronizacion` | Coordinación del ciclo de sincronización con dispositivos Android.       | Stub (Fase 1B)    |
+| `auditoria`      | Trazabilidad de operaciones críticas. Escribe en esquema `auditoria`.    | Stub (Fase 1B)    |
+| `compartido`     | Utilidades transversales sin lógica de dominio. No depende de módulos.   | Stub (Fase 1B)    |
 
-### Dependencias entre módulos (preliminares)
+### Dependencias conceptuales entre módulos (Fase 2+)
 
 ```
-autenticacion <-- usuarios
-asignaciones  --> carteras, usuarios
-gestiones     --> asignaciones, personas, creditos
-sincronizacion --> gestiones, carteras, personas, creditos
+autenticacion --> usuarios, dispositivos
+asignaciones  --> personas, usuarios
+operaciones   --> personas
+gestiones     --> personas, usuarios, dispositivos
+sincronizacion --> asignaciones, gestiones, dispositivos
+auditoria     --> (consume eventos publicados, no importa módulos)
+compartido    --> (sin dependencias de dominio)
 ```
 
-**PENDIENTE:** Validar este grafo de dependencias al iniciar la Fase 1 y ajustarlo para cumplir con la separación de módulos que impone Spring Modulith.
+> Nota: El módulo `creditos` fue renombrado a `operaciones` para alinearse con el dominio confirmado en la Fase 1A (crédito = operación en el vocabulario del sistema externo).
 
 ## Módulos de la app Android
 

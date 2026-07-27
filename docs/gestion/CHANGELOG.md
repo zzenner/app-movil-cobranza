@@ -5,6 +5,69 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-07-27 — Fase 1B: Base técnica modular de la API ✅
+
+### Resultado
+Proyecto `apps/api/` creado y verificado. 10/10 pruebas pasan. Todos los endpoints de infraestructura responden correctamente.
+
+### Añadido
+
+**Proyecto Maven:**
+- `apps/api/pom.xml` — Spring Boot 3.5.16, Spring Modulith 1.4.12, Flyway, JPA, Actuator, Springdoc 2.8.17.
+- `apps/api/mvnw` + `apps/api/.mvn/` — Maven Wrapper.
+
+**Código fuente:**
+- `CobranzaApplication.java` — clase principal.
+- 11 módulos Spring Modulith con `package-info.java` + `@ApplicationModule`: autenticacion, usuarios, dispositivos, carteras, asignaciones, personas, operaciones, gestiones, sincronizacion, auditoria, compartido.
+- `GlobalExceptionHandler.java` — `ProblemDetail` para validación.
+- `OpenApiConfig.java` — bean OpenAPI con título y versión.
+
+**Configuración:**
+- `application.yml` — configuración base (sin datasource, ddl-auto=none, probes, springdoc).
+- `application-local.yml` — datasource local desde variables de entorno.
+
+**Base de datos:**
+- `V001__crear_esquemas_base.sql` — primera migración Flyway, crea `cobranza` y `auditoria`.
+
+**Pruebas:**
+- `ModularidadTest` — verifica estructura Spring Modulith.
+- `InfraestructuraTest` — Testcontainers PostGIS, esquemas Flyway, PostGIS disponible, Hibernate sin tablas.
+- `ActuatorTest` — health, liveness, readiness, OpenAPI accesibles.
+
+**OpenAPI:**
+- `contracts/openapi/cobranza-api.yaml` — contrato v0.1.0 con `paths: {}`.
+
+**Scripts:**
+- `scripts/api-run.sh`, `scripts/api-test.sh`, `scripts/api-check.sh`.
+
+**CI:**
+- `.github/workflows/api-ci.yml` — Java 21, Maven Wrapper, cache, activado en `apps/api/**`.
+
+**ADRs:**
+- `docs/adr/0015-stack-tecnico-api.md` — Java 21, Spring Boot 3.5.16, Maven.
+- `docs/adr/0016-flyway-propietario-esquema.md` — Flyway como propietario exclusivo del esquema.
+- `docs/adr/0017-testcontainers-pruebas-integracion.md` — Testcontainers con PostGIS.
+
+**Documentación:**
+- `docs/arquitectura/API_BASE_TECNICA.md` — documentación completa de la base técnica.
+- `apps/api/README.md` — guía de comandos y endpoints.
+
+### Modificado
+
+- `infrastructure/postgres/init/02_schemas.sql` — retirada la creación de esquemas (responsabilidad migrada a Flyway V001).
+- `docs/arquitectura/MODULOS.md` — módulos actualizados con nombres correctos (operaciones en lugar de creditos, dispositivos añadido, estados actualizados).
+- `docs/gestion/DEUDA_TECNICA.md` — DT-007 marcado como resuelto (DT-R06).
+- `docs/gestion/STATUS.md`, `ROADMAP.md` — Fase 1B marcada como completada.
+
+### Validación realizada
+
+- `./mvnw verify`: 10/10 pruebas ✅
+- `docker compose up -d` + `./scripts/api-run.sh`: API inicia correctamente ✅
+- Flyway V001 aplicada: esquemas `cobranza` y `auditoria` creados ✅
+- Endpoints verificados: `/actuator/health`, `/actuator/health/liveness`, `/actuator/health/readiness`, `/actuator/info`, `/v3/api-docs`, `/swagger-ui/index.html` ✅
+
+---
+
 ## [Sin versión] — 2026-07-26 — Auditoría final Fase 1A ✅
 
 ### Resultado

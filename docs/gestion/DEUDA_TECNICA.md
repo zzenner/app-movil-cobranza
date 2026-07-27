@@ -48,12 +48,9 @@ Ver **DT-R05** en la sección de deuda resuelta.
 
 ---
 
-### DT-007 — Docker Desktop no integrado con la distro WSL2 de desarrollo
-**Área:** Infraestructura local.
-**Descripción:** Docker Desktop no responde en el PATH de la distro WSL2 activa. Los scripts de entorno local no funcionan hasta habilitar la integración.
-**Impacto:** No se puede validar localmente el Docker Compose ni levantar PostgreSQL desde WSL2.
-**Resolución:** Docker Desktop → Settings → Resources → WSL Integration → habilitar la distro activa.
-**Decisión recomendada:** Resolver antes de iniciar la Fase 1.
+### ~~DT-007 — Docker Desktop no integrado con la distro WSL2 de desarrollo~~ → Resuelto
+
+Ver **DT-R06** en la sección de deuda resuelta.
 
 ---
 
@@ -66,6 +63,10 @@ Ver **DT-R05** en la sección de deuda resuelta.
 ### DT-R05 — Versión mínima de Android (provisionalmente resuelta 2026-07-26)
 **Descripción:** Se establece `minSdk = API 29` (Android 10) como valor provisional. La decisión definitiva depende del inventario de dispositivos corporativos. No se crea el proyecto Android hasta confirmar con el inventario.
 **Referencia:** ADR-0011, RN-27, STATUS.md P-07.
+
+### DT-R06 — Docker Desktop integrado con WSL2 (resuelto 2026-07-27)
+**Descripción:** Docker Desktop 4.60.0 con integración WSL2 habilitada. Docker Compose v5.0.2 disponible. PostgreSQL/PostGIS levantado correctamente con `./scripts/start.sh`.
+**Referencia:** ADR-0017, Fase 1B.
 
 ### DT-R01 — Formato de RUT (resuelto 2026-07-26)
 **Descripción:** Se almacena como `rut_numero` + `rut_dv` en dos columnas separadas.

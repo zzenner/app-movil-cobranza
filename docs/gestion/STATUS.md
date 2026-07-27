@@ -1,7 +1,7 @@
 # Estado del proyecto
 
-**Última actualización:** 2026-07-26
-**Fase actual:** Fase 1A completada ✅ — Fase 1B pendiente de inicio
+**Última actualización:** 2026-07-27
+**Fase actual:** Fase 1B completada ✅ — Fase 2 pendiente de inicio
 
 ## Resumen
 
@@ -15,7 +15,7 @@
 | Docker Compose (PostgreSQL)                               | Completado            |
 | Scripts de entorno local                                  | Completado            |
 | Plantillas GitHub                                         | Completado            |
-| **API — base técnica (Fase 1B)**                          | **Pendiente de inicio**|
+| **API — base técnica (Fase 1B)**                          | **Completado ✅**      |
 | Admin Web (Angular)                                       | No iniciado           |
 | App Android (Kotlin)                                      | No iniciado           |
 | Despliegue en VPS                                         | No iniciado           |
@@ -44,7 +44,32 @@ Documentos revisados: todos los de `docs/dominio/`, `docs/sincronizacion/`, `doc
 
 ## Bloqueantes activos
 
-**Docker Desktop no integrado con WSL2:** La distro WSL2 activa no tiene integración con Docker Desktop. Los scripts de entorno local (`./scripts/start.sh`) no funcionarán hasta habilitar la integración en Docker Desktop → Settings → Resources → WSL Integration.
+Sin bloqueantes activos.
+
+## Fase 1B completada (2026-07-27)
+
+**Resultado: API base técnica funcional. 10/10 pruebas pasan.**
+
+| Item | Resultado |
+|---|---|
+| Proyecto Maven compilado | ✅ |
+| 11 módulos Spring Modulith verificados | ✅ |
+| Flyway V001 aplicada (esquemas cobranza + auditoria) | ✅ |
+| Testcontainers con PostGIS | ✅ |
+| `/actuator/health` UP | ✅ |
+| `/actuator/health/liveness` UP | ✅ |
+| `/actuator/health/readiness` UP | ✅ |
+| `/v3/api-docs` — título cobranza-api | ✅ |
+| `/swagger-ui/index.html` HTTP 200 | ✅ |
+| GitHub Actions CI (`api-ci.yml`) | ✅ |
+| ADR-0015, ADR-0016, ADR-0017 | ✅ |
+
+**Incidencias resueltas durante la implementación:**
+- `postgis/postgis:16-3.4` requiere `.asCompatibleSubstituteFor("postgres")` en Testcontainers (no es la imagen PostgreSQL oficial).
+- Springdoc no usa `spring.application.name` como título; se requiere bean `OpenAPI` explícito.
+- `02_schemas.sql` modificado para ceder la responsabilidad de esquemas a Flyway (ADR-0016).
+
+---
 
 ## Decisiones funcionales incorporadas (tercera sesión, 2026-07-26)
 
@@ -103,11 +128,9 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 
 ## Próximo paso recomendado
 
-Iniciar la **Fase 1B** con la creación del proyecto Spring Boot base (`apps/api/`) y el módulo de autenticación.
+Iniciar la **Fase 2** con la implementación de los módulos de autenticación, usuarios y carteras en la API.
 
-Prerequisito: resolver DT-007 (Docker Desktop integrado con WSL2) para poder levantar PostgreSQL localmente.
-
-Las preguntas DP-01 y DP-02 (gestiones fuera de asignación, visibilidad de gestiones ajenas) deben resolverse antes de implementar los endpoints de sincronización (Fase 2), pero no bloquean la Fase 1B.
+Antes de implementar los endpoints de sincronización: resolver DP-01 y DP-02 (gestiones fuera de asignación, visibilidad de gestiones ajenas).
 
 ## Historial de fases
 
@@ -115,3 +138,4 @@ Las preguntas DP-01 y DP-02 (gestiones fuera de asignación, visibilidad de gest
 |---------|----------------------------------------------------------|------------|------------|
 | Fase 0  | Inicialización del repositorio                           | Completado | 2026-07-26 |
 | Fase 1A | Decisiones funcionales y documentación de dominio        | Completado | 2026-07-26 |
+| Fase 1B | Base técnica modular de la API                           | Completado | 2026-07-27 |

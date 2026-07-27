@@ -1,0 +1,17 @@
+openapi: "3.1.0"
+
+info:
+  title: cobranza-api
+  description: |
+    API REST del sistema de cobranza en terreno.
+    Sirve a la aplicación Android (ejecutivos de terreno) y al Admin Web (supervisores y administradores).
+  version: "0.1.0"
+  contact:
+    name: Equipo de desarrollo
+    email: tecnologia@oriencoop.cl
+
+servers:
+  - url: http://localhost:8080
+    description: Desarrollo local
+
+paths: {}

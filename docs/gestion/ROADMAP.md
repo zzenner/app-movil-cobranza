@@ -1,6 +1,6 @@
 # Roadmap
 
-## Fase actual: Fase 1A completada — preparando Fase 1B
+## Fase actual: Fase 1B completada — preparando Fase 2
 
 ## Fase 0 — Inicialización del repositorio ✅
 
@@ -37,26 +37,24 @@
 
 ---
 
-## Fase 1B — Base técnica de la API (SIGUIENTE PASO)
+## Fase 1B — Base técnica modular de la API ✅
 
-**Objetivo:** Crear el proyecto Spring Boot con Spring Modulith, el esquema inicial de base de datos con Flyway, y el módulo de autenticación y usuarios.
+**Objetivo:** Crear el proyecto Spring Boot con Spring Modulith y la infraestructura mínima verificable.
 
-**Incluye (borrador):**
-- Proyecto Spring Boot 3.x con Spring Modulith en `apps/api/`.
-- Esquema PostgreSQL inicial con Flyway: tablas `usuarios`, `roles`, `dispositivos`, `supervision_usuarios`.
-- Módulo de autenticación: login con usuario y contraseña, emisión de JWT (access token + refresh token).
-- Módulo de usuarios: CRUD básico de usuarios con roles.
-- Contrato OpenAPI 3 básico en `contracts/openapi/`.
-- Pruebas de integración con Testcontainers.
-- Docker Compose actualizado con el servicio de la API.
+**Completado (2026-07-27):**
+- Proyecto Spring Boot 3.5.16 + Spring Modulith 1.4.12 en `apps/api/`.
+- Maven Wrapper, pom.xml con todas las dependencias.
+- 11 módulos Spring Modulith como stubs con `package-info.java` y `@ApplicationModule`.
+- Configuración (`application.yml`, `application-local.yml`).
+- Migración Flyway V001: crea esquemas `cobranza` y `auditoria`.
+- `GlobalExceptionHandler` con `ProblemDetail` para validación.
+- 3 pruebas: `ModularidadTest`, `InfraestructuraTest` (Testcontainers + PostGIS), `ActuatorTest`.
+- Contrato OpenAPI 3.1 vacío en `contracts/openapi/cobranza-api.yaml`.
+- Scripts: `api-run.sh`, `api-test.sh`, `api-check.sh`.
+- GitHub Actions CI (`api-ci.yml`).
+- ADR-0015, ADR-0016, ADR-0017.
 
-**Prerequisitos para iniciar:**
-- Resolver DT-007 (Docker Desktop integrado con WSL2 para poder levantar PostgreSQL localmente).
-- Confirmar mecanismo de autenticación (JWT stateless recomendado; ver RNF-03).
-
-**PENDIENTE antes de implementar:**
-- Elegir biblioteca JWT (Spring Security + JJWT o Spring Authorization Server).
-- Definir duración del access token y del refresh token.
+**No incluye:** endpoints de negocio, JWT, Spring Security, tablas de dominio.
 
 ---
 
