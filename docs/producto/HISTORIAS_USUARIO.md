@@ -58,7 +58,7 @@ Estado: BORRADOR — pendiente de refinamiento y estimación.
 **Criterios de aceptación:**
 - Puedo seleccionar el tipo de resultado de la gestión desde un catálogo.
 - Puedo ingresar observaciones de texto libre.
-- Puedo registrar opcionalmente un compromiso de pago (fecha y monto).
+- Puedo registrar opcionalmente un compromiso de pago con fecha de compromiso (sin monto).
 - Puedo agregar fotografías.
 - La geolocalización se captura automáticamente.
 - La gestión queda registrada localmente aunque no haya conexión.

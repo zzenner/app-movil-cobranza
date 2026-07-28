@@ -65,8 +65,11 @@
 
 ## PENDIENTE de definir
 
-- Mecanismo de reapertura de la app estando offline (huella, PIN de app, u otro).
-- Duración máxima de la sesión offline.
-- Versión mínima de Android (requiere inventario de dispositivos corporativos).
-- Si la exportación a Excel se incluye en Fase 1 o en una posterior.
-- Qué operaciones se incluyen en la descarga: ¿todas o solo con cuotas vencidas?
+- Duración máxima de la sesión offline sin sincronización (no hay límite definido en MVP; se revisará con uso real).
+- Versión mínima de Android definitiva (provisional: API 29 / Android 10 — ver ADR-0011; requiere inventario de dispositivos).
+- Si la exportación a Excel se incluye en la Fase 1 o en una posterior.
+
+## Resuelto (registrado aquí como referencia)
+
+- **Mecanismo de reapertura offline:** no se usa PIN ni biometría dentro de la app en el MVP. La sesión local persiste; la seguridad física del dispositivo la gestiona el SO del teléfono corporativo (RN-24).
+- **Operaciones en la descarga:** se descargan todas las operaciones activas y todas sus cuotas vencidas y futuras vigentes. No se descargan operaciones anuladas, cerradas sin saldo ni completamente pagadas (RN-10, RF-04c).

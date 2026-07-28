@@ -77,18 +77,35 @@ docker compose exec postgres psql \
 
 ## Estructura de desarrollo por componente
 
-**API (`apps/api/`):** PENDIENTE — instrucciones se agregarán al iniciar la Fase 1.
+**API (`apps/api/`):**
 
-**App Android (`apps/mobile-android/`):** PENDIENTE — instrucciones se agregarán al iniciar la Fase 1.
+```bash
+# Iniciar la API con perfil local (carga .env automáticamente)
+./scripts/api-run.sh
 
-**Admin Web (`apps/admin-web/`):** PENDIENTE — instrucciones se agregarán al iniciar la Fase 1.
+# Ejecutar todas las pruebas (requiere Docker)
+./scripts/api-test.sh
+
+# Verificar compilación y estructura modular (no requiere Docker)
+./scripts/api-check.sh
+```
+
+La API inicia en `http://localhost:8080`. Endpoints disponibles:
+- `GET /actuator/health` — estado de la aplicación
+- `GET /v3/api-docs` — documentación OpenAPI (JSON)
+- `GET /swagger-ui/index.html` — Swagger UI
+
+**App Android (`apps/mobile-android/`):** PENDIENTE — instrucciones se agregarán al iniciar la Fase 3.
+
+**Admin Web (`apps/admin-web/`):** PENDIENTE — instrucciones se agregarán al iniciar la Fase 4.
 
 ## Puertos por defecto
 
 | Servicio   | Puerto local | Variable de entorno |
 |------------|-------------|---------------------|
 | PostgreSQL | 5432        | `POSTGRES_PORT`     |
-| Adminer    | 8080        | `ADMINER_PORT`      |
+| API        | 8080        | — (fijo en Fase 1B) |
+| Adminer    | 8081        | `ADMINER_PORT`      |
 
 ## Resolución de problemas comunes
 

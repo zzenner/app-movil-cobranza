@@ -1,6 +1,6 @@
 # Roadmap
 
-## Fase actual: Fase 0 — Inicialización del repositorio
+## Fase actual: Fase 1B completada — preparando Fase 2
 
 ## Fase 0 — Inicialización del repositorio ✅
 
@@ -19,24 +19,48 @@
 
 ---
 
-## Fase 1 — API base y modelo de datos (PENDIENTE)
+## Fase 1A — Decisiones funcionales y documentación de dominio ✅
 
-**Objetivo:** Crear el proyecto Spring Boot con Spring Modulith, el esquema de base de datos inicial con Flyway, y los módulos de autenticación y usuarios.
+**Objetivo:** Confirmar y documentar todas las decisiones funcionales del dominio antes de iniciar la implementación técnica.
 
-**Incluye (borrador):**
-- Proyecto Spring Boot 3.x con Spring Modulith en `apps/api/`.
-- Esquema PostgreSQL con Flyway: tablas `usuarios`, `carteras`, `asignaciones`, `personas`.
-- Módulo de autenticación (login + JWT o sesión).
-- Módulo de usuarios (CRUD de administradores y cobradores).
-- Contrato OpenAPI básico en `contracts/openapi/`.
-- Pruebas de integración con Testcontainers.
-- Docker Compose actualizado con la API.
+**Incluye:**
+- Modelo de dominio confirmado: jerarquía `cartera → persona → operaciones → cuotas`.
+- Decisiones de negocio confirmadas: roles, tipos de gestión, inmutabilidad, geolocalización, avales, observaciones de dirección, asignaciones diarias.
+- ADR de dominio: ADR-0007 a ADR-0014 (11 ADR en total).
+- Documentación de sincronización: estrategia offline, protocolo, resolución de conflictos.
+- Ciclos de vida: asignación diaria, gestión (estados técnicos), sesión Android, retención de datos.
+- Requisitos funcionales y no funcionales documentados.
+- Documentos obligatorios: DIAGRAMA_ENTIDAD_RELACION.md, DICCIONARIO_DATOS_PRELIMINAR.md, MATRIZ_AUTORIDAD_DATOS.md, DECISIONES_PENDIENTES.md.
+- Decisiones pendientes identificadas (DP-01 a DP-08).
 
-**PENDIENTE:** Definir exactamente el mecanismo de autenticación y el alcance del módulo de personas.
+**No incluye:** código de aplicación, migraciones SQL, proyectos Spring Boot, Angular ni Android.
+
+---
+
+## Fase 1B — Base técnica modular de la API ✅
+
+**Objetivo:** Crear el proyecto Spring Boot con Spring Modulith y la infraestructura mínima verificable.
+
+**Completado (2026-07-27):**
+- Proyecto Spring Boot 3.5.16 + Spring Modulith 1.4.12 en `apps/api/`.
+- Maven Wrapper, pom.xml con todas las dependencias.
+- 11 módulos Spring Modulith como stubs con `package-info.java` y `@ApplicationModule`.
+- Configuración (`application.yml`, `application-local.yml`).
+- Migración Flyway V001: crea esquemas `cobranza` y `auditoria`.
+- `GlobalExceptionHandler` con `ProblemDetail` para validación.
+- 3 pruebas: `ModularidadTest`, `InfraestructuraTest` (Testcontainers + PostGIS), `ActuatorTest`.
+- Contrato OpenAPI 3.1 vacío en `contracts/openapi/cobranza-api.yaml`.
+- Scripts: `api-run.sh`, `api-test.sh`, `api-check.sh`.
+- GitHub Actions CI (`api-ci.yml`).
+- ADR-0015, ADR-0016, ADR-0017.
+
+**No incluye:** endpoints de negocio, JWT, Spring Security, tablas de dominio.
 
 ---
 
 ## Fase 2 — Módulos de cartera y gestiones (PENDIENTE)
+
+> Anteriormente llamado "segunda mitad de Fase 1". Se inicia después de que Fase 1B esté estable.
 
 **Objetivo:** Implementar los módulos de carteras, asignaciones, personas, créditos y gestiones en la API.
 

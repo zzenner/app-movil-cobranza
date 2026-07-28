@@ -1,27 +1,75 @@
 # Estado del proyecto
 
-**Última actualización:** 2026-07-26
-**Fase actual:** Fase 0 — Inicialización del repositorio (completada) / En espera de inicio de Fase 1
+**Última actualización:** 2026-07-27
+**Fase actual:** Fase 1B completada ✅ — Fase 2 pendiente de inicio
 
 ## Resumen
 
-| Item                                      | Estado                |
-|-------------------------------------------|-----------------------|
-| Estructura del monorepo                   | Completado            |
-| Documentación base (Fase 0)               | Completado            |
-| Decisiones funcionales del dominio        | Completado            |
-| ADR iniciales (0001–0010)                 | Completado            |
-| Docker Compose (PostgreSQL)               | Completado            |
-| Scripts de entorno local                  | Completado            |
-| Plantillas GitHub                         | Completado            |
-| API (Spring Boot)                         | No iniciado           |
-| Admin Web (Angular)                       | No iniciado           |
-| App Android (Kotlin)                      | No iniciado           |
-| Despliegue en VPS                         | No iniciado           |
+| Item                                                      | Estado                |
+|-----------------------------------------------------------|-----------------------|
+| Estructura del monorepo                                   | Completado            |
+| Documentación base (Fase 0)                               | Completado            |
+| Decisiones funcionales del dominio (Fase 1A)              | Completado            |
+| ADR de dominio (0001–0014)                                | Completado            |
+| Documentos obligatorios de dominio                        | Completado            |
+| Docker Compose (PostgreSQL)                               | Completado            |
+| Scripts de entorno local                                  | Completado            |
+| Plantillas GitHub                                         | Completado            |
+| **API — base técnica (Fase 1B)**                          | **Completado ✅**      |
+| Admin Web (Angular)                                       | No iniciado           |
+| App Android (Kotlin)                                      | No iniciado           |
+| Despliegue en VPS                                         | No iniciado           |
+
+## Resultado de auditoría Fase 1A (2026-07-26)
+
+**Veredicto: FASE 1A APROBADA**
+
+Documentos revisados: todos los de `docs/dominio/`, `docs/sincronizacion/`, `docs/producto/`, `docs/contexto/`, todos los ADR.
+
+**Correcciones aplicadas:**
+- `HISTORIAS_USUARIO.md` — eliminado "monto" en COMPROMISO_PAGO (contradicción con RF-05c, RN-12).
+- `ALCANCE.md` — pendientes resueltos movidos a sección "Resuelto" (reapertura offline, alcance de operaciones).
+- `DEUDA_TECNICA.md` — DT-001 y DT-003 movidos a deuda resuelta (DT-R04, DT-R05).
+
+**Documentos creados en auditoría:**
+- `docs/dominio/DIAGRAMA_ENTIDAD_RELACION.md`
+- `docs/dominio/DICCIONARIO_DATOS_PRELIMINAR.md`
+- `docs/dominio/MATRIZ_AUTORIDAD_DATOS.md`
+- `docs/dominio/DECISIONES_PENDIENTES.md`
+- `docs/adr/0012-persona-como-unidad-principal.md`
+- `docs/adr/0013-uuid-generado-en-dispositivo.md`
+- `docs/adr/0014-copia-operacional-datos-externos.md`
+
+**Sin contradicciones activas.** Ver detalles en CHANGELOG.md.
 
 ## Bloqueantes activos
 
-**Docker Desktop no integrado con WSL2:** La distro WSL2 activa no tiene integración con Docker Desktop. Los scripts de entorno local (`./scripts/start.sh`) no funcionarán hasta habilitar la integración en Docker Desktop → Settings → Resources → WSL Integration.
+Sin bloqueantes activos.
+
+## Fase 1B completada (2026-07-27)
+
+**Resultado: API base técnica funcional. 10/10 pruebas pasan.**
+
+| Item | Resultado |
+|---|---|
+| Proyecto Maven compilado | ✅ |
+| 11 módulos Spring Modulith verificados | ✅ |
+| Flyway V001 aplicada (esquemas cobranza + auditoria) | ✅ |
+| Testcontainers con PostGIS | ✅ |
+| `/actuator/health` UP | ✅ |
+| `/actuator/health/liveness` UP | ✅ |
+| `/actuator/health/readiness` UP | ✅ |
+| `/v3/api-docs` — título cobranza-api | ✅ |
+| `/swagger-ui/index.html` HTTP 200 | ✅ |
+| GitHub Actions CI (`api-ci.yml`) | ✅ |
+| ADR-0015, ADR-0016, ADR-0017 | ✅ |
+
+**Incidencias resueltas durante la implementación:**
+- `postgis/postgis:16-3.4` requiere `.asCompatibleSubstituteFor("postgres")` en Testcontainers (no es la imagen PostgreSQL oficial).
+- Springdoc no usa `spring.application.name` como título; se requiere bean `OpenAPI` explícito.
+- `02_schemas.sql` modificado para ceder la responsabilidad de esquemas a Flyway (ADR-0016).
+
+---
 
 ## Decisiones funcionales incorporadas (tercera sesión, 2026-07-26)
 
@@ -80,11 +128,14 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 
 ## Próximo paso recomendado
 
-Iniciar la **Fase 1** con la creación del proyecto Spring Boot base (`apps/api/`) y el módulo de autenticación.
-Resolver las preguntas P-01 y P-02 antes de implementar la autenticación offline.
+Iniciar la **Fase 2** con la implementación de los módulos de autenticación, usuarios y carteras en la API.
+
+Antes de implementar los endpoints de sincronización: resolver DP-01 y DP-02 (gestiones fuera de asignación, visibilidad de gestiones ajenas).
 
 ## Historial de fases
 
-| Fase   | Descripción                              | Estado     | Fecha      |
-|--------|------------------------------------------|------------|------------|
-| Fase 0 | Inicialización del repositorio           | Completado | 2026-07-26 |
+| Fase    | Descripción                                              | Estado     | Fecha      |
+|---------|----------------------------------------------------------|------------|------------|
+| Fase 0  | Inicialización del repositorio                           | Completado | 2026-07-26 |
+| Fase 1A | Decisiones funcionales y documentación de dominio        | Completado | 2026-07-26 |
+| Fase 1B | Base técnica modular de la API                           | Completado | 2026-07-27 |
