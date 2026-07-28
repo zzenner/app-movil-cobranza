@@ -1,10 +1,12 @@
 /**
  * Módulo de usuarios.
  *
- * <p>Responsabilidad: gestión de usuarios, roles y relaciones de supervisión.
+ * <p>Responsabilidad: gestión de usuarios, roles, permisos y relaciones de supervisión.
  * Depende de: compartido.
  *
- * <p>Estado: stub — pendiente de implementación en Fase 2.
+ * <p>API pública (sub-paquete {@code api}): interfaces para consulta por otros módulos.
+ *
+ * <p>Estado: implementado en Fase 1C.
  */
 @ApplicationModule(displayName = "Usuarios")
 package cl.zzenner.cobranza.usuarios;

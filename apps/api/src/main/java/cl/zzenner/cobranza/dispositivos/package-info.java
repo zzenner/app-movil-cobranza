@@ -2,11 +2,14 @@
  * Módulo de dispositivos.
  *
  * <p>Responsabilidad: registro, activación y revocación de dispositivos Android.
- * Depende de: usuarios.
+ * Depende únicamente de la API pública del módulo usuarios ({@code usuarios::api}).
  *
- * <p>Estado: stub — pendiente de implementación en Fase 2.
+ * <p>Estado: implementado en Fase 1C.
  */
-@ApplicationModule(displayName = "Dispositivos")
+@ApplicationModule(
+        displayName = "Dispositivos",
+        allowedDependencies = "usuarios::api"
+)
 package cl.zzenner.cobranza.dispositivos;
 
 import org.springframework.modulith.ApplicationModule;

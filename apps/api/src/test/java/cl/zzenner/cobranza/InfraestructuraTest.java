@@ -47,12 +47,12 @@ class InfraestructuraTest {
     }
 
     @Test
-    void hibernateNoCreaTablas() {
-        // V001 solo crea esquemas; no debe existir ninguna tabla de negocio
+    void flyway_crea_tablas_en_esquema_cobranza() {
+        // V002 crea 7 tablas de negocio; Hibernate usa ddl-auto=validate (no crea tablas).
         Integer tablas = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'cobranza'",
                 Integer.class);
-        assertThat(tablas).isZero();
+        assertThat(tablas).isEqualTo(7);
     }
 
     @Test

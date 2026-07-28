@@ -5,10 +5,14 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: false
+
+security:
+  bcrypt:
+    strength: 12
 
   mvc:
     problemdetails:

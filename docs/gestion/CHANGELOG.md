@@ -5,6 +5,60 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-07-28 — Fase 1C: Modelo físico de usuarios, roles, permisos y dispositivos ✅
+
+### Resultado
+54/54 pruebas pasan. Módulos `usuarios` y `dispositivos` implementados con límites Spring Modulith, esquema validado por Hibernate, BCrypt costo 12.
+
+### Añadido
+
+**Migraciones Flyway:**
+- `V002__crear_seguridad_usuarios.sql` — 7 tablas: `roles`, `permisos`, `usuarios`, `usuario_roles`, `rol_permisos`, `dispositivos`, `supervision_usuarios`. Índices parciales, CHECKs de normalización y coherencia.
+- `V003__cargar_roles_permisos_iniciales.sql` — 4 roles y 7 permisos con UUIDs estables. Matriz rol→permisos.
+
+**Módulo `usuarios`:**
+- Entidades JPA: `Usuario`, `Rol`, `Permiso`, `UsuarioRol`, `RolPermiso`, `RolPermisoId`, `SupervisionUsuario`.
+- Repositorios: `UsuarioRepository`, `RolRepository`, `PermisoRepository`, `UsuarioRolRepository`, `RolPermisoRepository`, `SupervisionRepository`.
+- Servicios: `UsuarioService`, `SupervisionService`.
+- Puerto `CodificadorContrasena` + adaptador `BcryptCodificadorContrasena`.
+- Interfaz pública `UsuarioConsultaApi` en `@NamedInterface("api")`.
+- Excepciones de dominio: `UsuarioNoEncontradoException`, `NombreUsuarioDuplicadoException`, `CorreoDuplicadoException`, `RolNoEncontradoException`, `RelacionSupervisionInvalidaException`.
+
+**Módulo `dispositivos`:**
+- Entidad `Dispositivo` con `@Version` y `revocar()` coherente.
+- `DispositivoService` que inyecta `UsuarioConsultaApi` (no cruza al dominio de usuarios).
+- `DispositivoRepository`.
+
+**Pruebas:**
+- `UsuarioTest` — 7 tests unitarios.
+- `SupervisionTest` — 5 tests unitarios.
+- `DispositivoTest` — 4 tests unitarios.
+- `CodificadorContrasenaTest` — 5 tests unitarios (BCrypt strength 4).
+- `SeguridadIntegracionTest` — 23 tests de integración (Testcontainers): esquema, UUIDs estables, normalización, historial de roles, versioning, dispositivos.
+- `InfraestructuraTest` — actualizado: `flyway_crea_tablas_en_esquema_cobranza()` verifica 7 tablas.
+
+**ADRs:**
+- `ADR-0018` — Roles y permisos en tablas (no enums Java).
+- `ADR-0019` — `identificador_instalacion` como UUID de instalación Android.
+- `ADR-0020` — BCrypt para hashing de contraseñas, costo configurable.
+- `ADR-0021` — Separación entre módulo `usuarios` y módulo `autenticacion`.
+
+**Documentación:**
+- `docs/arquitectura/SEGURIDAD_USUARIOS_BASE.md` — modelo de seguridad base, invariantes, límites de módulo.
+
+### Modificado
+
+- `apps/api/pom.xml` — dependencia `spring-security-crypto` añadida.
+- `apps/api/src/main/resources/application.yml` — `ddl-auto: validate`, `security.bcrypt.strength: 12`.
+- `apps/api/src/main/java/cl/zzenner/cobranza/usuarios/package-info.java` — `@ApplicationModule(displayName = "Usuarios")`.
+- `apps/api/src/test/java/cl/zzenner/cobranza/SeguridadIntegracionTest.java` — test `hibernate_no_creo_tablas_adicionales` actualizado para excluir tablas PostGIS (`spatial_ref_sys`).
+
+### Bugs corregidos
+
+- `SupervisionService.validarRolActivo()`: cambiado `.ifPresent()` por `.orElseThrow()` — antes la validación se saltaba silenciosamente si el rol no existía en BD.
+
+---
+
 ## [Sin versión] — 2026-07-27 — Fase 1B: Base técnica modular de la API ✅
 
 ### Resultado

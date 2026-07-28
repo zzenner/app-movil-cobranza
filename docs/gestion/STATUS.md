@@ -1,7 +1,7 @@
 # Estado del proyecto
 
-**Última actualización:** 2026-07-27
-**Fase actual:** Fase 1B completada ✅ — Fase 2 pendiente de inicio
+**Última actualización:** 2026-07-28
+**Fase actual:** Fase 1C completada ✅ — Fase 2 pendiente de inicio
 
 ## Resumen
 
@@ -15,7 +15,8 @@
 | Docker Compose (PostgreSQL)                               | Completado            |
 | Scripts de entorno local                                  | Completado            |
 | Plantillas GitHub                                         | Completado            |
-| **API — base técnica (Fase 1B)**                          | **Completado ✅**      |
+| API — base técnica (Fase 1B)                              | Completado ✅          |
+| **API — modelo físico usuarios/roles/dispositivos (1C)**  | **Completado ✅**      |
 | Admin Web (Angular)                                       | No iniciado           |
 | App Android (Kotlin)                                      | No iniciado           |
 | Despliegue en VPS                                         | No iniciado           |
@@ -126,9 +127,26 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 | P-07 | Confirmar minSdk definitivo con inventario de dispositivos corporativos (provisional: API 29 / Android 10).  |
 | P-08 | Confirmar si el aval se asocia a persona u operación en el sistema externo definitivo (no bloqueante).       |
 
+## Fase 1C completada (2026-07-28)
+
+**Resultado: Modelo físico de usuarios, roles, permisos y dispositivos. 54/54 pruebas pasan.**
+
+| Item | Resultado |
+|---|---|
+| V002: 7 tablas en `cobranza` schema | ✅ |
+| V003: 4 roles y 7 permisos con UUIDs estables | ✅ |
+| Módulo `usuarios` con entidades JPA | ✅ |
+| Módulo `dispositivos` con límite Spring Modulith | ✅ |
+| `UsuarioConsultaApi` como `@NamedInterface("api")` | ✅ |
+| BCrypt costo 12 (costo 4 en pruebas) | ✅ |
+| `ddl-auto: validate` — Hibernate no crea tablas | ✅ |
+| 54 pruebas (unit + integración + modularidad) | ✅ |
+| ADR-0018, ADR-0019, ADR-0020, ADR-0021 | ✅ |
+| `SEGURIDAD_USUARIOS_BASE.md` | ✅ |
+
 ## Próximo paso recomendado
 
-Iniciar la **Fase 2** con la implementación de los módulos de autenticación, usuarios y carteras en la API.
+Iniciar la **Fase 2** con el módulo de autenticación (login, JWT, refresh tokens) que consumirá `UsuarioConsultaApi`.
 
 Antes de implementar los endpoints de sincronización: resolver DP-01 y DP-02 (gestiones fuera de asignación, visibilidad de gestiones ajenas).
 
@@ -139,3 +157,4 @@ Antes de implementar los endpoints de sincronización: resolver DP-01 y DP-02 (g
 | Fase 0  | Inicialización del repositorio                           | Completado | 2026-07-26 |
 | Fase 1A | Decisiones funcionales y documentación de dominio        | Completado | 2026-07-26 |
 | Fase 1B | Base técnica modular de la API                           | Completado | 2026-07-27 |
+| Fase 1C | Modelo físico de usuarios, roles, permisos, dispositivos | Completado | 2026-07-28 |

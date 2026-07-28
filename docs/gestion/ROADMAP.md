@@ -1,6 +1,6 @@
 # Roadmap
 
-## Fase actual: Fase 1B completada — preparando Fase 2
+## Fase actual: Fase 1C completada — preparando Fase 2
 
 ## Fase 0 — Inicialización del repositorio ✅
 
@@ -58,7 +58,25 @@
 
 ---
 
-## Fase 2 — Módulos de cartera y gestiones (PENDIENTE)
+## Fase 1C — Modelo físico de usuarios, roles, permisos y dispositivos ✅
+
+**Objetivo:** Implementar el modelo de datos físico de autenticación y dispositivos con restricciones completas, servicios de dominio y pruebas de integración.
+
+**Completado (2026-07-28):**
+- Migración V002: 7 tablas (`roles`, `permisos`, `usuarios`, `usuario_roles`, `rol_permisos`, `dispositivos`, `supervision_usuarios`) con CHECKs, índices parciales e invariantes de negocio.
+- Migración V003: 4 roles y 7 permisos con UUIDs estables, matriz de permisos por rol.
+- Módulo `usuarios`: entidades JPA, repositorios, `UsuarioService`, `SupervisionService`, BCrypt port/adapter.
+- Módulo `dispositivos`: entidad `Dispositivo`, `DispositivoService`, límite Spring Modulith (`allowedDependencies = "usuarios::api"`).
+- `UsuarioConsultaApi` como `@NamedInterface("api")` para cruce de módulo sin acoplamiento interno.
+- 54 pruebas pasan (unitarias + integración Testcontainers + Spring Modulith verify).
+- ADR-0018, ADR-0019, ADR-0020, ADR-0021.
+- `SEGURIDAD_USUARIOS_BASE.md`.
+
+**No incluye:** login, JWT, refresh tokens, endpoints HTTP expuestos.
+
+---
+
+## Fase 2 — Autenticación y módulos de cartera (PENDIENTE)
 
 > Anteriormente llamado "segunda mitad de Fase 1". Se inicia después de que Fase 1B esté estable.
 

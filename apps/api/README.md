@@ -20,17 +20,18 @@ API REST del sistema de cobranza en terreno.
 
 ```
 cl.zzenner.cobranza/
-├── autenticacion/     — login, JWT, logout
-├── usuarios/          — usuarios y roles
-├── dispositivos/      — registro y revocación de dispositivos Android
-├── carteras/          — carteras de cobranza
-├── asignaciones/      — asignaciones mensuales y diarias
-├── personas/          — copia operacional de personas y datos financieros
-├── operaciones/       — créditos y cuotas por persona
-├── gestiones/         — registro idempotente de gestiones de terreno
-├── sincronizacion/    — coordinación de sincronización con Android
-├── auditoria/         — trazabilidad de operaciones críticas
-└── compartido/        — utilidades transversales sin lógica de dominio
+├── autenticacion/     — login, JWT, logout (pendiente Fase 2)
+├── usuarios/          — usuarios, roles, permisos, supervisión (Fase 1C ✅)
+│   └── api/           — UsuarioConsultaApi (@NamedInterface)
+├── dispositivos/      — registro y revocación de dispositivos Android (Fase 1C ✅)
+├── carteras/          — carteras de cobranza (stub)
+├── asignaciones/      — asignaciones mensuales y diarias (stub)
+├── personas/          — copia operacional de personas y datos financieros (stub)
+├── operaciones/       — créditos y cuotas por persona (stub)
+├── gestiones/         — registro idempotente de gestiones de terreno (stub)
+├── sincronizacion/    — coordinación de sincronización con Android (stub)
+├── auditoria/         — trazabilidad de operaciones críticas (stub)
+└── compartido/        — utilidades transversales sin lógica de dominio (stub)
 ```
 
 ## Comandos de desarrollo
