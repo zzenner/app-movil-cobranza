@@ -2,13 +2,15 @@ package cl.zzenner.cobranza.usuarios.infraestructura;
 
 import cl.zzenner.cobranza.usuarios.aplicacion.CodificadorContrasena;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 // Prueba directa del adaptador BCrypt con costo 4 para velocidad.
 class CodificadorContrasenaTest {
 
-    private final CodificadorContrasena codificador = new BcryptCodificadorContrasena(4);
+    private final CodificadorContrasena codificador =
+            new BcryptCodificadorContrasena(new BCryptPasswordEncoder(4));
 
     @Test
     void codificar_produce_hash_no_vacio() {

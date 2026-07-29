@@ -1,17 +1,16 @@
 package cl.zzenner.cobranza.usuarios.infraestructura;
 
 import cl.zzenner.cobranza.usuarios.aplicacion.CodificadorContrasena;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
 class BcryptCodificadorContrasena implements CodificadorContrasena {
 
-    private final BCryptPasswordEncoder encoder;
+    private final PasswordEncoder encoder;
 
-    BcryptCodificadorContrasena(@Value("${security.bcrypt.strength:12}") int strength) {
-        this.encoder = new BCryptPasswordEncoder(strength);
+    BcryptCodificadorContrasena(PasswordEncoder encoder) {
+        this.encoder = encoder;
     }
 
     @Override

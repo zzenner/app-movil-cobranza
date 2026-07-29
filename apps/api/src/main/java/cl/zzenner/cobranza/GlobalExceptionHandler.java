@@ -1,5 +1,6 @@
 package cl.zzenner.cobranza;
 
+import cl.zzenner.cobranza.dispositivos.api.DispositivoDeOtroUsuarioException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ProblemDetail;
@@ -14,6 +15,15 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+
+    @ExceptionHandler(DispositivoDeOtroUsuarioException.class)
+    ProblemDetail handleDispositivoConflicto(DispositivoDeOtroUsuarioException ex) {
+        ProblemDetail problem = ProblemDetail.forStatus(409);
+        problem.setType(URI.create("https://cobranza.zzenner.cl/errores/conflicto-dispositivo"));
+        problem.setTitle("Conflicto de dispositivo");
+        problem.setDetail("El dispositivo no puede asociarse a esta sesión.");
+        return problem;
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ProblemDetail handleValidacion(MethodArgumentNotValidException ex) {

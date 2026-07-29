@@ -43,6 +43,9 @@ public class Usuario {
     @Column(name = "fecha_ultimo_acceso")
     private Instant fechaUltimoAcceso;
 
+    @Column(name = "bloqueado_hasta")
+    private Instant bloqueadoHasta;
+
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private Instant fechaCreacion;
 
@@ -81,6 +84,11 @@ public class Usuario {
         return activo && !bloqueado;
     }
 
+    public boolean estaHabilitadoEn(Instant momento) {
+        boolean bloqueadoTemp = bloqueadoHasta != null && momento.isBefore(bloqueadoHasta);
+        return activo && !bloqueado && !bloqueadoTemp;
+    }
+
     public void bloquear() {
         this.bloqueado = true;
     }
@@ -96,6 +104,7 @@ public class Usuario {
 
     public void registrarAccesoExitoso() {
         this.intentosFallidos = 0;
+        this.bloqueadoHasta = null;
         this.fechaUltimoAcceso = Instant.now();
     }
 
@@ -110,6 +119,8 @@ public class Usuario {
     public boolean isBloqueado() { return bloqueado; }
     public int getIntentosFallidos() { return intentosFallidos; }
     public Instant getFechaUltimoAcceso() { return fechaUltimoAcceso; }
+    public Instant getBloqueadoHasta() { return bloqueadoHasta; }
+    public void setBloqueadoHasta(Instant bloqueadoHasta) { this.bloqueadoHasta = bloqueadoHasta; }
     public Instant getFechaCreacion() { return fechaCreacion; }
     public Instant getFechaActualizacion() { return fechaActualizacion; }
     public long getVersion() { return version; }

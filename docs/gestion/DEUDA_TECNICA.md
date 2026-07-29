@@ -4,6 +4,30 @@ Este documento registra deuda técnica real identificada, con contexto suficient
 
 ## Deuda activa
 
+### DT-007 — Depuración de refresh tokens consumidos
+**Área:** API, DB.
+**Descripción:** Los tokens `CONSUMIDO` se conservan en `refresh_tokens` para detección de reutilización, pero no existe proceso de purga. La tabla crecerá indefinidamente.
+**Impacto:** Crecimiento de storage a largo plazo; consultas podrían degradarse sin índices de limpieza.
+**Decisión recomendada:** Implementar job de depuración en Fase 3 (DELETE WHERE estado IN ('CONSUMIDO', 'REVOCADO') AND fecha_consumo/revocacion < now() - interval '90 days').
+
+---
+
+### DT-008 — Rotación de claves RSA sin plan operacional
+**Área:** API, operaciones.
+**Descripción:** No existe proceso definido para rotar el par RSA (vencimiento, compromiso). La rotación requiere actualizar variables de entorno y reiniciar el servicio, lo que invalida todos los access tokens activos.
+**Impacto:** Seguridad operacional; sin rotación periódica aumenta el riesgo de explotación de clave comprometida.
+**Decisión recomendada:** Definir política de rotación anual + procedimiento de emergencia antes del despliegue en producción.
+
+---
+
+### DT-009 — Revocación de sesión al revocar dispositivo no es en tiempo real
+**Área:** API.
+**Descripción:** Si se revoca un dispositivo desde el admin, la sesión activa de ese dispositivo sigue siendo válida hasta que el próximo refresh falle o el access token expire.
+**Impacto:** Ventana de acceso post-revocación de hasta 15 minutos (access token) más el tiempo hasta el próximo refresh.
+**Decisión recomendada:** En Fase 3, invalidar activamente sesiones al revocar dispositivo.
+
+---
+
 ### ~~DT-001 — Mecanismo de autenticación offline por confirmar~~ → Resuelto
 
 Ver **DT-R04** en la sección de deuda resuelta.

@@ -5,6 +5,56 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-07-28 — Fase 2: Autenticación y Sesiones 🔄
+
+### Añadido
+
+**Migraciones Flyway:**
+- `V004__crear_sesiones_tokens.sql` — tablas `sesiones_autenticacion` y `refresh_tokens`. Índices únicos parciales para una sesión activa por (usuario, dispositivo) y un refresh token activo por sesión. CHECKs de coherencia de estado.
+- `V005__agregar_bloqueado_hasta.sql` — columna `bloqueado_hasta TIMESTAMPTZ` en `cobranza.usuarios` para bloqueo temporal automático.
+
+**Módulo `dispositivos` (extensión):**
+- `dispositivos/api/` como `@NamedInterface("api")`: `DatosDispositivo`, `DispositivoConsultaApi`, `DispositivoNoValidoException`.
+- `DispositivoConsultaApiImpl` con validación: activo, no revocado, pertenece al usuario.
+
+**Módulo `usuarios` (extensión):**
+- `Usuario.estaHabilitadoEn(Instant)` — considera bloqueo temporal además del administrativo.
+- `Usuario.registrarAccesoExitoso()` — ahora limpia `bloqueadoHasta`.
+- `UsuarioConsultaApi` — nuevos métodos: `registrarIntentoFallido`, `aplicarBloqueoTemporal`, `registrarAccesoExitoso`, `buscarCredencialesPorId`.
+- `CredencialesUsuario` — clase final con `@JsonIgnoreType`, sin hash en `toString()`.
+- `BcryptCodificadorContrasena` — delega a `PasswordEncoder` bean inyectado (antes lo creaba con `new`).
+
+**Módulo `autenticacion` (nuevo):**
+- Dominio: `SesionAutenticacion`, `RefreshToken` con estados y transiciones.
+- Infraestructura: `SesionRepository`, `RefreshTokenRepository` con consultas JPQL y `@Lock(PESSIMISTIC_WRITE)`.
+- Aplicación: `PropiedadesJwt` (properties), `GestorTokens` (emisión JWT y tokens opacos), `AutenticacionService` (login, renovación atómica, logout).
+- Web: `AutenticacionController` con endpoints `/login`, `/refresh`, `/logout`, `/me`. DTOs: `SolicitudLogin`, `SolicitudRenovacion`, `RespuestaToken`, `RespuestaInfoUsuario`.
+- Seguridad: `SeguridadConfig` (SecurityFilterChain stateless, CSRF off), `RsaKeyConfig` (carga filesystem, `@ConditionalOnMissingBean`), `CargadorClavesRsa`.
+- Configuración raíz: `SeguridadBaseConfig` (beans `PasswordEncoder` y `Clock`).
+
+**Pruebas:**
+- `AutenticacionTestConfig` — par RSA 2048-bit en memoria para pruebas.
+- `AutenticacionIntegracionTest` — 8 pruebas de integración: login, credenciales incorrectas, refresh, reuso de token, logout, /me.
+- `GestorTokensTest` — 8 pruebas unitarias de generación y hash de tokens.
+- `PoliticoBloqueoTest` — 5 pruebas unitarias de política de bloqueo temporal.
+
+**ADRs:**
+- ADR-0022: JWT RS256 y gestión de claves RSA externas.
+- ADR-0023: Refresh tokens opacos con rotación atómica.
+- ADR-0024: Sesiones por par usuario-dispositivo con expiración absoluta.
+- ADR-0025: Frontera de credenciales y PasswordEncoder compartido.
+
+### Cambiado
+- `InfraestructuraTest` — cuenta de tablas actualizada de 7 a 9 (V004 agrega 2 tablas).
+- Tests de integración existentes — añadido `@Import(AutenticacionTestConfig.class)` para proveer RSA en memoria.
+- `CodificadorContrasenaTest` — constructor actualizado a `BcryptCodificadorContrasena(PasswordEncoder)`.
+
+### Riesgos aceptados del MVP
+- Access tokens permanecen válidos hasta 15 minutos después de logout o cambio de permisos (stateless por diseño).
+- Roles y permisos en `/me` pueden estar desactualizados hasta que el token expire o se renueve.
+
+---
+
 ## [Sin versión] — 2026-07-28 — Fase 1C: Modelo físico de usuarios, roles, permisos y dispositivos ✅
 
 ### Resultado

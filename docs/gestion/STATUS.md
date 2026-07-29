@@ -1,7 +1,7 @@
 # Estado del proyecto
 
 **Última actualización:** 2026-07-28
-**Fase actual:** Fase 1C completada ✅ — Fase 2 pendiente de inicio
+**Fase actual:** Fase 2 — Autenticación y Sesiones (implementación completada, pruebas pendientes de ejecución)
 
 ## Resumen
 
@@ -17,6 +17,7 @@
 | Plantillas GitHub                                         | Completado            |
 | API — base técnica (Fase 1B)                              | Completado ✅          |
 | **API — modelo físico usuarios/roles/dispositivos (1C)**  | **Completado ✅**      |
+| **API — autenticación y sesiones (Fase 2)**               | **En progreso 🔄**    |
 | Admin Web (Angular)                                       | No iniciado           |
 | App Android (Kotlin)                                      | No iniciado           |
 | Despliegue en VPS                                         | No iniciado           |
@@ -144,9 +145,33 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 | ADR-0018, ADR-0019, ADR-0020, ADR-0021 | ✅ |
 | `SEGURIDAD_USUARIOS_BASE.md` | ✅ |
 
-## Próximo paso recomendado
+## Fase 2 — Autenticación y Sesiones (2026-07-28)
 
-Iniciar la **Fase 2** con el módulo de autenticación (login, JWT, refresh tokens) que consumirá `UsuarioConsultaApi`.
+### Implementado
+
+| Item | Estado |
+|---|---|
+| V004: tablas `sesiones_autenticacion` y `refresh_tokens` | ✅ |
+| V005: columna `bloqueado_hasta` en `usuarios` | ✅ |
+| `dispositivos::api` — `DispositivoConsultaApi`, `DatosDispositivo` | ✅ |
+| `usuarios::api` — `CredencialesUsuario`, métodos de estado en `UsuarioConsultaApi` | ✅ |
+| Módulo `autenticacion` — dominio, infraestructura, aplicación, web | ✅ |
+| `SecurityFilterChain` — stateless, CSRF deshabilitado, Bearer JWT | ✅ |
+| `JwtDecoder` RS256 con validación de firma, fechas, issuer, audience | ✅ |
+| `JwtEncoder` — claves RSA desde sistema de archivos externo | ✅ |
+| `AutenticacionService` — login, renovación atómica, logout idempotente | ✅ |
+| Política de bloqueo — 5 intentos, 30 min, no incrementar en bloqueo activo | ✅ |
+| Rotación de refresh token con detección de reutilización | ✅ |
+| `AutenticacionTestConfig` — par RSA en memoria para pruebas | ✅ |
+| ADR-0022 a ADR-0025 | ✅ |
+| 4 endpoints: POST /login, POST /refresh, POST /logout, GET /me | ✅ |
+
+### Pendiente de ejecución
+
+- Ejecutar `mvn test` con Docker disponible para validar todos los tests.
+- Generar par RSA 2048-bit externo y configurar variables de entorno en el servidor.
+
+## Próximo paso recomendado
 
 Antes de implementar los endpoints de sincronización: resolver DP-01 y DP-02 (gestiones fuera de asignación, visibilidad de gestiones ajenas).
 
@@ -158,3 +183,4 @@ Antes de implementar los endpoints de sincronización: resolver DP-01 y DP-02 (g
 | Fase 1A | Decisiones funcionales y documentación de dominio        | Completado | 2026-07-26 |
 | Fase 1B | Base técnica modular de la API                           | Completado | 2026-07-27 |
 | Fase 1C | Modelo físico de usuarios, roles, permisos, dispositivos | Completado | 2026-07-28 |
+| Fase 2  | Autenticación y sesiones (JWT RS256, refresh tokens, sesiones) | En progreso | 2026-07-28 |

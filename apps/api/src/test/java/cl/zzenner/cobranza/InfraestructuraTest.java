@@ -1,10 +1,13 @@
 package cl.zzenner.cobranza;
 
+import cl.zzenner.cobranza.autenticacion.AutenticacionTestConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -14,6 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @Testcontainers
+@Import(AutenticacionTestConfig.class)
+@TestPropertySource(properties = "security.bcrypt.strength=4")
 class InfraestructuraTest {
 
     @Container
@@ -48,11 +53,11 @@ class InfraestructuraTest {
 
     @Test
     void flyway_crea_tablas_en_esquema_cobranza() {
-        // V002 crea 7 tablas de negocio; Hibernate usa ddl-auto=validate (no crea tablas).
+        // V002: 7 tablas base; V004: 2 tablas de sesiones/tokens → 9 en total
         Integer tablas = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'cobranza'",
                 Integer.class);
-        assertThat(tablas).isEqualTo(7);
+        assertThat(tablas).isEqualTo(9);
     }
 
     @Test

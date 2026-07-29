@@ -1,5 +1,6 @@
 package cl.zzenner.cobranza;
 
+import cl.zzenner.cobranza.autenticacion.AutenticacionTestConfig;
 import cl.zzenner.cobranza.dispositivos.aplicacion.DispositivoService;
 import cl.zzenner.cobranza.dispositivos.dominio.DispositivoDuplicadoException;
 import cl.zzenner.cobranza.usuarios.aplicacion.UsuarioService;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -21,6 +23,7 @@ import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest
 @Testcontainers
+@Import(AutenticacionTestConfig.class)
 @TestPropertySource(properties = "security.bcrypt.strength=4")
 class SeguridadIntegracionTest {
 

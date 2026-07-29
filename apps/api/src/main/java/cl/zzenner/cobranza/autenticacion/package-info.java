@@ -6,7 +6,10 @@
  *
  * <p>Estado: stub — pendiente de implementación en Fase 2.
  */
-@ApplicationModule(displayName = "Autenticacion")
+@ApplicationModule(
+        displayName = "Autenticacion",
+        allowedDependencies = {"usuarios::api", "dispositivos::api"}
+)
 package cl.zzenner.cobranza.autenticacion;
 
 import org.springframework.modulith.ApplicationModule;

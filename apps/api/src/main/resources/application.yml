@@ -10,10 +10,6 @@ spring:
       hibernate:
         format_sql: false
 
-security:
-  bcrypt:
-    strength: 12
-
   mvc:
     problemdetails:
       enabled: true
@@ -21,6 +17,13 @@ security:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # JwtDecoder se configura programáticamente en SecurityConfig.
+          # Estas propiedades no se usan directamente.
 
 management:
   endpoints:
@@ -55,3 +58,21 @@ server:
       charset: UTF-8
       enabled: true
       force: true
+
+security:
+  bcrypt:
+    strength: 12
+
+app:
+  jwt:
+    duracion-access-token: PT15M
+    duracion-refresh-token: P30D
+    duracion-sesion-absoluta: P90D
+    max-intentos-fallidos: 5
+    duracion-bloqueo-temporal: PT30M
+    issuer: ${JWT_ISSUER:cobranza-api-dev}
+    audience: ${JWT_AUDIENCE:cobranza-api}
+    kid: ${JWT_KID:cobranza-rsa-2026-01}
+    rsa:
+      clave-privada: ${JWT_RSA_PRIVADA_PATH:}
+      clave-publica: ${JWT_RSA_PUBLICA_PATH:}
