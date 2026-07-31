@@ -92,12 +92,14 @@ public class AutenticacionService {
 
         usuarioConsultaApi.registrarAccesoExitoso(credenciales.getId());
 
-        // Cerrar sesión previa si existe
+        // Cerrar sesión previa si existe.
+        // saveAndFlush fuerza el UPDATE antes del INSERT de la nueva sesión,
+        // evitando que Hibernate viole el índice parcial uq_sesiones_activa_usuario_dispositivo.
         sesionRepository.findActivaByUsuarioIdAndDispositivoId(credenciales.getId(), dispositivo.id())
                 .ifPresent(s -> {
                     refreshTokenRepository.revocarActivosDeSesion(s.getId(), ahora);
                     s.cerrar(SesionAutenticacion.MotivoCierre.LOGOUT);
-                    sesionRepository.save(s);
+                    sesionRepository.saveAndFlush(s);
                 });
 
         Instant vencimientoAbs = ahora.plus(propiedades.duracionSesionAbsoluta());
@@ -142,7 +144,9 @@ public class AutenticacionService {
         }
 
         token.consumir(ahora);
-        refreshTokenRepository.save(token);
+        // saveAndFlush fuerza el UPDATE (CONSUMIDO) antes del INSERT del nuevo token,
+        // evitando violar el índice parcial uq_refresh_tokens_activo_sesion.
+        refreshTokenRepository.saveAndFlush(token);
         sesion.actualizarUltimoAcceso(ahora);
         sesionRepository.save(sesion);
 
