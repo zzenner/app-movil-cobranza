@@ -7,7 +7,7 @@
  *
  * <p>Estado: stub — pendiente de implementación en Fase 2.
  */
-@ApplicationModule(displayName = "Operaciones")
+@ApplicationModule(displayName = "Operaciones", allowedDependencies = {"compartido", "personas::api"})
 package cl.zzenner.cobranza.operaciones;
 
 import org.springframework.modulith.ApplicationModule;

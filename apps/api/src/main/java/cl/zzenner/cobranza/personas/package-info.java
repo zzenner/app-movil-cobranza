@@ -2,13 +2,12 @@
  * Módulo de personas.
  *
  * <p>Responsabilidad: copia operacional de personas y sus datos asociados
- * (RUT, avales, direcciones importadas, observaciones de dirección).
- * Los datos provienen del sistema externo y se actualizan por importación.
- * Depende de: compartido.
+ * (RUT, avales, direcciones importadas).
+ * Los datos provienen del sistema externo y se actualizan por importación (ADR-0014).
  *
- * <p>Estado: stub — pendiente de implementación en Fase 2.
+ * <p>Dependencias permitidas: compartido, carteras::api.
  */
-@ApplicationModule(displayName = "Personas")
+@ApplicationModule(displayName = "Personas", allowedDependencies = {"compartido", "carteras::api"})
 package cl.zzenner.cobranza.personas;
 
 import org.springframework.modulith.ApplicationModule;
