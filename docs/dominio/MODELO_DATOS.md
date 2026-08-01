@@ -55,11 +55,34 @@ Historial de relaciones supervisor-ejecutivo.
 | `rut_numero`      | VARCHAR(10)  | Parte numérica del RUT (sin dígito verificador).     |
 | `rut_dv`          | VARCHAR(1)   | Dígito verificador del RUT.                          |
 | `nombre`          | VARCHAR(200) | Nombre completo.                                     |
-| `cartera_id`      | UUID FK      | Cartera activa (NULL si no está asignada).           |
 | `created_at`      | TIMESTAMPTZ  |                                                      |
 | `updated_at`      | TIMESTAMPTZ  |                                                      |
 
-Índice recomendado: `(rut_numero, rut_dv)` UNIQUE.
+Índice: `(rut_numero, rut_dv)` UNIQUE.
+
+> `cartera_id` fue eliminado en V008. La relación persona–cartera se gestiona ahora en `carteras_personas`.
+
+### `carteras_personas`
+Relación N:M entre personas y carteras. Conserva historial de altas y bajas.
+
+| Columna              | Tipo        | Descripción                                             |
+|----------------------|-------------|---------------------------------------------------------|
+| `id`                 | UUID PK     | Generado por Java en ejecución normal.                  |
+| `cartera_id`         | UUID FK     | Referencia a `carteras`.                                |
+| `persona_id`         | UUID FK     | Referencia a `personas`.                                |
+| `activa`             | BOOLEAN     | TRUE = vínculo vigente; FALSE = vínculo cerrado.        |
+| `fecha_inicio`       | DATE        | Fecha de inicio del vínculo.                            |
+| `fecha_fin`          | DATE        | Fecha de cierre (NULL si está activo).                  |
+| `fecha_creacion`     | TIMESTAMPTZ | Inmutable.                                              |
+| `fecha_actualizacion`| TIMESTAMPTZ | Se actualiza al cerrar el vínculo.                      |
+| `version`            | BIGINT      | Optimistic locking.                                     |
+
+Restricciones:
+- PK por `id`.
+- FK a `carteras` y `personas` (RESTRICT).
+- UNIQUE parcial: `(cartera_id, persona_id) WHERE activa = TRUE`.
+- CHECK: `(activa=TRUE AND fecha_fin IS NULL) OR (activa=FALSE AND fecha_fin IS NOT NULL)`.
+- CHECK: `fecha_fin IS NULL OR fecha_fin >= fecha_inicio`.
 
 ### `avales`
 Información de solo lectura sobre quienes garantizan operaciones de una persona. Proveniente de la carga CSV o del sistema externo. No recibe gestiones ni asignaciones.

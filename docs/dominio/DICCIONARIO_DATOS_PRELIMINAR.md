@@ -73,11 +73,32 @@ Descripción de los atributos de las entidades principales del sistema. Este dic
 | `rut_numero` | VARCHAR(10) | No | Parte numérica del RUT, sin dígito verificador ni puntos. |
 | `rut_dv` | VARCHAR(1) | No | Dígito verificador del RUT (0-9 o K). |
 | `nombre` | VARCHAR(200) | No | Nombre completo. |
-| `cartera_id` | UUID | Sí | FK → `carteras`. NULL si no está asignada. |
 | `created_at` | TIMESTAMPTZ | No | |
 | `updated_at` | TIMESTAMPTZ | No | |
 
 Restricción: `UNIQUE (rut_numero, rut_dv)`.
+
+> `cartera_id` fue eliminado en V008 (RN-03 revisada). La relación persona–cartera se gestiona en `carteras_personas`.
+
+---
+
+## `carteras_personas`
+
+Relación N:M entre personas y carteras. Conserva historial de altas y bajas.
+
+| Columna | Tipo | Nulo | Descripción |
+|---|---|---|---|
+| `id` | UUID | No | PK. Generado por Java en ejecución normal. |
+| `cartera_id` | UUID | No | FK → `carteras`. |
+| `persona_id` | UUID | No | FK → `personas`. |
+| `activa` | BOOLEAN | No | TRUE = vínculo vigente. Default: `true`. |
+| `fecha_inicio` | DATE | No | Fecha de inicio del vínculo. |
+| `fecha_fin` | DATE | Sí | Fecha de cierre. NULL = activo. |
+| `fecha_creacion` | TIMESTAMPTZ | No | Inmutable. |
+| `fecha_actualizacion` | TIMESTAMPTZ | No | Se actualiza al cerrar. |
+| `version` | BIGINT | No | Optimistic locking. Default: 0. |
+
+Restricciones: `UNIQUE (cartera_id, persona_id) WHERE activa = TRUE`.
 
 ---
 

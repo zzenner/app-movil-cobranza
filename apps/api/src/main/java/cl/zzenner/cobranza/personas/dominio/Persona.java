@@ -19,9 +19,6 @@ public class Persona {
     @Column(name = "nombre", nullable = false, length = 300)
     private String nombre;
 
-    @Column(name = "cartera_id")
-    private UUID carteraId;
-
     @Column(name = "codigo_externo", length = 100)
     private String codigoExterno;
 
@@ -64,14 +61,6 @@ public class Persona {
         fechaActualizacion = Instant.now();
     }
 
-    public void asignarCartera(UUID carteraId) {
-        this.carteraId = carteraId;
-    }
-
-    public void quitarCartera() {
-        this.carteraId = null;
-    }
-
     public void registrarImportacion(Instant fechaOrigen) {
         this.fechaActualizacionOrigen = fechaOrigen;
         this.fechaImportacion = Instant.now();
@@ -80,7 +69,6 @@ public class Persona {
     public UUID getId() { return id; }
     public Rut getRut() { return rut; }
     public String getNombre() { return nombre; }
-    public UUID getCarteraId() { return carteraId; }
     public String getCodigoExterno() { return codigoExterno; }
     public String getSistemaOrigen() { return sistemaOrigen; }
     public Instant getFechaActualizacionOrigen() { return fechaActualizacionOrigen; }

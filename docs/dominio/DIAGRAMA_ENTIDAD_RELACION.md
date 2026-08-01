@@ -19,9 +19,20 @@ erDiagram
         varchar rut_numero
         varchar rut_dv
         varchar nombre
-        uuid cartera_id FK
         timestamptz created_at
         timestamptz updated_at
+    }
+
+    CARTERAS_PERSONAS {
+        uuid id PK
+        uuid cartera_id FK
+        uuid persona_id FK
+        boolean activa
+        date fecha_inicio
+        date fecha_fin
+        timestamptz fecha_creacion
+        timestamptz fecha_actualizacion
+        bigint version
     }
 
     AVALES {
@@ -207,7 +218,8 @@ erDiagram
         text fila_original
     }
 
-    CARTERAS ||--o{ PERSONAS : "contiene"
+    CARTERAS ||--o{ CARTERAS_PERSONAS : "aparece en"
+    PERSONAS ||--o{ CARTERAS_PERSONAS : "pertenece a"
     PERSONAS ||--o{ AVALES : "tiene"
     PERSONAS ||--o{ DIRECCIONES : "tiene"
     PERSONAS ||--o{ OBSERVACIONES_DIRECCION : "tiene"

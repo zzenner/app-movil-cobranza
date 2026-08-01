@@ -27,8 +27,8 @@ Unidad principal de gestión. Titular de operaciones de deuda. El cobrador visit
 - Teléfonos de contacto.
 
 **Reglas:**
-- Pertenece como máximo a una cartera activa.
-- Tiene como máximo un ejecutivo responsable activo a la vez.
+- Puede pertenecer a una o más carteras activas simultáneamente (ver `carteras_personas`).
+- Tiene como máximo un ejecutivo responsable activo por cartera.
 - Puede acumular múltiples gestiones históricas.
 
 ---
@@ -91,7 +91,9 @@ Agrupación de personas para gestión de cobranza.
 - Estado (activa / inactiva).
 
 **Reglas:**
-- Una persona puede pertenecer como máximo a una cartera activa.
+- Una persona puede pertenecer a una o más carteras activas simultáneamente.
+- Para un mismo par persona–cartera puede existir como máximo un vínculo activo.
+- El historial de vínculos se conserva sin borrado físico (tabla `carteras_personas`).
 
 ---
 
@@ -243,7 +245,7 @@ Teléfono corporativo asociado a un usuario ejecutivo.
 ## Relaciones principales
 
 ```
-Cartera             1 --- N  Persona
+Cartera             N --- M  Persona              (via carteras_personas, con historial)
 Persona             1 --- N  Operacion
 Operacion           1 --- N  Cuota
 Persona             1 --- N  Aval

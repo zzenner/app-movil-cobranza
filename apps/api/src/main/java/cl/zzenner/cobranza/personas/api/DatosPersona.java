@@ -6,6 +6,5 @@ public record DatosPersona(
         UUID id,
         String rutNumero,
         String rutDv,
-        String nombre,
-        UUID carteraId
+        String nombre
 ) {}

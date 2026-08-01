@@ -15,8 +15,9 @@ Este documento registra las reglas de negocio confirmadas y las preguntas aún p
 - No se usa `caso_cobranza` como unidad principal.
 
 ### RN-03 Pertenencia a cartera
-- Una persona puede pertenecer como máximo a una cartera activa en un momento dado.
-- Una persona no puede estar asignada a dos ejecutivos simultáneamente.
+- Una persona puede pertenecer simultáneamente a una o más carteras activas.
+- Para un mismo par persona–cartera puede existir como máximo un vínculo activo.
+- El historial de vínculos persona–cartera se conserva sin borrado físico.
 
 ### RN-04 Ejecutivo responsable
 - Una persona puede tener solo un ejecutivo de terreno responsable activo a la vez.

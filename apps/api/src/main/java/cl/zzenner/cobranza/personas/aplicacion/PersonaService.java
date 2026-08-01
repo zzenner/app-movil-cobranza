@@ -4,12 +4,15 @@ import cl.zzenner.cobranza.carteras.api.CarteraConsultaApi;
 import cl.zzenner.cobranza.carteras.api.CarteraNoEncontradaException;
 import cl.zzenner.cobranza.personas.dominio.*;
 import cl.zzenner.cobranza.personas.infraestructura.AvalRepository;
+import cl.zzenner.cobranza.personas.infraestructura.CarteraPersonaRepository;
 import cl.zzenner.cobranza.personas.infraestructura.DireccionRepository;
 import cl.zzenner.cobranza.personas.infraestructura.PersonaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -19,15 +22,18 @@ public class PersonaService {
     private final PersonaRepository personaRepository;
     private final AvalRepository avalRepository;
     private final DireccionRepository direccionRepository;
+    private final CarteraPersonaRepository carteraPersonaRepository;
     private final CarteraConsultaApi carteraConsultaApi;
 
     public PersonaService(PersonaRepository personaRepository,
                           AvalRepository avalRepository,
                           DireccionRepository direccionRepository,
+                          CarteraPersonaRepository carteraPersonaRepository,
                           CarteraConsultaApi carteraConsultaApi) {
         this.personaRepository = personaRepository;
         this.avalRepository = avalRepository;
         this.direccionRepository = direccionRepository;
+        this.carteraPersonaRepository = carteraPersonaRepository;
         this.carteraConsultaApi = carteraConsultaApi;
     }
 
@@ -48,14 +54,39 @@ public class PersonaService {
                 });
     }
 
-    public void asignarCartera(UUID personaId, UUID carteraId) {
-        Persona persona = personaRepository.findById(personaId)
-                .orElseThrow(() -> new PersonaNoEncontradaException(personaId));
+    public void vincularCartera(UUID personaId, UUID carteraId, LocalDate fechaInicio) {
+        if (!personaRepository.existsById(personaId)) {
+            throw new PersonaNoEncontradaException(personaId);
+        }
         if (!carteraConsultaApi.existeActiva(carteraId)) {
             throw new CarteraNoEncontradaException(carteraId);
         }
-        persona.asignarCartera(carteraId);
-        personaRepository.save(persona);
+        if (carteraPersonaRepository.existsByCarteraIdAndPersonaIdAndActivaTrue(carteraId, personaId)) {
+            throw new VinculoYaActivoException(personaId, carteraId);
+        }
+        carteraPersonaRepository.save(new CarteraPersona(carteraId, personaId, fechaInicio));
+    }
+
+    public void cerrarVinculo(UUID personaId, UUID carteraId, LocalDate fechaFin) {
+        CarteraPersona vinculo = carteraPersonaRepository
+                .findByCarteraIdAndPersonaIdAndActivaTrue(carteraId, personaId)
+                .orElseThrow(() -> new VinculoNoEncontradoException(personaId, carteraId));
+        vinculo.cerrar(fechaFin);
+        carteraPersonaRepository.save(vinculo);
+    }
+
+    public List<UUID> consultarCarterasActivas(UUID personaId) {
+        return carteraPersonaRepository.findByPersonaIdAndActivaTrue(personaId)
+                .stream()
+                .map(CarteraPersona::getCarteraId)
+                .toList();
+    }
+
+    public List<UUID> consultarPersonasActivas(UUID carteraId) {
+        return carteraPersonaRepository.findByCarteraIdAndActivaTrue(carteraId)
+                .stream()
+                .map(CarteraPersona::getPersonaId)
+                .toList();
     }
 
     public Direccion registrarDireccion(UUID personaId, TipoDireccion tipo, String texto,

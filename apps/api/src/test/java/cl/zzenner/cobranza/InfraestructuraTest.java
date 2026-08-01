@@ -53,11 +53,11 @@ class InfraestructuraTest {
 
     @Test
     void flyway_crea_tablas_en_esquema_cobranza() {
-        // V002: 7 tablas; V004: +2 sesiones/tokens; V006: +4 carteras/personas/avales/direcciones; V007: +2 operaciones/cuotas → 15
+        // V002: 7; V004: +2 sesiones/tokens; V006: +4 carteras/personas/avales/direcciones; V007: +2 operaciones/cuotas; V008: +1 carteras_personas → 16
         Integer tablas = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'cobranza'",
                 Integer.class);
-        assertThat(tablas).isEqualTo(15);
+        assertThat(tablas).isEqualTo(16);
     }
 
     @Test

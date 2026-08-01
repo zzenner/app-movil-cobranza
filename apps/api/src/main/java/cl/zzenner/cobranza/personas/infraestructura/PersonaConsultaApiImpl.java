@@ -14,9 +14,12 @@ import java.util.UUID;
 class PersonaConsultaApiImpl implements PersonaConsultaApi {
 
     private final PersonaRepository personaRepository;
+    private final CarteraPersonaRepository carteraPersonaRepository;
 
-    PersonaConsultaApiImpl(PersonaRepository personaRepository) {
+    PersonaConsultaApiImpl(PersonaRepository personaRepository,
+                           CarteraPersonaRepository carteraPersonaRepository) {
         this.personaRepository = personaRepository;
+        this.carteraPersonaRepository = carteraPersonaRepository;
     }
 
     @Override
@@ -34,13 +37,17 @@ class PersonaConsultaApiImpl implements PersonaConsultaApi {
         return personaRepository.findByRutNumeroAndRutDv(rutNumero, rutDv).map(this::toDto);
     }
 
+    @Override
+    public boolean personaActivaEnCartera(UUID personaId, UUID carteraId) {
+        return carteraPersonaRepository.existsByCarteraIdAndPersonaIdAndActivaTrue(carteraId, personaId);
+    }
+
     private DatosPersona toDto(Persona p) {
         return new DatosPersona(
                 p.getId(),
                 p.getRut().getNumero(),
                 p.getRut().getDv(),
-                p.getNombre(),
-                p.getCarteraId()
+                p.getNombre()
         );
     }
 }

@@ -10,4 +10,6 @@ public interface PersonaConsultaApi {
     boolean existe(UUID id);
 
     Optional<DatosPersona> findByRut(String rutNumero, String rutDv);
+
+    boolean personaActivaEnCartera(UUID personaId, UUID carteraId);
 }

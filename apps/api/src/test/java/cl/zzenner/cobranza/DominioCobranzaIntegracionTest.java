@@ -25,6 +25,7 @@ import org.testcontainers.utility.DockerImageName;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -248,5 +249,105 @@ class DominioCobranzaIntegracionTest {
                         " VALUES (gen_random_uuid(), gen_random_uuid(), 'OP-FK', 'LEGADO'," +
                         " 'ACTIVA', 'CLP', 100, 0, 0, now(), now(), 0)"))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    // ── Migración V008: carteras_personas ─────────────────────────────────────
+
+    @Test
+    void tabla_carteras_personas_existe() {
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.tables"
+                        + " WHERE table_schema='cobranza' AND table_name='carteras_personas'",
+                Integer.class);
+        assertThat(count).isEqualTo(1);
+    }
+
+    @Test
+    void personas_no_tiene_columna_cartera_id() {
+        // La columna fue eliminada por V008; Persona ya no tiene una única cartera
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.columns"
+                        + " WHERE table_schema='cobranza' AND table_name='personas'"
+                        + " AND column_name='cartera_id'",
+                Integer.class);
+        assertThat(count).isZero();
+    }
+
+    // ── CarteraPersona: relación múltiple ─────────────────────────────────────
+    // RUTs usados: 20000000-5, 20000001-3, 20000002-1, 20000003-K
+    // Distintos de los usados en tests anteriores para evitar conflictos de UNIQUE.
+
+    @Test
+    void persona_puede_pertenecer_a_dos_carteras_activas_simultaneamente() {
+        Rut rut = Rut.of("20000000", "5");
+        Persona p = personaService.upsertPersona(rut, "Multi Cartera", "LEGADO", null, Instant.now());
+
+        Cartera c1 = carteraService.registrar("Cartera Consumo", null);
+        Cartera c2 = carteraService.registrar("Cartera Tarjeta", null);
+
+        personaService.vincularCartera(p.getId(), c1.getId(), LocalDate.now());
+        personaService.vincularCartera(p.getId(), c2.getId(), LocalDate.now());
+
+        List<java.util.UUID> carteras = personaService.consultarCarterasActivas(p.getId());
+        assertThat(carteras).hasSize(2).contains(c1.getId(), c2.getId());
+    }
+
+    @Test
+    void no_puede_repetirse_vinculo_activo_misma_persona_cartera() {
+        Rut rut = Rut.of("20000001", "3");
+        Persona p = personaService.upsertPersona(rut, "Duplicado Test", "LEGADO", null, Instant.now());
+        Cartera c = carteraService.registrar("Cartera Unica Dup", null);
+
+        personaService.vincularCartera(p.getId(), c.getId(), LocalDate.now());
+
+        assertThatThrownBy(() -> personaService.vincularCartera(p.getId(), c.getId(), LocalDate.now()))
+                .isInstanceOf(VinculoYaActivoException.class);
+    }
+
+    @Test
+    void cierre_de_vinculo_conserva_historial() {
+        Rut rut = Rut.of("20000002", "1");
+        Persona p = personaService.upsertPersona(rut, "Historial Test", "LEGADO", null, Instant.now());
+        Cartera c = carteraService.registrar("Cartera Historial", null);
+
+        personaService.vincularCartera(p.getId(), c.getId(), LocalDate.now());
+        personaService.cerrarVinculo(p.getId(), c.getId(), LocalDate.now());
+
+        // El vínculo cerrado sigue en la tabla como fila histórica
+        Integer total = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cobranza.carteras_personas"
+                        + " WHERE persona_id=? AND cartera_id=?",
+                Integer.class, p.getId(), c.getId());
+        assertThat(total).isEqualTo(1);
+
+        // Pero ya no hay un vínculo activo
+        Integer activos = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cobranza.carteras_personas"
+                        + " WHERE persona_id=? AND cartera_id=? AND activa=TRUE",
+                Integer.class, p.getId(), c.getId());
+        assertThat(activos).isZero();
+    }
+
+    @Test
+    void puede_crearse_vinculo_nuevo_para_mismo_par_tras_cierre() {
+        Rut rut = Rut.of("20000003", "K");
+        Persona p = personaService.upsertPersona(rut, "Reopen Test", "LEGADO", null, Instant.now());
+        Cartera c = carteraService.registrar("Cartera Reopen", null);
+
+        personaService.vincularCartera(p.getId(), c.getId(), LocalDate.now());
+        personaService.cerrarVinculo(p.getId(), c.getId(), LocalDate.now());
+
+        // Después del cierre se puede crear un nuevo vínculo activo
+        personaService.vincularCartera(p.getId(), c.getId(), LocalDate.now().plusDays(1));
+
+        List<java.util.UUID> activas = personaService.consultarCarterasActivas(p.getId());
+        assertThat(activas).containsExactly(c.getId());
+
+        // El historial acumula dos filas para el mismo par
+        Integer total = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cobranza.carteras_personas"
+                        + " WHERE persona_id=? AND cartera_id=?",
+                Integer.class, p.getId(), c.getId());
+        assertThat(total).isEqualTo(2);
     }
 }
