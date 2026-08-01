@@ -21,6 +21,7 @@ class UsuarioConsultaApiImpl implements UsuarioConsultaApi {
     private final RolRepository rolRepository;
     private final RolPermisoRepository rolPermisoRepository;
     private final PermisoRepository permisoRepository;
+    private final SupervisionRepository supervisionRepository;
     private final Clock clock;
 
     UsuarioConsultaApiImpl(UsuarioRepository usuarioRepository,
@@ -28,12 +29,14 @@ class UsuarioConsultaApiImpl implements UsuarioConsultaApi {
                             RolRepository rolRepository,
                             RolPermisoRepository rolPermisoRepository,
                             PermisoRepository permisoRepository,
+                            SupervisionRepository supervisionRepository,
                             Clock clock) {
         this.usuarioRepository = usuarioRepository;
         this.usuarioRolRepository = usuarioRolRepository;
         this.rolRepository = rolRepository;
         this.rolPermisoRepository = rolPermisoRepository;
         this.permisoRepository = permisoRepository;
+        this.supervisionRepository = supervisionRepository;
         this.clock = clock;
     }
 
@@ -84,6 +87,20 @@ class UsuarioConsultaApiImpl implements UsuarioConsultaApi {
         Usuario usuario = usuarioRepository.findById(usuarioId).orElseThrow();
         usuario.registrarAccesoExitoso();
         usuarioRepository.save(usuario);
+    }
+
+    @Override
+    public boolean tieneRolActivo(UUID usuarioId, String codigoRol) {
+        return rolRepository.findByCodigo(codigoRol)
+                .map(rol -> usuarioRolRepository.existsByUsuarioIdAndRolIdAndActivoTrue(usuarioId, rol.getId()))
+                .orElse(false);
+    }
+
+    @Override
+    public boolean tieneSupervisionActiva(UUID supervisorId, UUID ejecutivoId) {
+        return supervisionRepository.findByEjecutivoIdAndActivoTrue(ejecutivoId)
+                .map(s -> s.getSupervisorId().equals(supervisorId))
+                .orElse(false);
     }
 
     private CredencialesUsuario construirCredenciales(Usuario u) {

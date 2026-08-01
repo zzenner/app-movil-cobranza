@@ -49,4 +49,16 @@ public interface UsuarioConsultaApi {
      * y actualiza fecha_ultimo_acceso.
      */
     void registrarAccesoExitoso(UUID usuarioId);
+
+    /**
+     * Verifica que el usuario tiene el rol indicado activo.
+     *
+     * @param codigoRol código exacto según la tabla cobranza.roles
+     */
+    boolean tieneRolActivo(UUID usuarioId, String codigoRol);
+
+    /**
+     * Verifica que existe una relación de supervisión activa donde supervisorId supervisa a ejecutivoId.
+     */
+    boolean tieneSupervisionActiva(UUID supervisorId, UUID ejecutivoId);
 }

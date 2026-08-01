@@ -5,7 +5,85 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
-## [Sin versión] — 2026-07-28 — Fase 2: Autenticación y Sesiones 🔄
+## [Sin versión] — 2026-08-01 — Fase 3B corrección: historial individual de asignaciones mensuales ✅
+
+### Corrección — AsignacionMensualPersona: historial individual por persona
+
+**Problema:** la clave primaria compuesta `(asignacion_mensual_id, persona_id)` impedía conservar múltiples períodos históricos para la misma persona en la misma asignación mensual. Sin `fecha_inicio`/`fecha_fin` en la fila del vínculo, era imposible auditar cuándo cada persona estuvo asignada. No había ninguna garantía de integridad referencial a nivel de BD para el campo `cartera_id` denormalizado en la tabla hija.
+
+**Cambios en V009:**
+- `asignaciones_mensuales_personas` — PK reemplazada por `id UUID`. Añadidos: `fecha_inicio DATE NOT NULL`, `fecha_fin DATE` (NULL = activo), `fecha_actualizacion TIMESTAMPTZ`, `version BIGINT`.
+- CHECKs: `(activa=TRUE AND fecha_fin IS NULL) OR (activa=FALSE AND fecha_fin IS NOT NULL)` y `fecha_fin IS NULL OR fecha_fin >= fecha_inicio`.
+- `asignaciones_mensuales` — añadido `UNIQUE(id, cartera_id)` como ancla para la FK compuesta.
+- `asignaciones_mensuales_personas` — FK compuesta `(asignacion_mensual_id, cartera_id)` → `asignaciones_mensuales(id, cartera_id)` garantiza coherencia de `cartera_id` en BD (no solo en Java).
+
+**Cambios en entidad/repositorio:**
+- Eliminado `AsignacionMensualPersonaId.java`.
+- `AsignacionMensualPersona` — PK UUID generada en constructor, campos `fechaInicio`, `fechaFin`, `fechaActualizacion`, `@Version`. Nuevo método `cerrar(LocalDate)` con validaciones.
+- `AsignacionMensualPersonaRepository` — PK cambia a UUID. Nuevos métodos: `existsByAsignacionMensualIdAndPersonaIdAndActivaTrue`, `findByAsignacionMensualIdAndPersonaIdAndActivaTrue`, `existsByPersonaIdAndCarteraIdAndActivaTrue`. Renombrado: `findAllByAsignacionMensualIdAndActivaTrue`. Bulk close: `cerrarTodasParaMensual(mid, fechaFin, ahora)` propaga `fecha_fin` y `fecha_actualizacion`.
+
+**Cambios en servicio:**
+- `agregarPersonaAMensual` — verifica solo vínculo ACTIVO (permite reincorporación tras cierre individual).
+- `removerPersonaDeMensual(UUID, UUID, LocalDate)` — nuevo método: cierra solo el vínculo de la persona indicada sin afectar a las demás.
+- `cerrarAsignacionMensual` — propaga `fecha_fin = LocalDate.now()` al bulk close de vínculos.
+- `agregarPersonaADiaria` — verifica solo vínculo ACTIVO (personas removidas individualmente no aparecen en diarias).
+
+**Tests:**
+- 5 nuevos tests de integración: reasignación individual, historial con fecha_inicio/fecha_fin, FK compuesta (BD rechaza cartera_id incorrecto), cierre masivo con fecha_fin, reincorporación con historial preservado.
+- Total: **182 pruebas — 0 failures — Modularidad PASS — BUILD SUCCESS**.
+
+---
+
+## [Sin versión] — 2026-08-01 — Fase 3B: Asignaciones mensuales y diarias ✅
+
+### Corrección previa: Fase 3A — relación persona–cartera N:M
+
+- `V008__permitir_personas_multiples_carteras.sql` — tabla `carteras_personas` con historial. Elimina `personas.cartera_id`. Índice parcial `(cartera_id, persona_id) WHERE activa = TRUE`.
+- `CarteraPersona` — entidad con `cerrar(LocalDate)`, `@PrePersist`, `@PreUpdate`, `@Version`.
+- `PersonaService` — `vincularCartera`, `cerrarVinculo`, `consultarCarterasActivas`, `consultarPersonasActivas`.
+- `PersonaConsultaApi` — agrega `personaActivaEnCartera(UUID, UUID)`.
+- `DatosPersona` — eliminado campo `carteraId`.
+- `UsuarioConsultaApi` — agrega `tieneRolActivo` y `tieneSupervisionActiva`.
+- `UsuarioConsultaApiImpl` — implementa los dos nuevos métodos; inyecta `SupervisionRepository`.
+- Documentación: `REGLAS_NEGOCIO.md`, `MODELO_DOMINIO.md`, `MODELO_DATOS.md`, `DIAGRAMA_ENTIDAD_RELACION.md`, `DICCIONARIO_DATOS_PRELIMINAR.md`.
+- 12 tests nuevos (6 unitarios + 6 integración). Total: 146.
+- `InfraestructuraTest` — actualizado conteo de tablas: 15 → 16.
+
+### Añadido en Fase 3B
+
+**Migración Flyway:**
+- `V009__crear_asignaciones.sql` — 4 tablas: `asignaciones_mensuales`, `asignaciones_mensuales_personas`, `asignaciones_diarias`, `asignaciones_diarias_personas`.
+  - `uq_am_ejecutivo_cartera_activa` — un ejecutivo, una asignación mensual activa por cartera.
+  - `uq_amp_persona_cartera_activa` — una persona, un ejecutivo activo por cartera (RN-04, protegido en BD).
+  - `uq_ad_ejecutivo_fecha_activa` — un ejecutivo, una diaria en BORRADOR o PUBLICADA por fecha.
+  - CHECKs de coherencia: PUBLICADA→fecha_publicacion, CANCELADA→motivo.
+
+**Módulo `asignaciones` (nuevo):**
+- `AsignacionMensual` — entidad raíz con `cerrar()`, `@Version`, `@PrePersist`/`@PreUpdate`.
+- `AsignacionMensualPersona` + `AsignacionMensualPersonaId` — relación N:M con `carteraId` denormalizado y `activa`.
+- `AsignacionDiaria` — máquina de estados: `publicar()`, `finalizar()`, `cancelar(motivo)`.
+- `AsignacionDiariaPersona` + `AsignacionDiariaPersonaId` — relación N:M simple.
+- `EstadoAsignacionDiaria` — enum: BORRADOR, PUBLICADA, FINALIZADA, CANCELADA.
+- Excepciones: `AsignacionNoEncontradaException`, `PersonaYaEnAsignacionException`, `TransicionEstadoInvalidaException`, `PersonaFueraDeAsignacionMensualException`.
+- Repositorios: `AsignacionMensualRepository`, `AsignacionMensualPersonaRepository`, `AsignacionDiariaRepository`, `AsignacionDiariaPersonaRepository`.
+- `AsignacionService` — 7 operaciones con validación de roles, supervisión, cartera y membresía de persona.
+- `AsignacionConsultaApi` + `AsignacionConsultaApiImpl` — API pública `@NamedInterface("api")`.
+
+**Pruebas:**
+- `AsignacionMensualDominioTest` — 5 unitarias.
+- `AsignacionDiariaDominioTest` — 13 unitarias (máquina de estados completa).
+- `DominioAsignacionesIntegracionTest` — 13 integración incluyendo 3 pruebas de índices BD.
+- `InfraestructuraTest` — actualizado conteo de tablas: 16 → 20.
+- **Total: 177 pruebas — 0 failures — BUILD SUCCESS — Modularidad PASS.**
+
+### No implementado (fuera de alcance Fase 3B)
+- Endpoints REST de asignaciones.
+- `descargas_asignacion_diaria` — postergado a fase de sincronización.
+- Importación CSV de asignaciones.
+
+---
+
+## [Sin versión] — 2026-07-28 — Fase 2: Autenticación y Sesiones ✅
 
 ### Añadido
 

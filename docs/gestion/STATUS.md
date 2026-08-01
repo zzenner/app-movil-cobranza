@@ -1,7 +1,7 @@
 # Estado del proyecto
 
-**Última actualización:** 2026-07-28
-**Fase actual:** Fase 2 — Autenticación y Sesiones (implementación completada, pruebas pendientes de ejecución)
+**Última actualización:** 2026-08-01
+**Fase actual:** Fase 3B — Asignaciones mensuales y diarias (implementación completada, corrección de historial individual aprobada, sin endpoints REST)
 
 ## Resumen
 
@@ -17,7 +17,9 @@
 | Plantillas GitHub                                         | Completado            |
 | API — base técnica (Fase 1B)                              | Completado ✅          |
 | **API — modelo físico usuarios/roles/dispositivos (1C)**  | **Completado ✅**      |
-| **API — autenticación y sesiones (Fase 2)**               | **En progreso 🔄**    |
+| **API — autenticación y sesiones (Fase 2)**               | **Completado ✅**      |
+| **API — corrección persona-cartera (Fase 3A fix)**        | **Completado ✅**      |
+| **API — asignaciones mensuales y diarias (Fase 3B)**      | **En progreso 🔄**    |
 | Admin Web (Angular)                                       | No iniciado           |
 | App Android (Kotlin)                                      | No iniciado           |
 | Despliegue en VPS                                         | No iniciado           |
@@ -171,9 +173,45 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 - Ejecutar `mvn test` con Docker disponible para validar todos los tests.
 - Generar par RSA 2048-bit externo y configurar variables de entorno en el servidor.
 
+## Fase 3A (corrección) y 3B completadas (2026-08-01)
+
+### Fase 3A fix: relación persona–cartera N:M
+
+| Item | Resultado |
+|---|---|
+| V008: tabla `carteras_personas` (N:M con historial) | ✅ |
+| `CarteraPersona` — entidad con `cerrar()` y auditoría | ✅ |
+| `PersonaService` — `vincularCartera`, `cerrarVinculo`, `consultarCarterasActivas` | ✅ |
+| `PersonaConsultaApi` — `personaActivaEnCartera()` | ✅ |
+| `DatosPersona` — eliminado `carteraId` | ✅ |
+| 6 tests unitarios dominio CarteraPersona | ✅ |
+| 6 tests integración multi-cartera | ✅ |
+
+### Fase 3B: asignaciones mensuales y diarias (+ corrección historial individual)
+
+| Item | Resultado |
+|---|---|
+| V009: 4 tablas de asignaciones | ✅ |
+| `asignaciones_mensuales_personas` — PK UUID, historial por persona | ✅ |
+| `asignaciones_mensuales_personas` — FK compuesta garantiza `cartera_id` en BD | ✅ |
+| `asignaciones_mensuales_personas` — `fecha_inicio`, `fecha_fin`, `fecha_actualizacion`, `@Version` | ✅ |
+| `AsignacionMensual` — `UNIQUE(id, cartera_id)` como ancla de FK compuesta | ✅ |
+| `AsignacionMensualPersona` — `cerrar(LocalDate)` con validaciones | ✅ |
+| `AsignacionService.removerPersonaDeMensual` — cierre individual sin afectar al resto | ✅ |
+| `AsignacionService.cerrarAsignacionMensual` — propaga `fecha_fin` a vínculos | ✅ |
+| `AsignacionMensual`, `AsignacionDiaria` — entidades con lógica de estado | ✅ |
+| `AsignacionService` — 8 operaciones con validaciones | ✅ |
+| `AsignacionConsultaApi` — interfaz pública `@NamedInterface("api")` | ✅ |
+| `UsuarioConsultaApi` — `tieneRolActivo`, `tieneSupervisionActiva` | ✅ |
+| 5 tests unitarios `AsignacionMensualDominioTest` | ✅ |
+| 13 tests unitarios `AsignacionDiariaDominioTest` | ✅ |
+| 18 tests integración `DominioAsignacionesIntegracionTest` | ✅ |
+| Modularidad Spring Modulith — PASS | ✅ |
+| **182 pruebas — 0 failures** | ✅ |
+
 ## Próximo paso recomendado
 
-Antes de implementar los endpoints de sincronización: resolver DP-01 y DP-02 (gestiones fuera de asignación, visibilidad de gestiones ajenas).
+Endpoints REST de asignaciones (Fase 3C) o resolución de DP-01/DP-02 (gestiones).
 
 ## Historial de fases
 
@@ -183,4 +221,6 @@ Antes de implementar los endpoints de sincronización: resolver DP-01 y DP-02 (g
 | Fase 1A | Decisiones funcionales y documentación de dominio        | Completado | 2026-07-26 |
 | Fase 1B | Base técnica modular de la API                           | Completado | 2026-07-27 |
 | Fase 1C | Modelo físico de usuarios, roles, permisos, dispositivos | Completado | 2026-07-28 |
-| Fase 2  | Autenticación y sesiones (JWT RS256, refresh tokens, sesiones) | En progreso | 2026-07-28 |
+| Fase 2  | Autenticación y sesiones (JWT RS256, refresh tokens, sesiones) | Completado | 2026-07-28 |
+| Fase 3A fix | Corrección persona–cartera N:M (V008, carteras_personas) | Completado | 2026-08-01 |
+| Fase 3B | Asignaciones mensuales y diarias (V009, dominio, servicio, API) | Completado | 2026-08-01 |
