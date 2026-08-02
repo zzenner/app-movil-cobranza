@@ -1,0 +1,11 @@
+# Copiar como local.properties (ignorado por Git) y ajustar las rutas locales.
+# El archivo local.properties NO se versiona.
+
+# Ruta al Android SDK en la máquina local.
+# En Windows con WSL2, usar una ruta accesible desde Linux.
+sdk.dir=/home/msalazar/Android/Sdk
+
+# URL base de la API REST en desarrollo local.
+# Usar 10.0.2.2 en emulador Android para apuntar al localhost del host.
+# En dispositivo físico, usar la IP de la máquina de desarrollo.
+# api.base.url=http://10.0.2.2:8080/

@@ -39,10 +39,15 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -67,68 +72,175 @@ class AutenticacionIntegracionTest {
 
     static final String CONTRASENA = "ClaveTest.123!";
 
+    // Identificadores de instalación (UUID strings generados por la "app Android")
+    String idInstalacionPrincipal;
+
     UUID usuarioId;
-    UUID dispositivoId;
     UUID inactivoId;
-    UUID dispInactivoId;
     UUID bloqueadoAdminId;
-    UUID dispBloqueadoAdminId;
     UUID tempBloqueadoId;
-    UUID dispTempBloqueadoId;
     UUID revoId;
-    UUID dispRevoId;
     UUID otroId;
-    UUID dispOtroId;
 
     @BeforeAll
     void setupClase() {
+        idInstalacionPrincipal = UUID.randomUUID().toString();
+
         usuarioId = usuarioService.crearUsuario(
                 "login.test", "Login", "Test", null, null, CONTRASENA);
-        dispositivoId = dispositivoService.registrarDispositivo(
-                usuarioId, UUID.randomUUID().toString(),
-                "Device Principal", "Test", "Model", "12", "1.0.0");
 
         inactivoId = usuarioService.crearUsuario(
                 "login.inactivo", "Inactivo", "Test", null, null, CONTRASENA);
-        dispInactivoId = dispositivoService.registrarDispositivo(
-                inactivoId, UUID.randomUUID().toString(),
-                "Device Inactivo", "Test", "Model", "12", "1.0.0");
         jdbc.update("UPDATE cobranza.usuarios SET activo = false WHERE id = ?", inactivoId);
 
         bloqueadoAdminId = usuarioService.crearUsuario(
                 "login.bloq.admin", "Bloq", "Admin", null, null, CONTRASENA);
-        dispBloqueadoAdminId = dispositivoService.registrarDispositivo(
-                bloqueadoAdminId, UUID.randomUUID().toString(),
-                "Device BloqAdmin", "Test", "Model", "12", "1.0.0");
         jdbc.update("UPDATE cobranza.usuarios SET bloqueado = true WHERE id = ?", bloqueadoAdminId);
 
         tempBloqueadoId = usuarioService.crearUsuario(
                 "login.bloq.temp", "Bloq", "Temp", null, null, CONTRASENA);
-        dispTempBloqueadoId = dispositivoService.registrarDispositivo(
-                tempBloqueadoId, UUID.randomUUID().toString(),
-                "Device BloqTemp", "Test", "Model", "12", "1.0.0");
         usuarioConsultaApi.aplicarBloqueoTemporal(
                 tempBloqueadoId, Instant.now().plus(Duration.ofHours(1)));
 
         revoId = usuarioService.crearUsuario(
                 "login.revocado", "Revocado", "Test", null, null, CONTRASENA);
-        dispRevoId = dispositivoService.registrarDispositivo(
-                revoId, UUID.randomUUID().toString(),
-                "Device Revocado", "Test", "Model", "12", "1.0.0");
-        dispositivoService.revocarDispositivo(dispRevoId);
 
         otroId = usuarioService.crearUsuario(
                 "login.otro", "Otro", "Usuario", null, null, CONTRASENA);
-        dispOtroId = dispositivoService.registrarDispositivo(
-                otroId, UUID.randomUUID().toString(),
-                "Device Otro", "Test", "Model", "12", "1.0.0");
+    }
+
+    // ─── Primer login registra el dispositivo ─────────────────────────────────────
+
+    @Test
+    void primer_login_registra_dispositivo_automaticamente() {
+        String nuevoId = UUID.randomUUID().toString();
+        SolicitudLogin req = new SolicitudLogin("login.test", CONTRASENA, nuevoId);
+        ResponseEntity<RespuestaToken> resp = rest.postForEntity(
+                "/api/v1/auth/login", req, RespuestaToken.class);
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        // El dispositivo fue registrado en BD
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cobranza.dispositivos WHERE identificador_instalacion = ?",
+                Integer.class, nuevoId);
+        assertThat(count).isEqualTo(1);
+    }
+
+    // ─── Login posterior reutiliza el mismo dispositivo ────────────────────────────
+
+    @Test
+    void login_posterior_reutiliza_mismo_dispositivo() throws Exception {
+        String idInstalacion = UUID.randomUUID().toString();
+        SolicitudLogin req = new SolicitudLogin("login.test", CONTRASENA, idInstalacion);
+
+        RespuestaToken primera = rest.postForEntity("/api/v1/auth/login", req, RespuestaToken.class)
+                .getBody();
+        assertThat(primera).isNotNull();
+        String did1 = SignedJWT.parse(primera.accessToken()).getJWTClaimsSet().getStringClaim("did");
+
+        RespuestaToken segunda = rest.postForEntity("/api/v1/auth/login", req, RespuestaToken.class)
+                .getBody();
+        assertThat(segunda).isNotNull();
+        String did2 = SignedJWT.parse(segunda.accessToken()).getJWTClaimsSet().getStringClaim("did");
+
+        // Mismo UUID interno del dispositivo en ambos JWTs
+        assertThat(did1).isEqualTo(did2);
+
+        // Solo un registro en BD para ese identificador
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cobranza.dispositivos WHERE identificador_instalacion = ?",
+                Integer.class, idInstalacion);
+        assertThat(count).isEqualTo(1);
+    }
+
+    // ─── JWT contiene UUID interno correcto en "did" ─────────────────────────────
+
+    @Test
+    void jwt_did_contiene_uuid_interno_del_dispositivo_no_el_identificador() throws Exception {
+        String idInstalacion = UUID.randomUUID().toString();
+        SolicitudLogin req = new SolicitudLogin("login.test", CONTRASENA, idInstalacion);
+        RespuestaToken tokens = rest.postForEntity("/api/v1/auth/login", req, RespuestaToken.class)
+                .getBody();
+        assertThat(tokens).isNotNull();
+
+        String did = SignedJWT.parse(tokens.accessToken()).getJWTClaimsSet().getStringClaim("did");
+
+        // "did" es el UUID interno (PK de BD), distinto al identificadorInstalacion
+        assertThat(did).isNotEqualTo(idInstalacion);
+
+        // El UUID interno existe en BD y su identificador_instalacion coincide
+        UUID dispositivoUuid = UUID.fromString(did);
+        String idInstalacionEnBd = jdbc.queryForObject(
+                "SELECT identificador_instalacion FROM cobranza.dispositivos WHERE id = ?",
+                String.class, dispositivoUuid);
+        assertThat(idInstalacionEnBd).isEqualTo(idInstalacion);
+    }
+
+    // ─── Credenciales incorrectas no registran dispositivo ────────────────────────
+
+    @Test
+    void credenciales_incorrectas_no_registran_dispositivo() {
+        String nuevoId = UUID.randomUUID().toString();
+        SolicitudLogin req = new SolicitudLogin("login.test", "clave-incorrecta", nuevoId);
+        ResponseEntity<String> resp = rest.postForEntity("/api/v1/auth/login", req, String.class);
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cobranza.dispositivos WHERE identificador_instalacion = ?",
+                Integer.class, nuevoId);
+        assertThat(count).isZero();
+    }
+
+    // ─── Identificador asociado a otro usuario devuelve 409 ──────────────────────
+
+    @Test
+    void identificador_asociado_a_otro_usuario_retorna_409() {
+        String idCompartido = UUID.randomUUID().toString();
+
+        // Primer login con "login.otro" registra el dispositivo
+        SolicitudLogin reqOtro = new SolicitudLogin("login.otro", CONTRASENA, idCompartido);
+        ResponseEntity<RespuestaToken> primero = rest.postForEntity(
+                "/api/v1/auth/login", reqOtro, RespuestaToken.class);
+        assertThat(primero.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        // "login.test" intenta usar el mismo identificador → 409 CONFLICTO_DISPOSITIVO
+        SolicitudLogin reqPrincipal = new SolicitudLogin("login.test", CONTRASENA, idCompartido);
+        ResponseEntity<String> conflicto = rest.postForEntity(
+                "/api/v1/auth/login", reqPrincipal, String.class);
+        assertThat(conflicto.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(conflicto.getBody()).contains("CONFLICTO_DISPOSITIVO");
+    }
+
+    // ─── Dispositivo revocado no puede iniciar sesión ─────────────────────────────
+
+    @Test
+    void dispositivo_revocado_retorna_401() {
+        String idRevocado = UUID.randomUUID().toString();
+
+        // Primer login registra el dispositivo
+        SolicitudLogin req = new SolicitudLogin("login.revocado", CONTRASENA, idRevocado);
+        ResponseEntity<RespuestaToken> login1 = rest.postForEntity(
+                "/api/v1/auth/login", req, RespuestaToken.class);
+        assertThat(login1.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        // Obtener UUID interno del dispositivo y revocarlo
+        UUID dispId = jdbc.queryForObject(
+                "SELECT id FROM cobranza.dispositivos WHERE identificador_instalacion = ?",
+                UUID.class, idRevocado);
+        dispositivoService.revocarDispositivo(dispId);
+
+        // Login posterior → 401
+        ResponseEntity<String> login2 = rest.postForEntity("/api/v1/auth/login", req, String.class);
+        assertThat(login2.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     // ─── Login exitoso ────────────────────────────────────────────────────────────
 
     @Test
     void login_con_credenciales_validas_retorna_tokens() {
-        SolicitudLogin req = new SolicitudLogin("login.test", CONTRASENA, dispositivoId);
+        SolicitudLogin req = new SolicitudLogin("login.test", CONTRASENA, idInstalacionPrincipal);
         ResponseEntity<RespuestaToken> resp = rest.postForEntity(
                 "/api/v1/auth/login", req, RespuestaToken.class);
 
@@ -145,7 +257,7 @@ class AutenticacionIntegracionTest {
 
     @Test
     void login_con_contrasena_incorrecta_retorna_401() {
-        SolicitudLogin req = new SolicitudLogin("login.test", "clave-incorrecta", dispositivoId);
+        SolicitudLogin req = new SolicitudLogin("login.test", "clave-incorrecta", idInstalacionPrincipal);
         ResponseEntity<String> resp = rest.postForEntity("/api/v1/auth/login", req, String.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
@@ -153,64 +265,52 @@ class AutenticacionIntegracionTest {
     @Test
     void login_con_usuario_inexistente_retorna_401_generico() {
         SolicitudLogin req = new SolicitudLogin(
-                "usuario.que.no.existe", "cualquier", UUID.randomUUID());
+                "usuario.que.no.existe", "cualquier", UUID.randomUUID().toString());
         ResponseEntity<String> resp = rest.postForEntity("/api/v1/auth/login", req, String.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
     void login_con_usuario_inactivo_retorna_401() {
-        SolicitudLogin req = new SolicitudLogin("login.inactivo", CONTRASENA, dispInactivoId);
+        SolicitudLogin req = new SolicitudLogin(
+                "login.inactivo", CONTRASENA, UUID.randomUUID().toString());
         ResponseEntity<String> resp = rest.postForEntity("/api/v1/auth/login", req, String.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
     void login_con_usuario_bloqueado_administrativamente_retorna_401() {
-        SolicitudLogin req = new SolicitudLogin("login.bloq.admin", CONTRASENA, dispBloqueadoAdminId);
+        SolicitudLogin req = new SolicitudLogin(
+                "login.bloq.admin", CONTRASENA, UUID.randomUUID().toString());
         ResponseEntity<String> resp = rest.postForEntity("/api/v1/auth/login", req, String.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
     void login_con_usuario_bloqueado_temporalmente_retorna_401() {
-        SolicitudLogin req = new SolicitudLogin("login.bloq.temp", CONTRASENA, dispTempBloqueadoId);
+        SolicitudLogin req = new SolicitudLogin(
+                "login.bloq.temp", CONTRASENA, UUID.randomUUID().toString());
         ResponseEntity<String> resp = rest.postForEntity("/api/v1/auth/login", req, String.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-    }
-
-    @Test
-    void login_con_dispositivo_revocado_retorna_401() {
-        SolicitudLogin req = new SolicitudLogin("login.revocado", CONTRASENA, dispRevoId);
-        ResponseEntity<String> resp = rest.postForEntity("/api/v1/auth/login", req, String.class);
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-    }
-
-    @Test
-    void login_con_dispositivo_de_otro_usuario_retorna_409() {
-        // dispOtroId pertenece a "login.otro"; intentar autenticar "login.test" con ese dispositivo
-        SolicitudLogin req = new SolicitudLogin("login.test", CONTRASENA, dispOtroId);
-        ResponseEntity<String> resp = rest.postForEntity("/api/v1/auth/login", req, String.class);
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     }
 
     // ─── Segunda sesión cierra la anterior ───────────────────────────────────────
 
     @Test
     void segundo_login_mismo_dispositivo_cierra_sesion_anterior() {
-        SolicitudLogin req = new SolicitudLogin("login.test", CONTRASENA, dispositivoId);
+        String idInstalacion = UUID.randomUUID().toString();
+        SolicitudLogin req = new SolicitudLogin("login.test", CONTRASENA, idInstalacion);
 
         RespuestaToken sesion1 = rest.postForEntity("/api/v1/auth/login", req, RespuestaToken.class)
                 .getBody();
         assertThat(sesion1).isNotNull();
 
-        // Segundo login con el mismo par usuario-dispositivo: sesion1 queda CERRADA
         RespuestaToken sesion2 = rest.postForEntity("/api/v1/auth/login", req, RespuestaToken.class)
                 .getBody();
         assertThat(sesion2).isNotNull();
         assertThat(sesion2.refreshToken()).isNotEqualTo(sesion1.refreshToken());
 
-        // Refresh token de sesion1 fue REVOCADO
+        // Refresh token de sesion1 fue revocado
         ResponseEntity<String> reusoViejo = rest.postForEntity("/api/v1/auth/refresh",
                 new SolicitudRenovacion(sesion1.refreshToken()), String.class);
         assertThat(reusoViejo.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
@@ -242,34 +342,50 @@ class AutenticacionIntegracionTest {
     void reutilizar_refresh_token_consumido_retorna_401() {
         RespuestaToken login = loginPrincipal();
 
-        // Consumir el token original
         rest.postForEntity("/api/v1/auth/refresh",
                 new SolicitudRenovacion(login.refreshToken()), RespuestaToken.class);
 
-        // Reutilización detectada → 401
         ResponseEntity<String> reuso = rest.postForEntity("/api/v1/auth/refresh",
                 new SolicitudRenovacion(login.refreshToken()), String.class);
         assertThat(reuso.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
-    void hash_del_refresh_token_almacenado_en_bd_es_sha256() throws Exception {
-        RespuestaToken tokens = loginPrincipal();
+    void refresh_exitoso_rota_el_token() {
+        RespuestaToken login = loginPrincipal();
 
-        // El token crudo devuelto tiene 43 chars (Base64URL sin padding, 32 bytes)
+        ResponseEntity<RespuestaToken> renov = rest.postForEntity(
+                "/api/v1/auth/refresh",
+                new SolicitudRenovacion(login.refreshToken()), RespuestaToken.class);
+        assertThat(renov.getStatusCode()).isEqualTo(HttpStatus.OK);
+        RespuestaToken nuevo = renov.getBody();
+        assertThat(nuevo).isNotNull();
+        assertThat(nuevo.refreshToken()).isNotEqualTo(login.refreshToken());
+    }
+
+    @Test
+    void hash_del_refresh_token_almacenado_en_bd_es_sha256() throws Exception {
+        // Usar un identificador único por test para aislar la sesión creada
+        String idAislado = UUID.randomUUID().toString();
+        SolicitudLogin req = new SolicitudLogin("login.test", CONTRASENA, idAislado);
+        ResponseEntity<RespuestaToken> resp = rest.postForEntity(
+                "/api/v1/auth/login", req, RespuestaToken.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        RespuestaToken tokens = resp.getBody();
+        assertThat(tokens).isNotNull();
+
         assertThat(tokens.refreshToken()).hasSize(43);
 
-        // Recuperar el hash almacenado en BD para la sesión activa del usuario
+        // Filtrar por el identificador de instalación específico para obtener exactamente un token
         String hashEnBd = jdbc.queryForObject(
                 "SELECT rt.hash_token FROM cobranza.refresh_tokens rt"
                 + " JOIN cobranza.sesiones_autenticacion s ON rt.sesion_id = s.id"
-                + " WHERE s.usuario_id = ? AND s.estado = 'ACTIVA' AND rt.estado = 'ACTIVO'",
-                String.class, usuarioId);
+                + " JOIN cobranza.dispositivos d ON s.dispositivo_id = d.id"
+                + " WHERE d.identificador_instalacion = ? AND s.estado = 'ACTIVA' AND rt.estado = 'ACTIVO'",
+                String.class, idAislado);
 
-        // SHA-256 hex = 64 chars, distinto al token crudo
         assertThat(hashEnBd).hasSize(64).doesNotContain(tokens.refreshToken());
 
-        // Verificar que es el SHA-256 correcto del token crudo
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         String expectedHash = HexFormat.of().formatHex(
                 digest.digest(tokens.refreshToken().getBytes()));
@@ -310,14 +426,13 @@ class AutenticacionIntegracionTest {
     void jwt_access_token_contiene_claims_correctos() throws Exception {
         RespuestaToken tokens = loginPrincipal();
 
-        // Parsear sin verificar firma para inspeccionar claims del payload
         JWTClaimsSet claims = SignedJWT.parse(tokens.accessToken()).getJWTClaimsSet();
 
         assertThat(claims.getIssuer()).isEqualTo("cobranza-api-dev");
         assertThat(claims.getAudience()).contains("cobranza-api");
         assertThat(claims.getSubject()).isEqualTo(usuarioId.toString());
         assertThat(claims.getStringClaim("sid")).isNotBlank();
-        assertThat(claims.getStringClaim("did")).isEqualTo(dispositivoId.toString());
+        assertThat(claims.getStringClaim("did")).isNotBlank();
         assertThat(claims.getStringClaim("preferred_username")).isEqualTo("login.test");
         assertThat((List<?>) claims.getClaim("roles")).isNotNull();
         assertThat((List<?>) claims.getClaim("permisos")).isNotNull();
@@ -328,7 +443,6 @@ class AutenticacionIntegracionTest {
 
     @Test
     void token_con_firma_invalida_retorna_401() throws Exception {
-        // Generar un par RSA distinto, ajeno al servidor de pruebas
         KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
         gen.initialize(2048);
         KeyPair parAjeno = gen.generateKeyPair();
@@ -361,7 +475,6 @@ class AutenticacionIntegracionTest {
 
     @Test
     void token_expirado_retorna_401() {
-        // Emitir JWT firmado con clave correcta pero con exp en el pasado
         JwtClaimsSet claimsExpirado = JwtClaimsSet.builder()
                 .issuer("cobranza-api-dev")
                 .audience(List.of("cobranza-api"))
@@ -407,7 +520,6 @@ class AutenticacionIntegracionTest {
                 "/api/v1/auth/logout", HttpMethod.POST, new HttpEntity<>(headers), Void.class);
         assertThat(primero.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
-        // El JWT sigue siendo criptográficamente válido (15 min); el logout es idempotente
         ResponseEntity<Void> segundo = rest.exchange(
                 "/api/v1/auth/logout", HttpMethod.POST, new HttpEntity<>(headers), Void.class);
         assertThat(segundo.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
@@ -415,10 +527,6 @@ class AutenticacionIntegracionTest {
 
     @Test
     void excepcion_interna_con_token_valido_retorna_404_no_401_y_sin_stack_trace() {
-        // Con token válido la solicitud pasa el filtro de seguridad; Spring MVC no encuentra
-        // el handler y Tomcat re-despacha a /error como ERROR dispatch.
-        // Sin dispatcherTypeMatchers(DispatcherType.ERROR).permitAll() en SeguridadConfig,
-        // Spring Security bloquearía ese re-despacho y devolvería 401 en lugar de 404.
         RespuestaToken tokens = loginPrincipal();
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(tokens.accessToken());
@@ -431,17 +539,148 @@ class AutenticacionIntegracionTest {
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
 
-        // Sin stack trace en el cuerpo
         String cuerpo = resp.getBody();
         if (cuerpo != null) {
             assertThat(cuerpo).doesNotContain("java.", "Exception", "at cl.", "Caused by");
         }
     }
 
+    // ─── Validación del contrato HTTP ─────────────────────────────────────────────
+
+    @Test
+    void login_sin_identificador_instalacion_retorna_400() {
+        String cuerpoInvalido = """
+                {"nombreUsuario":"login.test","contrasena":"ClaveTest.123!"}
+                """;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        ResponseEntity<String> resp = rest.postForEntity(
+                "/api/v1/auth/login",
+                new HttpEntity<>(cuerpoInvalido, headers),
+                String.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void login_con_identificador_instalacion_formato_invalido_retorna_400() {
+        SolicitudLogin req = new SolicitudLogin("login.test", CONTRASENA, "no-es-un-uuid");
+        ResponseEntity<String> resp = rest.postForEntity("/api/v1/auth/login", req, String.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    // ─── Concurrencia de registro de dispositivo ─────────────────────────────────
+
+    /**
+     * Dos hilos del mismo usuario hacen el primer login con el mismo identificadorInstalacion.
+     * Resultado esperado:
+     * - ambas respuestas 200;
+     * - un único dispositivo en BD;
+     * - mismo UUID interno en ambos JWTs;
+     * - ningún 500.
+     */
+    @Test
+    void registro_concurrente_mismo_usuario_mismo_identificador_crea_un_solo_dispositivo() throws Exception {
+        String idConcurrente = UUID.randomUUID().toString();
+        SolicitudLogin req = new SolicitudLogin("login.test", CONTRASENA, idConcurrente);
+
+        int hilos = 2;
+        CountDownLatch listo = new CountDownLatch(hilos);
+        CountDownLatch arrancar = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(hilos);
+
+        List<Future<ResponseEntity<RespuestaToken>>> futuros = new ArrayList<>();
+        for (int i = 0; i < hilos; i++) {
+            futuros.add(pool.submit(() -> {
+                listo.countDown();
+                arrancar.await();
+                return rest.postForEntity("/api/v1/auth/login", req, RespuestaToken.class);
+            }));
+        }
+
+        listo.await();
+        arrancar.countDown();
+
+        List<ResponseEntity<RespuestaToken>> respuestas = new ArrayList<>();
+        for (Future<ResponseEntity<RespuestaToken>> f : futuros) {
+            respuestas.add(f.get());
+        }
+        pool.shutdown();
+
+        // Ambas deben ser 200
+        for (ResponseEntity<RespuestaToken> r : respuestas) {
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(r.getBody()).isNotNull();
+        }
+
+        // Un único dispositivo en BD
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cobranza.dispositivos WHERE identificador_instalacion = ?",
+                Integer.class, idConcurrente);
+        assertThat(count).isEqualTo(1);
+
+        // Mismo UUID interno del dispositivo en ambos access tokens
+        String did1 = SignedJWT.parse(respuestas.get(0).getBody().accessToken())
+                .getJWTClaimsSet().getStringClaim("did");
+        String did2 = SignedJWT.parse(respuestas.get(1).getBody().accessToken())
+                .getJWTClaimsSet().getStringClaim("did");
+        assertThat(did1).isEqualTo(did2);
+    }
+
+    /**
+     * Dos usuarios distintos compiten por el mismo identificadorInstalacion.
+     * Resultado esperado:
+     * - un 200 y un 409;
+     * - una única fila en BD;
+     * - ningún 500.
+     */
+    @Test
+    void registro_concurrente_dos_usuarios_mismo_identificador_produce_conflicto_controlado() throws Exception {
+        String idDisputa = UUID.randomUUID().toString();
+        SolicitudLogin reqTest = new SolicitudLogin("login.test", CONTRASENA, idDisputa);
+        SolicitudLogin reqOtro = new SolicitudLogin("login.otro", CONTRASENA, idDisputa);
+
+        int hilos = 2;
+        CountDownLatch listo = new CountDownLatch(hilos);
+        CountDownLatch arrancar = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(hilos);
+
+        Future<ResponseEntity<String>> futTest = pool.submit(() -> {
+            listo.countDown();
+            arrancar.await();
+            return rest.postForEntity("/api/v1/auth/login", reqTest, String.class);
+        });
+        Future<ResponseEntity<String>> futOtro = pool.submit(() -> {
+            listo.countDown();
+            arrancar.await();
+            return rest.postForEntity("/api/v1/auth/login", reqOtro, String.class);
+        });
+
+        listo.await();
+        arrancar.countDown();
+
+        ResponseEntity<String> rTest = futTest.get();
+        ResponseEntity<String> rOtro = futOtro.get();
+        pool.shutdown();
+
+        // Exactamente un 200 y un 409 (o ambos 409 si los dos llegaron después del ganador)
+        List<HttpStatusCode> codigos = List.of(rTest.getStatusCode(), rOtro.getStatusCode());
+        assertThat(codigos).doesNotContain(HttpStatus.INTERNAL_SERVER_ERROR);
+        long exitos = codigos.stream().filter(c -> c == HttpStatus.OK).count();
+        long conflictos = codigos.stream().filter(c -> c == HttpStatus.CONFLICT).count();
+        assertThat(exitos).isGreaterThanOrEqualTo(1);
+        assertThat(exitos + conflictos).isEqualTo(2);
+
+        // Una única fila en BD
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cobranza.dispositivos WHERE identificador_instalacion = ?",
+                Integer.class, idDisputa);
+        assertThat(count).isEqualTo(1);
+    }
+
     // ─── Utilidad ─────────────────────────────────────────────────────────────────
 
     private RespuestaToken loginPrincipal() {
-        SolicitudLogin req = new SolicitudLogin("login.test", CONTRASENA, dispositivoId);
+        SolicitudLogin req = new SolicitudLogin("login.test", CONTRASENA, idInstalacionPrincipal);
         ResponseEntity<RespuestaToken> resp = rest.postForEntity(
                 "/api/v1/auth/login", req, RespuestaToken.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);

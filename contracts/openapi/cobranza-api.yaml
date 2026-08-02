@@ -21,7 +21,7 @@ info:
     - `code` — código estable de máquina (ej. `PERSONA_NO_ENCONTRADA`)
     - `timestamp` — instante ISO-8601 en UTC
     - `path` — ruta solicitada
-  version: "0.8.0"
+  version: "0.9.0"
   contact:
     name: Equipo de desarrollo
     email: tecnologia@oriencoop.cl
@@ -331,7 +331,213 @@ components:
             `INSERTADA`: gestión nueva registrada (HTTP 201).
             `IDEMPOTENTE`: ya existía con el mismo contenido (HTTP 200).
 
+  SolicitudLogin:
+    type: object
+    required:
+      - nombreUsuario
+      - contrasena
+      - identificadorInstalacion
+    properties:
+      nombreUsuario:
+        type: string
+        description: Nombre de usuario de la cuenta corporativa.
+        example: "ejecutivo1"
+      contrasena:
+        type: string
+        format: password
+        description: Contraseña de la cuenta corporativa. Nunca se almacena en el dispositivo.
+      identificadorInstalacion:
+        type: string
+        format: uuid
+        description: |
+          UUID canónico generado por el dispositivo Android en la primera instalación y persiste
+          durante la vida de la instalación. Permite a la API registrar o reutilizar el registro
+          de dispositivo automáticamente, DESPUÉS de validar las credenciales.
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+  SolicitudRenovacion:
+    type: object
+    required:
+      - refreshToken
+    properties:
+      refreshToken:
+        type: string
+        description: Refresh token opaco obtenido en el último login o renovación exitosa.
+
+  RespuestaToken:
+    type: object
+    properties:
+      accessToken:
+        type: string
+        description: JWT RS256 de corta duración (15 min). Usar en cabecera Authorization.
+      refreshToken:
+        type: string
+        description: Token opaco de larga duración para renovar el access token.
+      expiresInSeconds:
+        type: integer
+        description: Segundos de validez del access token.
+        example: 900
+      sessionExpiresAt:
+        type: string
+        format: date-time
+        description: Instante absoluto de expiración de la sesión completa (ISO-8601 UTC).
+        example: "2026-09-01T00:00:00Z"
+
+  RespuestaInfoUsuario:
+    type: object
+    properties:
+      usuarioId:
+        type: string
+        format: uuid
+      nombreUsuario:
+        type: string
+      nombre:
+        type: string
+      correo:
+        type: string
+        format: email
+      roles:
+        type: array
+        items:
+          type: string
+        example: ["EJECUTIVO_TERRENO"]
+
 paths:
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Autenticación
+      summary: Iniciar sesión
+      description: |
+        Valida las credenciales del usuario. Si son correctas, registra o reutiliza el dispositivo
+        identificado por `identificadorInstalacion`, y emite un access token JWT RS256 junto con
+        un refresh token opaco.
+
+        **Auto-registro de dispositivo (ADR-0031):** el servidor registra automáticamente el dispositivo
+        si no existe, o lo reutiliza si ya fue registrado por el mismo usuario. Un `identificadorInstalacion`
+        vinculado a otro usuario retorna 409.
+
+        **Política de bloqueo:** 5 intentos fallidos → bloqueo de 30 min.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SolicitudLogin'
+      responses:
+        "200":
+          description: Login exitoso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaToken'
+        "400":
+          description: Cuerpo inválido — campo faltante o `identificadorInstalacion` con formato incorrecto.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                status: 400
+                code: "IDENTIFICADOR_FORMATO_INVALIDO"
+        "401":
+          description: Credenciales incorrectas o dispositivo revocado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              examples:
+                credenciales_incorrectas:
+                  value:
+                    status: 401
+                    code: "CREDENCIALES_INCORRECTAS"
+                dispositivo_revocado:
+                  value:
+                    status: 401
+                    code: "DISPOSITIVO_REVOCADO"
+        "409":
+          description: "`identificadorInstalacion` ya está registrado con otro usuario."
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                status: 409
+                code: "DISPOSITIVO_DE_OTRO_USUARIO"
+
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - Autenticación
+      summary: Renovar tokens
+      description: |
+        Renueva el access token usando un refresh token válido. El refresh token se rota
+        en cada renovación exitosa (ADR-0023). Un token de refresh inválido o expirado retorna 401.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SolicitudRenovacion'
+      responses:
+        "200":
+          description: Tokens renovados correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaToken'
+        "401":
+          description: Refresh token inválido, expirado o ya utilizado (reuse detection).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - Autenticación
+      summary: Cerrar sesión
+      description: |
+        Invalida el refresh token activo de la sesión actual. Idempotente: si el token
+        ya estaba invalidado, retorna 204 igualmente.
+        El access token sigue siendo válido hasta su expiración (15 min) — stateless por diseño.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Sesión cerrada.
+        "401":
+          description: Token JWT ausente o inválido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/auth/me:
+    get:
+      tags:
+        - Autenticación
+      summary: Información del usuario autenticado
+      description: Retorna el perfil del usuario autenticado según el JWT.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Perfil del usuario autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaInfoUsuario'
+        "401":
+          description: Token JWT ausente o inválido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
   /api/v1/asignaciones/diaria/activa:
     get:
       tags:

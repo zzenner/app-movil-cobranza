@@ -11,27 +11,30 @@ El sistema sigue un estilo de **monolito modular con cliente móvil offline-firs
 ## Componentes principales
 
 ### API (`apps/api/`)
-- Java 21, Spring Boot 3.x, Spring Modulith.
-- Autenticación: JWT o sesiones (PENDIENTE de definir mecanismo exacto).
-- Contrato: OpenAPI 3 (`contracts/openapi/`).
-- Migraciones de esquema: Flyway.
-- Base de datos: PostgreSQL + PostGIS.
+- Java 21, Spring Boot 3.5.16, Spring Modulith 1.4.12.
+- Autenticación: JWT RS256 (access token 15 min) + refresh tokens opacos con rotación (ADR-0022, ADR-0023).
+- Contrato: OpenAPI 3.1 en `contracts/openapi/cobranza-api.yaml` (v0.9.0).
+- Migraciones de esquema: Flyway (V001–V010).
+- Base de datos: PostgreSQL 16 + PostGIS 3.4.
 
-**Módulos internos previstos (preliminares):**
-- `autenticacion` — login, tokens, sesiones.
-- `usuarios` — gestión de cuentas y roles.
-- `carteras` — creación y gestión de carteras.
-- `asignaciones` — asignación cobrador-cartera.
-- `personas` — datos de titulares de créditos.
-- `creditos` — créditos y cuotas.
-- `gestiones` — recepción y persistencia de gestiones desde Android.
+**Módulos implementados (Fases 1B–3D):**
+- `autenticacion` — login con auto-registro de dispositivo (ADR-0031), tokens JWT, sesiones.
+- `usuarios` — usuarios, roles, permisos, supervisión (BCrypt).
+- `dispositivos` — registro y revocación de dispositivos Android.
+- `carteras` — carteras y relación N:M con personas (historial).
+- `asignaciones` — asignaciones mensuales y diarias con estados y máquina de transición.
+- `personas` — copia operacional: personas, avales, direcciones.
+- `operaciones` — copia operacional: créditos y cuotas.
+- `gestiones` — recepción idempotente con `INSERT ... ON CONFLICT`.
+- `sincronizacion` — bundle de descarga para Android (8 queries IN, sin N+1).
 
 ### App Android (`apps/mobile-android/`)
-- Kotlin, Jetpack Compose, Room, WorkManager.
-- Arquitectura interna: Clean Architecture con capas (datos, dominio, presentación).
-- Fuente local: Room (SQLite) — autoridad para la interfaz en modo offline.
-- Sincronización: WorkManager con backoff exponencial.
-- Patrón outbox para gestiones creadas sin conexión.
+- Kotlin 2.4.10 + Jetpack Compose (BOM 2026.06.01) + Hilt 2.60.1.
+- Arquitectura multi-módulo: `:app`, `:core:network`, `:core:security`, `:feature:auth`.
+- Almacenamiento seguro: refresh token cifrado con AES-256-GCM vía Android Keystore; datos de sesión en Preferences DataStore.
+- Red: Retrofit 3.0.0 + OkHttp 5.4.0; cliente público y autenticado separados; single-flight refresh con Mutex.
+- Backup deshabilitado: `allowBackup=false` + `data_extraction_rules.xml`.
+- **Fases futuras:** Room (offline-first), WorkManager (sincronización), pantallas de cartera y gestiones.
 
 ### Administración web (`apps/admin-web/`)
 - Angular con componentes standalone.

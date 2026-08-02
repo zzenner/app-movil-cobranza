@@ -5,6 +5,110 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-02 — Fase 4A: Base Android — VALIDADA ✅
+
+### Corrección — Contrato de login API
+
+**Problema:** `SolicitudLogin` recibía `dispositivoId: UUID` (referencia interna DB). La app Android no puede conocer este UUID antes del primer login, porque el servidor lo genera en el momento del registro. Creaba un ciclo imposible de resolver.
+
+**Cambio:** `dispositivoId: UUID` → `identificadorInstalacion: String (UUID canónico)`. El servidor registra el dispositivo automáticamente, **después** de validar las credenciales (ADR-0031).
+
+| Archivo modificado | Cambio |
+|---|---|
+| `autenticacion/web/SolicitudLogin.java` | `dispositivoId: UUID` → `identificadorInstalacion: @NotBlank @Pattern(UUID) String` |
+| `dispositivos/api/DispositivoConsultaApi.java` | Nuevo método `buscarORegistrar(String identificadorInstalacion, UUID usuarioId)` |
+| `dispositivos/infraestructura/DispositivoConsultaApiImpl.java` | Implementación transaccional de `buscarORegistrar` |
+| `autenticacion/aplicacion/AutenticacionService.java` | Llama a `buscarORegistrar` en lugar de `buscarPorId` |
+| `autenticacion/web/AutenticacionController.java` | Pasa `identificadorInstalacion` en lugar de `dispositivoId` |
+| `AutenticacionIntegracionTest.java` | Reescrito: 8 tests nuevos — auto-registro, reutilización, JWT did, 400/401/409 por identificador |
+
+**247 pruebas — 0 failures — BUILD SUCCESS** (incluye 2 tests de concurrencia añadidos en auditoría).
+
+### Añadido — Proyecto Android `apps/mobile-android/`
+
+**Toolchain:** AGP 9.3.0, Gradle 9.6.1, Kotlin 2.4.10, KSP 2.3.10, `compileSdk`/`targetSdk`=37, `minSdk`=29.
+
+**`:core:network`**
+- `ApiModels.kt` — `SolicitudLogin`, `SolicitudRenovacion`, `RespuestaToken`, `ApiError` (serializables)
+- `AuthApi.kt` — `login`, `renovar`, `logout` vía Retrofit
+- `TokenProvider.kt` — interfaz de contrato (desacopla `core:network` de `feature:auth`)
+- `NetworkModule.kt` — dos clientes Hilt: `@Named("public")` y `@Named("authenticated")`
+- `SingleFlightAuthenticator.kt` — `OkHttp Authenticator` + `Mutex` para refresh único en vuelo
+
+**`:core:security`**
+- `InstallationIdStore.kt` — Preferences DataStore; genera `identificadorInstalacion` una sola vez; persiste `sessionExpiresAt`
+- `SecureTokenStore.kt` — AES-256-GCM vía Android Keystore; IV único por cifrado; limpia datos en excepción de descifrado
+
+**`:feature:auth`**
+- `AuthState.kt` + `ErrorTipo.kt` — sealed class / enum de estados de sesión
+- `SessionRepository.kt` — `@ActivityRetainedScoped`; implementa `TokenProvider`; access token en memoria; lógica de verificación inicial y refresh
+- `LoginViewModel.kt` — `@HiltViewModel`; valida formulario; mapea códigos ProblemDetail a `ErrorTipo`
+- `CobranzaNavGraph.kt` — rutas Check → Login/Home; navega según `authState`
+
+**`:app`**
+- `CobranzaApp.kt` — `@HiltAndroidApp`
+- `MainActivity.kt` — `@AndroidEntryPoint`, establece `CobranzaNavGraph`
+- `AndroidManifest.xml` — `allowBackup=false`, `dataExtractionRules`
+- `data_extraction_rules.xml` — excluye todos los dominios de cloud-backup y device-transfer
+
+**Pruebas JVM**
+- `SingleFlightAuthenticatorTest.kt` — 5 casos (token fresco, single-flight, 401, refresco concurrente, omite URL refresh)
+- `InstallationIdStoreTest.kt` — idempotencia, persistencia, sessionExpiresAt
+- `SecureTokenStoreTest.kt` — lógica de cifrado/descifrado (JVM; Keystore instrumentado en CI)
+- `LoginViewModelTest.kt` — validaciones de formulario, mapeo de errores HTTP → ErrorTipo
+- `SessionRepositoryTest.kt` — refresh exitoso, refresh 401, error de red, sesión vencida, clearSession
+
+**CI:** `.github/workflows/android-ci.yml` — build debug, lint, JVM tests. Pruebas instrumentadas documentadas, no activas.
+
+**Documentación:** ADR-0031, ADR-0032, `apps/mobile-android/README.md`, `contracts/openapi/cobranza-api.yaml` v0.9.0 (auth endpoints + login contract), `docs/arquitectura/MODULOS.md` (módulos Android 4A), `docs/gestion/STATUS.md`, `docs/gestion/ROADMAP.md`.
+
+---
+
+## [Sin versión] — 2026-08-02 — Auditoría Fase 4A ✅ VALIDADA
+
+### Correcciones aplicadas en auditoría
+
+| Archivo | Cambio |
+|---|---|
+| `dispositivos/infraestructura/DispositivoRepository.java` | Nuevo método `insertarSiNoExiste()` con INSERT ON CONFLICT DO NOTHING |
+| `dispositivos/infraestructura/DispositivoConsultaApiImpl.java` | `buscarORegistrar()` usa fast-path + insert atómico (elimina TOCTOU) |
+| `AutenticacionIntegracionTest.java` | +2 tests de concurrencia (mismo usuario y dos usuarios, mismo ID) |
+| `feature/auth/ui/LoginViewModel.kt` | Eliminado `setNoAutenticado()` redundante tras `setError()` |
+| `feature/auth/data/SessionRepository.kt` | `verificarSesionInicial()`: `flow.first()` con import correcto |
+| `feature/auth/build.gradle.kts` | +`kotlinx.serialization.json`, +`compose-material-icons-extended` |
+| `core/network/build.gradle.kts` | `retrofit`: `implementation` → `api` (expone `Response<T>` a consumidores) |
+| `feature/auth/ui/HomeScreen.kt` | `@OptIn(ExperimentalMaterial3Api::class)` en `HomeScreen()` |
+| `app/build.gradle.kts` | `compileSdk`/`targetSdk`: 36 → 37 |
+| `feature/auth/build.gradle.kts` | `compileSdk`: 36 → 37 |
+| `core/network/build.gradle.kts` | `compileSdk`: 36 → 37 |
+| `core/security/build.gradle.kts` | `compileSdk`: 36 → 37 |
+| `app/src/main/res/values/strings.xml` | Creado (`app_name`) |
+| `app/src/main/res/values/themes.xml` | Creado (`Theme.AppCompat` placeholder) |
+| `app/src/main/res/drawable/ic_launcher_*.xml` | Creados (background + foreground vectores) |
+| `app/src/main/res/mipmap-anydpi-v26/*.xml` | Creados (adaptive icons) |
+| `gradle/libs.versions.toml` | +`compose-material-icons-extended` alias |
+| `.github/workflows/android-ci.yml` | `android-36` → `android-37.1`, `build-tools;37.0.0` |
+
+### Resultados finales
+
+| Suite | Resultado |
+|---|---|
+| API — `./mvnw clean verify` | ✅ **247 tests — 0 failures** |
+| Android — `assembleDebug` | ✅ BUILD SUCCESSFUL |
+| Android — `lint` | ✅ BUILD SUCCESSFUL — sin errores |
+| Android — `testDebugUnitTest` | ✅ **38 tests — 0 failures** |
+| Android — `assembleDebugAndroidTest` | ✅ BUILD SUCCESSFUL |
+| Android — `connectedDebugAndroidTest` | ⏭️ Sin emulador en WSL2 |
+
+### Auditoría de seguridad
+
+- **SecureTokenStore:** AES-256-GCM, IV de 12 bytes generado por cipher (sin reutilización), clave en Keystore TEE, ciphertext+IV en DataStore atómico, fallo de descifrado limpia tokens.
+- **Backup:** `allowBackup="false"` + `data_extraction_rules.xml` excluye root/database/sharedpref/file/external en cloud-backup y device-transfer.
+- **Logging:** nivel HEADERS únicamente; filtro defensivo para `"contrasena"` y `"refreshToken"`.
+- **SingleFlightAuthenticator:** Mutex garantiza un solo refresh concurrente; stale-token comparison evita refresh innecesario si otro hilo ya renovó; ciclo de refresh prevenido con check de URL.
+
+---
+
 ## [Sin versión] — 2026-08-01 — Auditoría Fase 3D ✅ VALIDADA
 
 ### Correcciones aplicadas

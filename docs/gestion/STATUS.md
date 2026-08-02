@@ -1,8 +1,8 @@
 # Estado del proyecto
 
-**Última actualización:** 2026-08-01
-**Fase actual:** Fase 3D — API REST de asignaciones y gestiones ✅ VALIDADA — LISTA PARA CIERRE
-**Fase anterior:** Fase 3C — Gestiones de cobranza ✅ CERRADA (v0.7.0-gestiones)
+**Última actualización:** 2026-08-02
+**Fase actual:** Fase 4A — Base Android (autenticación + almacenamiento seguro) — VALIDADA ✅
+**Fase anterior:** Fase 3D — API REST de asignaciones y gestiones ✅ CERRADA
 
 ## Resumen
 
@@ -24,7 +24,7 @@
 | **API — gestiones de cobranza (Fase 3C — validada)**      | **Completado ✅**      |
 | **API — REST asignaciones y gestiones (Fase 3D)**         | **Validada ✅ — Lista para cierre**      |
 | Admin Web (Angular)                                       | No iniciado           |
-| App Android (Kotlin)                                      | No iniciado           |
+| **App Android — Fase 4A (base auth + red + seguridad)**   | **Validada ✅ — Lista para cierre** |
 | Despliegue en VPS                                         | No iniciado           |
 
 ## Resultado de auditoría Fase 1A (2026-07-26)
@@ -267,9 +267,59 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 | 16 tests REST gestiones (incluyendo BORRADOR→400 y aserciones de cuerpo 401/403) | ✅ |
 | **238 pruebas — 0 failures — 0 errors — BUILD SUCCESS** | ✅ |
 
+## Fase 4A — Base Android (2026-08-02) — PENDIENTE DE REVISIÓN
+
+### Corrección de contrato API
+
+| Item | Resultado |
+|---|---|
+| `SolicitudLogin.dispositivoId` → `identificadorInstalacion` (UUID string generado en Android) | ✅ |
+| `DispositivoConsultaApi.buscarORegistrar()` — auto-registro post-validación de credenciales | ✅ |
+| `AutenticacionService.login()` — llama a `buscarORegistrar` en lugar de `buscarPorId` | ✅ |
+| `AutenticacionIntegracionTest` — reescrito; 8 nuevos tests (245 pruebas, 0 failures) | ✅ |
+| ADR-0031 — `identificadorInstalacion` como campo de login | ✅ |
+
+### Proyecto Android creado (`apps/mobile-android/`)
+
+| Módulo | Item | Resultado |
+|---|---|---|
+| `:app` | CobranzaApp (@HiltAndroidApp), MainActivity, grafo de navegación | ✅ |
+| `:core:network` | ApiModels, AuthApi, TokenProvider, NetworkModule (dos clientes), SingleFlightAuthenticator | ✅ |
+| `:core:security` | InstallationIdStore (DataStore), SecureTokenStore (Keystore AES-256-GCM) | ✅ |
+| `:feature:auth` | AuthState, ErrorTipo, SessionRepository (@ActivityRetainedScoped), LoginViewModel, pantallas, navegación | ✅ |
+| Configuración | libs.versions.toml, Gradle 9.6.1, AGP 9.3.0, Kotlin 2.4.10, KSP 2.3.10 | ✅ |
+| Seguridad | allowBackup=false, data_extraction_rules.xml (excluye todos los dominios) | ✅ |
+| Pruebas JVM | SingleFlightAuthenticatorTest, SecureTokenStoreTest, InstallationIdStoreTest, LoginViewModelTest, SessionRepositoryTest | ✅ |
+| CI | .github/workflows/android-ci.yml (build + lint + test JVM) | ✅ |
+| ADR-0032 | Stack técnico Android (AGP, Kotlin, Hilt, Retrofit, Keystore) | ✅ |
+
+### Auditoría y validación (2026-08-02) ✅
+
+| Item | Resultado |
+|---|---|
+| **API — TOCTOU en `buscarORegistrar()`** | ✅ Corregido con INSERT ON CONFLICT DO NOTHING |
+| **API — Tests concurrentes** | ✅ 2 tests de concurrencia añadidos (29 en `AutenticacionIntegracionTest`) |
+| **API — Suite completa** | ✅ **247 tests — 0 failures** |
+| **Android SDK instalado** | ✅ `platforms;android-37.1`, `build-tools;37.0.0` |
+| **Gradle wrapper** | ✅ eval+xargs para DEFAULT_JVM_OPTS (AGP 9.x estándar) |
+| **AGP 9.0 compatibilidad** | ✅ Eliminado `kotlin.android`, eliminado `kotlinOptions {}` |
+| **compileSdk/targetSdk 36→37** | ✅ Todos los módulos actualizados |
+| **Recursos Android base** | ✅ strings.xml, themes.xml, mipmap-anydpi-v26 icons |
+| **`SessionRepository.verificarSesionInicial()`** | ✅ Flow collection corregida |
+| **`LoginViewModel` — estado error** | ✅ Eliminado `setNoAutenticado()` redundante tras `setError()` |
+| **`assembleDebug`** | ✅ BUILD SUCCESSFUL |
+| **lint** | ✅ BUILD SUCCESSFUL — sin errores |
+| **testDebugUnitTest** | ✅ **38 tests JVM — 0 failures** |
+| **assembleDebugAndroidTest** | ✅ BUILD SUCCESSFUL |
+| **connectedDebugAndroidTest** | ⏭️ No ejecutado (sin emulador en WSL2) |
+| **SecureTokenStore auditado** | ✅ AES-256-GCM, IV único, Keystore-backed, backup excluido |
+| **Logging auditado** | ✅ Solo HEADERS, sin credenciales en logs |
+| **SingleFlightAuthenticator auditado** | ✅ Mutex + stale-token comparison |
+| **CI workflow corregido** | ✅ `platforms;android-37.1`, `build-tools;37.0.0` |
+
 ## Próximo paso recomendado
 
-Fase 3D validada. Siguiente: cierre git (`feat(api): implementar api rest asignaciones y gestiones fase 3d`, tag `v0.8.0-api-rest`) y luego Fase 4 (App Android).
+Cierre formal de Fase 4A y apertura de Fase 4B (cartera offline con Room y WorkManager).
 
 ## Historial de fases
 
@@ -283,3 +333,5 @@ Fase 3D validada. Siguiente: cierre git (`feat(api): implementar api rest asigna
 | Fase 3A fix | Corrección persona–cartera N:M (V008, carteras_personas) | Completado | 2026-08-01 |
 | Fase 3B | Asignaciones mensuales y diarias (V009, dominio, servicio, API) | Completado | 2026-08-01 |
 | Fase 3C | Gestiones de cobranza (V010, dominio, servicio, API) | Completado | 2026-08-01 |
+| Fase 3D | API REST de asignaciones y gestiones (endpoints Android)   | Completado | 2026-08-01 |
+| Fase 4A | Base Android: red, seguridad, auth (sin Room ni WorkManager) | Completado ✅ | 2026-08-02 |

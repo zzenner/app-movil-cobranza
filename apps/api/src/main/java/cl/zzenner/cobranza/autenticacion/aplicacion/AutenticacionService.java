@@ -53,11 +53,12 @@ public class AutenticacionService {
 
     /**
      * Autentica usuario y dispositivo, devuelve tokens.
+     * Las credenciales se validan ANTES de operar sobre el dispositivo.
      * Todos los errores de usuario retornan la misma excepción genérica (sin enumeración).
      */
     @Transactional
     public RespuestaToken login(String nombreUsuario, String contrasenaCruda,
-                                 UUID dispositivoId, String ipOrigen, String userAgent) {
+                                 String identificadorInstalacion, String ipOrigen, String userAgent) {
         CredencialesUsuario credenciales = usuarioConsultaApi.buscarParaAutenticacion(nombreUsuario)
                 .orElseThrow(() -> new BadCredentialsException("credenciales incorrectas"));
 
@@ -78,12 +79,12 @@ public class AutenticacionService {
             throw new BadCredentialsException("credenciales incorrectas");
         }
 
-        // Validar dispositivo
-        // DispositivoDeOtroUsuarioException → 409 genérico (no revela propietario)
+        // Validar o registrar dispositivo (solo después de credenciales válidas).
+        // DispositivoDeOtroUsuarioException → 409 (no revela propietario real)
         // DispositivoNoValidoException → 401 genérico
         DatosDispositivo dispositivo;
         try {
-            dispositivo = dispositivoConsultaApi.buscarPorId(dispositivoId, credenciales.getId());
+            dispositivo = dispositivoConsultaApi.buscarORegistrar(identificadorInstalacion, credenciales.getId());
         } catch (DispositivoDeOtroUsuarioException e) {
             throw e;  // propagado como 409 por GlobalExceptionHandler
         } catch (DispositivoNoValidoException e) {

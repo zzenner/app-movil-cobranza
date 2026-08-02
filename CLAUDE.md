@@ -2,6 +2,18 @@
 
 Este archivo guía a cualquier sesión de Claude Code que trabaje en este repositorio.
 
+## Recuperación y cierre de sesiones
+
+Al iniciar cualquier sesión (nueva o continuación de una anterior), seguir este protocolo en orden:
+
+1. Leer este archivo (`CLAUDE.md`).
+2. Leer [`.claude/TASK_CURRENT.md`](.claude/TASK_CURRENT.md) — tarea activa, alcance y exclusiones.
+3. Leer [`.claude/SESSION_HANDOFF.md`](.claude/SESSION_HANDOFF.md) — estado real del árbol, pruebas ejecutadas, siguiente acción exacta.
+4. Ejecutar `git status --short` y `git diff --stat` desde la raíz.
+5. Comparar el árbol actual con lo registrado en `SESSION_HANDOFF.md`.
+6. Continuar desde "Siguiente acción exacta" sin repetir tareas ya registradas como terminadas.
+7. Actualizar `SESSION_HANDOFF.md` al completar cada bloque importante y siempre antes de detenerse.
+
 ## Lectura obligatoria antes de cualquier tarea
 
 Antes de implementar, modificar o proponer cambios, leer en este orden:

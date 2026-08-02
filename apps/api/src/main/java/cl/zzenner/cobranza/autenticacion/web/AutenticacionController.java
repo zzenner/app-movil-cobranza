@@ -33,7 +33,7 @@ class AutenticacionController {
         String ua = request.getHeader("User-Agent");
         RespuestaToken respuesta = autenticacionService.login(
                 solicitud.nombreUsuario(), solicitud.contrasena(),
-                solicitud.dispositivoId(), ip, ua);
+                solicitud.identificadorInstalacion(), ip, ua);
         return ResponseEntity.ok(respuesta);
     }
 

@@ -35,13 +35,22 @@ compartido    --> (sin dependencias de dominio)
 
 ## Módulos de la app Android
 
+### Fase 4A — Base implementada
+
+| Módulo / feature     | Responsabilidad                                                   | Estado               |
+|----------------------|-------------------------------------------------------------------|----------------------|
+| `:app`               | Actividad principal, Hilt, grafo de navegación raíz.             | Implementado (4A ✅) |
+| `:core:network`      | Cliente HTTP público y autenticado, single-flight refresh.        | Implementado (4A ✅) |
+| `:core:security`     | Keystore AES-256-GCM para refresh token, DataStore para sesión.   | Implementado (4A ✅) |
+| `:feature:auth`      | LoginViewModel, pantallas Check/Login/Home, SessionRepository.    | Implementado (4A ✅) |
+
+### Fases futuras (pendiente)
+
 | Módulo / feature     | Responsabilidad                                                   |
 |----------------------|-------------------------------------------------------------------|
-| `autenticacion`      | Pantallas de login y gestión de tokens locales.                   |
-| `cartera`            | Pantallas de lista de personas y detalle de créditos/cuotas.      |
-| `gestiones`          | Pantallas de registro y listado de gestiones.                     |
-| `sincronizacion`     | WorkManager, cola outbox, lógica de sincronización.               |
-| `core:network`       | Cliente HTTP, interceptores, manejo de conectividad.              |
+| `feature:cartera`    | Pantallas de lista de personas y detalle de créditos/cuotas.      |
+| `feature:gestiones`  | Pantallas de registro y listado de gestiones.                     |
+| `feature:sincronizacion` | WorkManager, cola outbox, lógica de sincronización.           |
 | `core:database`      | Room, DAOs, migraciones de Room.                                  |
 | `core:ui`            | Componentes Compose reutilizables, temas, estilos.                |
 

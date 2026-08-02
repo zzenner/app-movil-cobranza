@@ -42,6 +42,43 @@ class DispositivoConsultaApiImpl implements DispositivoConsultaApi {
                 .map(this::toDto);
     }
 
+    /**
+     * Busca el dispositivo por identificadorInstalacion; si no existe lo registra.
+     * Patrón en dos fases para seguridad ante concurrencia (ADR-0031):
+     *   1. Fast-path: findBy para reintentos simples (caso más común).
+     *   2. Insert atómico: ON CONFLICT DO NOTHING; si retorna 0, el registro
+     *      lo creó otro hilo concurrente — releer y validar.
+     */
+    @Override
+    @Transactional
+    public DatosDispositivo buscarORegistrar(String identificadorInstalacion, UUID usuarioId) {
+        // Fast-path para el caso común: dispositivo ya registrado
+        Optional<Dispositivo> existente = dispositivoRepository.findByIdentificadorInstalacion(identificadorInstalacion);
+        if (existente.isPresent()) {
+            return validarYConvertir(existente.get(), identificadorInstalacion, usuarioId);
+        }
+
+        // Insert atómico: si dos hilos llegan aquí simultáneamente, solo uno insertará.
+        // El otro recibe 0 (DO NOTHING) sin excepción de clave duplicada.
+        dispositivoRepository.insertarSiNoExiste(usuarioId, identificadorInstalacion);
+
+        // Releer siempre después del insert (tanto si se insertó como si ya existía).
+        Dispositivo d = dispositivoRepository.findByIdentificadorInstalacion(identificadorInstalacion)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Dispositivo no encontrado tras insertarSiNoExiste: " + identificadorInstalacion));
+        return validarYConvertir(d, identificadorInstalacion, usuarioId);
+    }
+
+    private DatosDispositivo validarYConvertir(Dispositivo d, String identificadorInstalacion, UUID usuarioId) {
+        if (!d.getUsuarioId().equals(usuarioId)) {
+            throw new DispositivoDeOtroUsuarioException(identificadorInstalacion);
+        }
+        if (d.isRevocado()) {
+            throw new DispositivoNoValidoException(identificadorInstalacion);
+        }
+        return toDto(d);
+    }
+
     private DatosDispositivo toDto(Dispositivo d) {
         return new DatosDispositivo(
                 d.getId(), d.getUsuarioId(), d.getIdentificadorInstalacion(),

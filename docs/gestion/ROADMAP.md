@@ -1,6 +1,6 @@
 # Roadmap
 
-## Fase actual: Fase 3D — API REST de asignaciones y gestiones ✅ Validada — Lista para cierre
+## Fase actual: Fase 4A — Base Android (autenticación + almacenamiento seguro) — EN PROGRESO
 
 ## Fase 0 — Inicialización del repositorio ✅
 
@@ -137,16 +137,50 @@
 
 ---
 
-## Fase 4 — App Android (PENDIENTE)
+## Fase 4A — Base Android: autenticación y almacenamiento seguro — EN PROGRESO
 
-**Objetivo:** Crear la app Android con soporte offline-first, registro de gestiones y sincronización.
+**Objetivo:** Crear el proyecto Android con la capa de red, seguridad y autenticación completa, sin funcionalidades de cartera ni gestiones.
+
+**Completado (2026-08-02) — Pendiente de revisión:**
+- Toolchain: AGP 9.3.0, Gradle 9.6.1, Kotlin 2.4.10, KSP 2.3.10, `compileSdk/targetSdk=36`, `minSdk=29`.
+- Corrección API: `SolicitudLogin.dispositivoId` → `identificadorInstalacion`; auto-registro de dispositivo post-login.
+- `:core:network` — cliente público + autenticado, `SingleFlightAuthenticator` (Mutex), `TokenProvider`.
+- `:core:security` — `InstallationIdStore` (DataStore) + `SecureTokenStore` (Keystore AES-256-GCM).
+- `:feature:auth` — `SessionRepository`, `LoginViewModel`, `AuthState`, pantallas Check/Login/Home.
+- Backup deshabilitado: `allowBackup=false` + `data_extraction_rules.xml`.
+- Pruebas JVM: 5 suites (SingleFlightAuthenticator, InstallationIdStore, SecureTokenStore, LoginViewModel, SessionRepository).
+- CI: `.github/workflows/android-ci.yml`.
+- ADR-0031 (identificadorInstalacion), ADR-0032 (stack técnico Android).
+
+**No incluye:**
+- Room / SQLite / DAOs.
+- WorkManager / sincronización offline.
+- Pantallas de cartera, asignaciones ni gestiones.
+- GPS.
+
+---
+
+## Fase 4B — Cartera offline (PENDIENTE)
+
+**Objetivo:** Implementar descarga y visualización offline de la asignación diaria.
 
 **Incluye (borrador):**
-- Proyecto Android con Jetpack Compose en `apps/mobile-android/`.
-- Arquitectura Clean con Room, WorkManager, Hilt.
-- Módulos: autenticación, cartera, gestiones, sincronización.
-- Soporte completo offline: outbox, estados de sincronización.
-- Pruebas instrumentadas y en dispositivo real.
+- `:core:database` — Room con DAOs para personas, operaciones, cuotas, asignaciones.
+- `:feature:cartera` — pantallas de lista de personas y detalle de créditos/cuotas.
+- WorkManager para descarga inicial de la asignación diaria.
+- Migración Room versionada.
+
+---
+
+## Fase 4C — Gestiones offline (PENDIENTE)
+
+**Objetivo:** Registro y sincronización offline de gestiones de cobranza.
+
+**Incluye (borrador):**
+- `:feature:gestiones` — pantallas de registro de gestión con GPS.
+- Patrón outbox en Room para gestiones pendientes de envío.
+- WorkManager para sincronización con backoff exponencial.
+- Estados de sincronización: `PENDIENTE_ENVIO`, `ENVIANDO`, `SINCRONIZADA`, `ERROR_REINTENTABLE`, `ERROR_PERMANENTE`.
 
 ---
 
