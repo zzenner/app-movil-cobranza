@@ -9,7 +9,7 @@ import cl.zzenner.cobranza.gestiones.aplicacion.GestionService;
 import cl.zzenner.cobranza.gestiones.api.DatosGestion;
 import cl.zzenner.cobranza.gestiones.api.GestionConsultaApi;
 import cl.zzenner.cobranza.gestiones.dominio.Gestion;
-import cl.zzenner.cobranza.gestiones.dominio.GestionConflictivaException;
+import cl.zzenner.cobranza.gestiones.api.GestionConflictivaException;
 import cl.zzenner.cobranza.gestiones.dominio.OrigenGestion;
 import cl.zzenner.cobranza.gestiones.dominio.TipoGestion;
 import cl.zzenner.cobranza.personas.aplicacion.PersonaService;

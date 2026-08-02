@@ -5,6 +5,64 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-01 — Auditoría Fase 3D ✅ VALIDADA
+
+### Correcciones aplicadas
+
+- `SeguridadConfig.escribirProblemDetail` — añadidos `code`, `timestamp`, `path` a respuestas 401/403. Los errores de autenticación ahora siguen el mismo formato ProblemDetail que el resto de la API.
+- `GestionRestTest` — tests 401/403 actualizados con aserciones sobre el cuerpo (`code`, `timestamp`, `path`). Añadido test 16: asignación en estado `BORRADOR` → 400 con `code=ESTADO_INVALIDO`.
+- `AsignacionDescargaRestTest` — tests 401/403 actualizados con aserciones sobre el cuerpo.
+- `contracts/openapi/cobranza-api.yaml` — contrato completo: schemas, paths, security, error format.
+- `apps/api/README.md` — módulos y endpoints actualizados (Fases 3A–3D).
+- `docs/arquitectura/MODULOS.md` — estados de todos los módulos actualizados.
+
+**238 pruebas — 0 failures — BUILD SUCCESS. Modularidad PASS.**
+
+---
+
+## [Sin versión] — 2026-08-01 — Fase 3D: API REST asignaciones y gestiones ✅
+
+### Nuevo — Endpoints REST para dispositivos Android
+
+**`GET /api/v1/asignaciones/diaria/activa`**
+- Descarga el bundle completo de la asignación diaria PUBLICADA del ejecutivo autenticado.
+- Parámetro opcional `?fecha` (ISO-8601); por defecto usa la fecha actual en `America/Santiago`.
+- Responde 200 con `RespuestaAsignacionDiaria` o 204 No Content si no hay asignación activa.
+- Bundle por persona: RUT, nombre, direcciones vigentes, avales informativos, operaciones ACTIVA con cuotas VENCIDA/VIGENTE/FUTURA, últimas 10 gestiones.
+- 8 queries `IN` en total — sin N+1 independientemente del número de personas.
+
+**`POST /api/v1/gestiones`**
+- Recibe una gestión generada en el dispositivo. Idempotente: mismo UUID con mismo contenido → 200 IDEMPOTENTE; mismo UUID con contenido diferente → 409 GESTION_CONFLICTIVA.
+- `ejecutivoId` extraído del JWT `sub` (no se acepta del cliente).
+- Retorna 201 INSERTADA o 200 IDEMPOTENTE. Sin header `Location`.
+- `OrigenGestion` y `TipoGestion` validados como enums en el DTO web.
+
+### Nuevo — Infraestructura de módulos bulk
+
+| Módulo | Adición |
+|---|---|
+| `asignaciones::api` | `AsignacionDiariaNoEncontradaException`, `findPersonasEnAsignacionDiaria(UUID)` |
+| `personas::api` | `DatosDireccion`, `DatosAval`, `findAllByIds()`, `findDireccionesVigentesPorPersonas()`, `findAvalesPorPersonas()` |
+| `operaciones::api` | `OperacionConsultaApi`, `DatosOperacion`, `DatosCuota`, `findOperacionesActivasConCuotas()` (creado desde cero) |
+| `gestiones::api` | `GestionConflictivaException` (movida desde dominio), `ResultadoRecepcion`, `findUltimasGestionesPorPersonas()` |
+| `sincronizacion` | `DescargaAsignacionService`, `AsignacionDescargaController`, `GestionController` |
+
+### Modificado — Excepciones tipadas y handlers
+
+- `GestionService.recibirGestion()`: retorna `ResultadoRecepcion` (antes `void`); lanza `PersonaNoEncontradaException` y `AsignacionDiariaNoEncontradaException` en lugar de `IllegalArgumentException`.
+- `GlobalExceptionHandler`: 4 nuevos handlers con ProblemDetail uniforme (code, timestamp, path).
+- `OpenApiConfig`: SecurityScheme Bearer JWT (`bearerAuth`).
+
+### Pruebas
+
+- `AsignacionDescargaRestTest` — 12 tests HTTP (401, 403, 204, 200, bundle, fecha, content-type).
+- `GestionRestTest` — 15 tests HTTP (201, 200 idempotente, 409 conflicto, 404, 400, 403, no Location).
+- `GestionesIntegracionTest` — import actualizado; todos los 25 tests siguen pasando.
+
+**237 pruebas — 0 failures — BUILD SUCCESS. Modularidad PASS.**
+
+---
+
 ## [Sin versión] — 2026-08-01 — Fase 3C validada: tests concurrentes + auditoría de dominio ✅
 
 ### Pruebas adicionales (Tests 22–25)

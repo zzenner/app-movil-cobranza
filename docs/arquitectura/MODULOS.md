@@ -5,19 +5,19 @@
 Los módulos son unidades de negocio con fronteras explícitas. Cada módulo expone solo lo necesario hacia los demás.
 Paquete raíz: `cl.zzenner.cobranza`. Los módulos son sub-paquetes directos detectados automáticamente por Spring Modulith.
 
-| Módulo           | Responsabilidad                                                          | Estado            |
-|------------------|--------------------------------------------------------------------------|-------------------|
-| `autenticacion`  | Login, emisión y renovación de tokens JWT, logout.                       | Stub (Fase 1B)    |
-| `usuarios`       | Gestión de usuarios, roles y relaciones de supervisión.                  | Stub (Fase 1B)    |
-| `dispositivos`   | Registro, activación y revocación de dispositivos Android.               | Stub (Fase 1B)    |
-| `carteras`       | Carteras de cobranza y su relación con personas.                         | Stub (Fase 1B)    |
-| `asignaciones`   | Asignaciones mensuales y diarias de personas a ejecutivos.               | Stub (Fase 1B)    |
-| `personas`       | Copia operacional de personas, avales, direcciones y observaciones.      | Stub (Fase 1B)    |
-| `operaciones`    | Copia operacional de créditos y cuotas asociados a personas.             | Stub (Fase 1B)    |
-| `gestiones`      | Recepción idempotente, persistencia y consulta de gestiones de terreno.  | Stub (Fase 1B)    |
-| `sincronizacion` | Coordinación del ciclo de sincronización con dispositivos Android.       | Stub (Fase 1B)    |
-| `auditoria`      | Trazabilidad de operaciones críticas. Escribe en esquema `auditoria`.    | Stub (Fase 1B)    |
-| `compartido`     | Utilidades transversales sin lógica de dominio. No depende de módulos.   | Stub (Fase 1B)    |
+| Módulo           | Responsabilidad                                                          | Estado                      |
+|------------------|--------------------------------------------------------------------------|-----------------------------|
+| `autenticacion`  | Login, emisión y renovación de tokens JWT RS256, logout, sesiones.       | Implementado (Fase 2 ✅)    |
+| `usuarios`       | Gestión de usuarios, roles y relaciones de supervisión.                  | Implementado (Fase 1C ✅)   |
+| `dispositivos`   | Registro, activación y revocación de dispositivos Android.               | Implementado (Fase 1C ✅)   |
+| `carteras`       | Carteras de cobranza y relación N:M con personas (historial).            | Implementado (Fase 3A ✅)   |
+| `asignaciones`   | Asignaciones mensuales y diarias de personas a ejecutivos.               | Implementado (Fase 3B ✅)   |
+| `personas`       | Copia operacional de personas, avales, direcciones y observaciones.      | Implementado (Fase 3A ✅)   |
+| `operaciones`    | Copia operacional de créditos y cuotas asociados a personas.             | Implementado (Fase 3A ✅)   |
+| `gestiones`      | Recepción idempotente, persistencia y consulta de gestiones de terreno.  | Implementado (Fase 3C ✅)   |
+| `sincronizacion` | Bundle de descarga completo para dispositivos Android (Fase 3D).         | Implementado (Fase 3D ✅)   |
+| `auditoria`      | Trazabilidad de operaciones críticas. Escribe en esquema `auditoria`.    | Stub (pendiente)            |
+| `compartido`     | Utilidades transversales sin lógica de dominio. No depende de módulos.   | Stub (pendiente)            |
 
 ### Dependencias conceptuales entre módulos (Fase 2+)
 

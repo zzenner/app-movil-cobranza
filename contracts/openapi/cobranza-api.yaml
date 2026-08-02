@@ -5,7 +5,23 @@ info:
   description: |
     API REST del sistema de cobranza en terreno.
     Sirve a la aplicación Android (ejecutivos de terreno) y al Admin Web (supervisores y administradores).
-  version: "0.1.0"
+
+    ## Autenticación
+
+    Todos los endpoints de negocio requieren un Bearer JWT (RS256) en el encabezado `Authorization`.
+    El token se obtiene desde `POST /api/v1/auth/login`.
+    El `sub` del token identifica al ejecutivo autenticado; el campo `roles` del payload determina los permisos.
+
+    ## Errores
+
+    Todos los errores siguen RFC 7807 (`application/problem+json`) con los campos:
+    - `status` — código HTTP
+    - `title` — descripción breve
+    - `detail` — mensaje específico
+    - `code` — código estable de máquina (ej. `PERSONA_NO_ENCONTRADA`)
+    - `timestamp` — instante ISO-8601 en UTC
+    - `path` — ruta solicitada
+  version: "0.8.0"
   contact:
     name: Equipo de desarrollo
     email: tecnologia@oriencoop.cl
@@ -14,4 +30,433 @@ servers:
   - url: http://localhost:8080
     description: Desarrollo local
 
-paths: {}
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ProblemDetail:
+      type: object
+      description: Respuesta de error (RFC 7807)
+      properties:
+        status:
+          type: integer
+          example: 404
+        title:
+          type: string
+          example: "Persona no encontrada"
+        detail:
+          type: string
+          example: "No existe persona con id 3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        code:
+          type: string
+          example: "PERSONA_NO_ENCONTRADA"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-08-01T14:30:00Z"
+        path:
+          type: string
+          example: "/api/v1/gestiones"
+
+    DatosCuota:
+      type: object
+      properties:
+        numeroCuota:
+          type: integer
+          example: 3
+        estado:
+          type: string
+          enum: [VENCIDA, VIGENTE, FUTURA]
+        montoTotal:
+          type: number
+          format: decimal
+          example: 125000.00
+        saldo:
+          type: number
+          format: decimal
+          example: 125000.00
+        fechaVencimiento:
+          type: string
+          format: date
+          example: "2026-07-15"
+
+    DatosOperacion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        personaId:
+          type: string
+          format: uuid
+        numeroOperacion:
+          type: string
+          example: "OP-2024-001234"
+        estado:
+          type: string
+          example: "ACTIVA"
+        capital:
+          type: number
+          format: decimal
+        interesPenal:
+          type: number
+          format: decimal
+        gastosCobranza:
+          type: number
+          format: decimal
+        totalVigente:
+          type: number
+          format: decimal
+        cuotas:
+          type: array
+          description: Cuotas VENCIDA, VIGENTE y FUTURA. Excluye PAGADA.
+          items:
+            $ref: '#/components/schemas/DatosCuota'
+
+    DatosDireccion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        personaId:
+          type: string
+          format: uuid
+        calle:
+          type: string
+        numero:
+          type: string
+        comuna:
+          type: string
+        ciudad:
+          type: string
+        vigente:
+          type: boolean
+
+    DatosAval:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        personaId:
+          type: string
+          format: uuid
+        rutNumero:
+          type: string
+          example: "12345678"
+        rutDv:
+          type: string
+          example: "9"
+        nombre:
+          type: string
+          example: "Juan Pérez"
+
+    DatosGestion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        personaId:
+          type: string
+          format: uuid
+        ejecutivoId:
+          type: string
+          format: uuid
+        tipoGestion:
+          type: string
+          enum: [CONTACTO_FAMILIAR, COMPROMISO_PAGO, SIN_CONTACTO]
+        fechaGestion:
+          type: string
+          format: date-time
+        observacion:
+          type: string
+
+    DatosPersonaDescarga:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rutNumero:
+          type: string
+          example: "12345678"
+        rutDv:
+          type: string
+          example: "9"
+        nombre:
+          type: string
+          example: "María González"
+        direcciones:
+          type: array
+          description: Direcciones vigentes de la persona.
+          items:
+            $ref: '#/components/schemas/DatosDireccion'
+        avales:
+          type: array
+          description: Avales informativos (rut_numero, rut_dv, nombre).
+          items:
+            $ref: '#/components/schemas/DatosAval'
+        operaciones:
+          type: array
+          description: Operaciones en estado ACTIVA con sus cuotas relevantes.
+          items:
+            $ref: '#/components/schemas/DatosOperacion'
+        ultimasGestiones:
+          type: array
+          description: Últimas 10 gestiones de la persona (pueden ser de cualquier ejecutivo).
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/DatosGestion'
+
+    RespuestaAsignacionDiaria:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID de la asignación diaria.
+        ejecutivoId:
+          type: string
+          format: uuid
+        fecha:
+          type: string
+          format: date
+          example: "2026-08-01"
+        estado:
+          type: string
+          example: "PUBLICADA"
+        personas:
+          type: array
+          description: Bundle completo de personas con sus datos financieros y gestiones.
+          items:
+            $ref: '#/components/schemas/DatosPersonaDescarga'
+
+    SolicitudCrearGestion:
+      type: object
+      required:
+        - id
+        - personaId
+        - origenGestion
+        - tipoGestion
+        - fechaGestion
+        - fechaCapturaGps
+        - latitud
+        - longitud
+        - precisionMetros
+        - ubicacionSimulada
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID generado en el dispositivo Android. Garantiza idempotencia.
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        personaId:
+          type: string
+          format: uuid
+        origenGestion:
+          type: string
+          enum: [ASIGNACION_DIARIA, BUSQUEDA_DIRECTA]
+          description: |
+            `ASIGNACION_DIARIA`: la persona debe pertenecer a la diaria activa (PUBLICADA o FINALIZADA).
+            `BUSQUEDA_DIRECTA`: cualquier persona del sistema.
+        asignacionDiariaId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Obligatorio cuando origenGestion = ASIGNACION_DIARIA.
+        tipoGestion:
+          type: string
+          enum: [CONTACTO_FAMILIAR, COMPROMISO_PAGO, SIN_CONTACTO]
+        fechaGestion:
+          type: string
+          format: date-time
+          description: Timestamp en que ocurrió la gestión, generado en el dispositivo.
+        fechaCapturaGps:
+          type: string
+          format: date-time
+          description: Timestamp de la captura GPS, generado en el dispositivo.
+        observacion:
+          type: string
+          nullable: true
+        observacionDireccion:
+          type: string
+          nullable: true
+        latitud:
+          type: number
+          format: double
+          description: Latitud GPS. Obligatorio.
+          example: -33.4567
+        longitud:
+          type: number
+          format: double
+          description: Longitud GPS. Obligatorio.
+          example: -70.6543
+        precisionMetros:
+          type: number
+          format: double
+          description: Precisión del GPS en metros.
+          example: 10.5
+        ubicacionSimulada:
+          type: boolean
+          description: true si el GPS fue emulado o simulado.
+        proveedorGps:
+          type: string
+          nullable: true
+        fechaCompromiso:
+          type: string
+          format: date
+          nullable: true
+          description: Obligatorio cuando tipoGestion = COMPROMISO_PAGO. No puede ser anterior a fechaGestion.
+
+    RespuestaCrearGestion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID de la gestión (el mismo enviado por el dispositivo).
+        resultado:
+          type: string
+          enum: [INSERTADA, IDEMPOTENTE]
+          description: |
+            `INSERTADA`: gestión nueva registrada (HTTP 201).
+            `IDEMPOTENTE`: ya existía con el mismo contenido (HTTP 200).
+
+paths:
+  /api/v1/asignaciones/diaria/activa:
+    get:
+      tags:
+        - Asignaciones
+      summary: Descargar asignación diaria activa
+      description: |
+        Retorna el bundle completo de la asignación diaria en estado `PUBLICADA` del ejecutivo autenticado.
+
+        **Ejecutivo identificado**: el `sub` del JWT es el UUID del ejecutivo.
+        **Rol requerido**: `EJECUTIVO_TERRENO`.
+
+        El bundle incluye por cada persona asignada:
+        - Datos de identidad (RUT, nombre).
+        - Direcciones vigentes.
+        - Avales informativos (rut, nombre).
+        - Operaciones en estado `ACTIVA` con cuotas `VENCIDA`, `VIGENTE` y `FUTURA` (excluye `PAGADA`).
+        - Últimas 10 gestiones (de cualquier ejecutivo).
+
+        El armado usa 8 consultas `IN` — sin N+1 independientemente del número de personas.
+
+        El parámetro `fecha` es opcional. Si se omite, el servidor usa la fecha actual en zona horaria `America/Santiago`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fecha
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2026-08-01"
+          description: Fecha de la asignación a descargar (ISO-8601). Por defecto hoy en America/Santiago.
+      responses:
+        "200":
+          description: Bundle de asignación diaria descargado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaAsignacionDiaria'
+        "204":
+          description: No existe asignación diaria activa (PUBLICADA) para el ejecutivo en la fecha indicada.
+        "401":
+          description: Token JWT ausente o inválido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: El usuario no tiene el rol EJECUTIVO_TERRENO.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/gestiones:
+    post:
+      tags:
+        - Gestiones
+      summary: Registrar gestión de cobranza
+      description: |
+        Recibe una gestión generada en el dispositivo Android e idempotente por UUID.
+
+        **Ejecutivo identificado**: el `sub` del JWT es el UUID del ejecutivo. No se incluye en el body.
+        **Rol requerido**: `EJECUTIVO_TERRENO`.
+
+        **Idempotencia (ADR-0027)**:
+        - Mismo UUID + mismo contenido → HTTP 200 `IDEMPOTENTE`.
+        - UUID nuevo → HTTP 201 `INSERTADA`.
+        - Mismo UUID + contenido distinto → HTTP 409 `GESTION_CONFLICTIVA`.
+
+        **Validaciones de dominio (→ 400)**:
+        - `origenGestion = ASIGNACION_DIARIA` requiere `asignacionDiariaId`.
+        - La asignación diaria debe estar en estado `PUBLICADA` o `FINALIZADA`.
+        - `tipoGestion = COMPROMISO_PAGO` requiere `fechaCompromiso` ≥ fecha de gestión.
+        - GPS obligatorio (`latitud`, `longitud`, `precisionMetros`, `ubicacionSimulada`).
+
+        No se incluye `Location` header en la respuesta 201.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SolicitudCrearGestion'
+      responses:
+        "201":
+          description: Gestión registrada correctamente (nueva inserción).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaCrearGestion'
+        "200":
+          description: Gestión ya existía con el mismo contenido (idempotente).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaCrearGestion'
+        "400":
+          description: Datos inválidos o regla de negocio violada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "401":
+          description: Token JWT ausente o inválido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: El usuario no tiene el rol EJECUTIVO_TERRENO.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "404":
+          description: Persona o asignación diaria no encontrada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "409":
+          description: Mismo UUID con contenido distinto (conflicto de idempotencia).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'

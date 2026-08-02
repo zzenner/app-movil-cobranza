@@ -1,14 +1,16 @@
 package cl.zzenner.cobranza.gestiones.aplicacion;
 
 import cl.zzenner.cobranza.asignaciones.api.AsignacionConsultaApi;
+import cl.zzenner.cobranza.asignaciones.api.AsignacionDiariaNoEncontradaException;
 import cl.zzenner.cobranza.asignaciones.api.DatosAsignacionDiaria;
+import cl.zzenner.cobranza.gestiones.api.GestionConflictivaException;
+import cl.zzenner.cobranza.gestiones.api.ResultadoRecepcion;
 import cl.zzenner.cobranza.gestiones.dominio.Gestion;
-import cl.zzenner.cobranza.gestiones.dominio.GestionConflictivaException;
 import cl.zzenner.cobranza.gestiones.dominio.OrigenGestion;
 import cl.zzenner.cobranza.gestiones.dominio.TipoGestion;
 import cl.zzenner.cobranza.gestiones.infraestructura.GestionRepository;
-
 import cl.zzenner.cobranza.personas.api.PersonaConsultaApi;
+import cl.zzenner.cobranza.personas.api.PersonaNoEncontradaException;
 import cl.zzenner.cobranza.usuarios.api.UsuarioConsultaApi;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +40,7 @@ public class GestionService {
         this.usuarioConsultaApi   = usuarioConsultaApi;
     }
 
-    public void recibirGestion(ComandoCrearGestion cmd) {
+    public ResultadoRecepcion recibirGestion(ComandoCrearGestion cmd) {
         Objects.requireNonNull(cmd.id(),                "id es obligatorio");
         Objects.requireNonNull(cmd.origenGestion(),     "origenGestion es obligatorio");
         Objects.requireNonNull(cmd.personaId(),         "personaId es obligatorio");
@@ -74,7 +76,7 @@ public class GestionService {
             if (existenteFast.get().tieneContenidoConflictivo(nueva)) {
                 throw new GestionConflictivaException(nueva.getId());
             }
-            return;
+            return ResultadoRecepcion.IDEMPOTENTE;
         }
 
         // El ejecutivo debe tener rol EJECUTIVO_TERRENO
@@ -117,19 +119,21 @@ public class GestionService {
             if (existente.tieneContenidoConflictivo(nueva)) {
                 throw new GestionConflictivaException(nueva.getId());
             }
+            return ResultadoRecepcion.IDEMPOTENTE;
         }
+
+        return ResultadoRecepcion.INSERTADA;
     }
 
     private void validarAsignacionDiaria(Gestion g) {
         DatosAsignacionDiaria diaria = asignacionConsultaApi
             .findAsignacionDiaria(g.getAsignacionDiariaId())
-            .orElseThrow(() -> new IllegalArgumentException(
-                "Asignación diaria no encontrada: " + g.getAsignacionDiariaId()));
+            .orElseThrow(() -> new AsignacionDiariaNoEncontradaException(g.getAsignacionDiariaId()));
 
         String estado = diaria.estado();
         if (!"PUBLICADA".equals(estado) && !"FINALIZADA".equals(estado)) {
             throw new IllegalStateException(
-                "La asignación diaria debe estar PUBLICADA o FINALIZADA. Estado actual: " + estado);
+                "La asignación diaria está en estado " + estado + "; se requiere PUBLICADA o FINALIZADA");
         }
         if (!diaria.ejecutivoId().equals(g.getEjecutivoId())) {
             throw new IllegalArgumentException(
@@ -143,8 +147,7 @@ public class GestionService {
 
     private void validarBusquedaDirecta(Gestion g) {
         if (!personaConsultaApi.existe(g.getPersonaId())) {
-            throw new IllegalArgumentException(
-                "Persona no encontrada: " + g.getPersonaId());
+            throw new PersonaNoEncontradaException(g.getPersonaId());
         }
     }
 }

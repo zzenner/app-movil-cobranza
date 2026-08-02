@@ -2,12 +2,14 @@
  * Módulo de sincronización.
  *
  * <p>Responsabilidad: coordinación del ciclo de sincronización con dispositivos Android.
- * Incluye descarga de asignaciones diarias y recepción de gestiones del outbox.
- * Depende de: asignaciones, gestiones, dispositivos.
+ * Incluye descarga de asignaciones diarias activas y recepción de gestiones del outbox.
  *
- * <p>Estado: stub — pendiente de implementación en Fase 2.
+ * <p>Depende de: asignaciones::api, personas::api, operaciones::api, gestiones::api.
  */
-@ApplicationModule(displayName = "Sincronizacion")
+@ApplicationModule(
+    displayName = "Sincronizacion",
+    allowedDependencies = {"asignaciones::api", "personas::api", "operaciones::api", "gestiones::api"}
+)
 package cl.zzenner.cobranza.sincronizacion;
 
 import org.springframework.modulith.ApplicationModule;

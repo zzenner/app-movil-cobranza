@@ -18,4 +18,6 @@ public interface AsignacionConsultaApi {
     Optional<DatosAsignacionDiaria> findAsignacionDiaria(UUID asignacionDiariaId);
 
     boolean personaEnAsignacionDiaria(UUID personaId, UUID asignacionDiariaId);
+
+    List<UUID> findPersonasEnAsignacionDiaria(UUID asignacionDiariaId);
 }

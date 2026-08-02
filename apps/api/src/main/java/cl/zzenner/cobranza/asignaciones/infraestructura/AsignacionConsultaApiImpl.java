@@ -77,6 +77,11 @@ class AsignacionConsultaApiImpl implements AsignacionConsultaApi {
                 .existsByAsignacionDiariaIdAndPersonaId(asignacionDiariaId, personaId);
     }
 
+    @Override
+    public List<UUID> findPersonasEnAsignacionDiaria(UUID asignacionDiariaId) {
+        return asignacionDiariaPersonaRepository.findPersonaIdsByAsignacionDiariaId(asignacionDiariaId);
+    }
+
     private DatosAsignacionMensual toDtoMensual(AsignacionMensual am) {
         return new DatosAsignacionMensual(
                 am.getId(), am.getCarteraId(), am.getEjecutivoId(), am.getSupervisorId(),

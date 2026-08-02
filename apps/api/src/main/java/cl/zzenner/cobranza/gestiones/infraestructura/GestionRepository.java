@@ -8,12 +8,15 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
 public interface GestionRepository extends JpaRepository<Gestion, UUID> {
 
     List<Gestion> findByPersonaIdOrderByFechaGestionDesc(UUID personaId);
+
+    List<Gestion> findByPersonaIdInOrderByFechaGestionDesc(Collection<UUID> personaIds);
 
     /**
      * Inserta atómicamente una gestión ignorando conflictos de PK.

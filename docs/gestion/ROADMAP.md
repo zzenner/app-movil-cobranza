@@ -1,6 +1,6 @@
 # Roadmap
 
-## Fase actual: Fase 3D — API REST de asignaciones y gestiones (próxima)
+## Fase actual: Fase 3D — API REST de asignaciones y gestiones ✅ Validada — Lista para cierre
 
 ## Fase 0 — Inicialización del repositorio ✅
 
@@ -122,16 +122,18 @@
 
 ---
 
-## Fase 3D — API REST de asignaciones y gestiones (PRÓXIMA)
+## Fase 3D — API REST de asignaciones y gestiones ✅ Validada — Lista para cierre
 
 **Objetivo:** Exponer los endpoints HTTP que consume la app Android para sincronizar asignaciones y enviar gestiones.
 
-**Incluye (borrador):**
-- `GET /asignaciones/diaria/activa` — descarga asignación diaria activa del ejecutivo autenticado.
-- `POST /gestiones` — recepción de gestión con respuesta 200/409 según idempotencia.
-- Autenticación con JWT en todos los endpoints.
-- Paginación y respuesta parcial para asignaciones grandes.
-- Ampliación del contrato OpenAPI (`contracts/openapi/cobranza-api.yaml`).
+**Completado (2026-08-01):**
+- `GET /api/v1/asignaciones/diaria/activa` — bundle completo (personas, direcciones, avales, operaciones ACTIVA, cuotas, últimas 10 gestiones). Parámetro `?fecha` opcional. 204 si no hay asignación activa.
+- `POST /api/v1/gestiones` — recepción idempotente: 201 INSERTADA / 200 IDEMPOTENTE / 409 GESTION_CONFLICTIVA. Sin header Location.
+- `@PreAuthorize("hasRole('EJECUTIVO_TERRENO')")` en ambos endpoints.
+- Estrategia bulk: 8 queries IN en total, sin N+1.
+- `GlobalExceptionHandler` con ProblemDetail uniforme (code, timestamp, path).
+- `OpenApiConfig` con SecurityScheme Bearer JWT.
+- 27 tests REST (12 descarga + 15 gestiones). **237 pruebas — 0 failures.**
 
 ---
 

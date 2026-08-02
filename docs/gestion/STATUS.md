@@ -1,7 +1,7 @@
 # Estado del proyecto
 
 **Última actualización:** 2026-08-01
-**Fase actual:** Fase 3D — API REST de asignaciones y gestiones (no iniciada)
+**Fase actual:** Fase 3D — API REST de asignaciones y gestiones ✅ VALIDADA — LISTA PARA CIERRE
 **Fase anterior:** Fase 3C — Gestiones de cobranza ✅ CERRADA (v0.7.0-gestiones)
 
 ## Resumen
@@ -22,6 +22,7 @@
 | **API — corrección persona-cartera (Fase 3A fix)**        | **Completado ✅**      |
 | **API — asignaciones mensuales y diarias (Fase 3B)**      | **Completado ✅**      |
 | **API — gestiones de cobranza (Fase 3C — validada)**      | **Completado ✅**      |
+| **API — REST asignaciones y gestiones (Fase 3D)**         | **Validada ✅ — Lista para cierre**      |
 | Admin Web (Angular)                                       | No iniciado           |
 | App Android (Kotlin)                                      | No iniciado           |
 | Despliegue en VPS                                         | No iniciado           |
@@ -237,9 +238,38 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 | ADR-0026 a ADR-0030 (ADR-0027 actualizado con estrategia ON CONFLICT) | ✅ |
 | MODELO_DATOS, MODELO_DOMINIO, DIAGRAMA_ER, DICCIONARIO, REGLAS_NEGOCIO, RF actualizados | ✅ |
 
+## Fase 3D validada (2026-08-01) ✅ LISTA PARA CIERRE
+
+### Endpoints REST de descarga de asignación y recepción de gestiones
+
+| Item | Resultado |
+|---|---|
+| `GET /api/v1/asignaciones/diaria/activa` — descarga bundle completo | ✅ |
+| `POST /api/v1/gestiones` — recepción idempotente (201/200/409) | ✅ |
+| `@PreAuthorize("hasRole('EJECUTIVO_TERRENO')")` en ambos endpoints | ✅ |
+| Ejecutivo identificado por `sub` del JWT; no se acepta del cliente | ✅ |
+| `DescargaAsignacionService` — 8 queries IN sin N+1 | ✅ |
+| Bundle: personas, direcciones vigentes, avales, operaciones ACTIVA, cuotas VENCIDA/VIGENTE/FUTURA (excluye PAGADA), últimas 10 gestiones | ✅ |
+| Parámetro `?fecha` opcional; default = hoy en America/Santiago (Clock inyectable) | ✅ |
+| 204 No Content cuando no hay asignación activa | ✅ |
+| `GestionConflictivaException` movida a `gestiones::api` | ✅ |
+| `ResultadoRecepcion` enum — `INSERTADA` / `IDEMPOTENTE` | ✅ |
+| `PersonaNoEncontradaException` → 404; `AsignacionDiariaNoEncontradaException` → 404 | ✅ |
+| `GestionConflictivaException` → 409; `IllegalArgumentException` → 400; `IllegalStateException` → 400 | ✅ |
+| `SeguridadConfig` — 401/403 con ProblemDetail uniforme (code, timestamp, path) | ✅ |
+| `GlobalExceptionHandler` — ProblemDetail uniforme con code, timestamp, path | ✅ |
+| `OpenApiConfig` — Bearer JWT SecurityScheme (`bearerAuth`) | ✅ |
+| `contracts/openapi/cobranza-api.yaml` — contrato completo con ambos endpoints | ✅ |
+| `apps/api/README.md` — estructura de módulos y endpoints actualizados | ✅ |
+| `docs/arquitectura/MODULOS.md` — estados de módulos actualizados | ✅ |
+| Spring Modulith — modularidad PASS | ✅ |
+| 12 tests REST asignaciones (incluyendo aserciones de cuerpo 401/403) | ✅ |
+| 16 tests REST gestiones (incluyendo BORRADOR→400 y aserciones de cuerpo 401/403) | ✅ |
+| **238 pruebas — 0 failures — 0 errors — BUILD SUCCESS** | ✅ |
+
 ## Próximo paso recomendado
 
-Endpoints REST de gestiones y asignaciones (Fase 3D), o fotografías de gestión (diferidas).
+Fase 3D validada. Siguiente: cierre git (`feat(api): implementar api rest asignaciones y gestiones fase 3d`, tag `v0.8.0-api-rest`) y luego Fase 4 (App Android).
 
 ## Historial de fases
 

@@ -6,8 +6,11 @@ import cl.zzenner.cobranza.gestiones.dominio.Gestion;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -26,6 +29,20 @@ class GestionConsultaApiImpl implements GestionConsultaApi {
             .limit(limite)
             .map(this::toDto)
             .toList();
+    }
+
+    @Override
+    public List<DatosGestion> findUltimasGestionesPorPersonas(Collection<UUID> personaIds, int limitePorPersona) {
+        if (personaIds.isEmpty()) return List.of();
+        // Una sola query IN; groupingBy preserva el orden DESC por fecha dentro de cada grupo.
+        Map<UUID, List<Gestion>> porPersona = gestionRepository
+                .findByPersonaIdInOrderByFechaGestionDesc(personaIds)
+                .stream()
+                .collect(Collectors.groupingBy(Gestion::getPersonaId));
+        return porPersona.values().stream()
+                .flatMap(lista -> lista.stream().limit(limitePorPersona))
+                .map(this::toDto)
+                .toList();
     }
 
     private DatosGestion toDto(Gestion g) {

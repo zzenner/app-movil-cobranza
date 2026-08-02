@@ -3,7 +3,9 @@ package cl.zzenner.cobranza.autenticacion.seguridad;
 import cl.zzenner.cobranza.autenticacion.aplicacion.PropiedadesJwt;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.Instant;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -50,9 +52,9 @@ class SeguridadConfig {
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt.decoder(jwtDecoder).jwtAuthenticationConverter(jwtAuthConverter))
                 .authenticationEntryPoint((req, res, ex) ->
-                    escribirProblemDetail(res, 401, "No autenticado", objectMapper))
+                    escribirProblemDetail(req, res, 401, "NO_AUTENTICADO", "No autenticado", objectMapper))
                 .accessDeniedHandler((req, res, ex) ->
-                    escribirProblemDetail(res, 403, "Acceso denegado", objectMapper))
+                    escribirProblemDetail(req, res, 403, "ACCESO_DENEGADO", "Acceso denegado", objectMapper))
             );
         return http.build();
     }
@@ -81,10 +83,14 @@ class SeguridadConfig {
         return authorities;
     }
 
-    private static void escribirProblemDetail(HttpServletResponse response, int status,
-                                               String title, ObjectMapper mapper) throws IOException {
+    private static void escribirProblemDetail(HttpServletRequest request, HttpServletResponse response,
+                                               int status, String code, String title,
+                                               ObjectMapper mapper) throws IOException {
         ProblemDetail detail = ProblemDetail.forStatus(status);
         detail.setTitle(title);
+        detail.setProperty("code", code);
+        detail.setProperty("timestamp", Instant.now().toString());
+        detail.setProperty("path", request.getRequestURI());
         response.setStatus(status);
         response.setContentType("application/problem+json;charset=UTF-8");
         response.getWriter().write(mapper.writeValueAsString(detail));
