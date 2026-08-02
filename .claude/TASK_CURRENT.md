@@ -2,55 +2,47 @@
 
 ## Identificación
 
-- **Fase:** 4A — Android base: red, seguridad, autenticación, navegación
-- **Estado:** VALIDADA ✅ — pendiente de cierre Git
-- **Rama activa:** `feature/fase-4a-android-base`
-- **Commit base:** `98854cf feat(api): implementar api rest asignaciones y gestiones fase 3d`
-- **Restricción:** sin commit, sin push, sin tags hasta instrucción explícita
+- **Fase:** 4B — Cartera offline (Room + WorkManager + descarga de asignación)
+- **Estado:** pendiente de planificación — sin implementación iniciada
+- **Rama activa:** `feature/fase-4b-descarga-offline`
+- **Commit base:** `3d00ccf feat(android): implementar base y autenticacion fase 4a`
+- **Tag base:** `v0.9.0-android-base`
+
+## Fase 4A — CERRADA ✅
+
+- **Commit:** `3d00ccf`
+- **Tag:** `v0.9.0-android-base`
+- **main local y remoto:** apuntan a `3d00ccf`
+- **Pruebas API:** 247 — 0 failures
+- **Pruebas Android JVM:** 38 — 0 failures
+- **Instrumentadas:** compiladas — NO ejecutadas (sin emulador en WSL2)
 
 ## Objetivo actual
 
-Cierre formal de Fase 4A: commit en rama `feature/fase-4a-android-base` y apertura de PR hacia `main`.
+Planificar Fase 4B antes de implementar nada. Leer en orden:
 
-## Alcance implementado
+1. `docs/gestion/ROADMAP.md` — alcance de Fase 4B
+2. `docs/sincronizacion/ESTRATEGIA_OFFLINE.md`
+3. `docs/sincronizacion/PROTOCOLO_SINCRONIZACION.md`
+4. `docs/dominio/MODELO_DATOS.md` — tablas que necesita Room
+5. ADR existentes relacionados con offline, sincronización, Room
 
-**API:**
-- `identificadorInstalacion` reemplaza `dispositivoId` en el contrato de login
-- TOCTOU fix en `buscarORegistrar()` con `INSERT … ON CONFLICT DO NOTHING`
-- 2 tests de concurrencia añadidos → 247 tests totales, 0 failures
+Presentar plan al usuario antes de implementar.
 
-**Android (`apps/mobile-android/`):**
-- Módulos: `:app`, `:core:network`, `:core:security`, `:feature:auth`
-- AES-256-GCM via Android Keystore (SecureTokenStore)
-- DataStore para `identificadorInstalacion` y `sessionExpiresAt`
-- SingleFlightAuthenticator con Mutex
-- SessionRepository `@ActivityRetainedScoped`
-- Navegación: Check → Login/Home sobre AuthState
-- Backup completamente deshabilitado (allowBackup=false + data_extraction_rules.xml)
-- compileSdk=37, targetSdk=36, minSdk=29
+## Alcance previsto (según ROADMAP)
 
-## Fuera de alcance
+- Room: entidades para asignación diaria, personas, operaciones, cuotas, gestiones pendientes
+- WorkManager: sincronización periódica en background
+- Descarga de asignación diaria desde API y persistencia local
+- Cola de gestiones pendientes y sincronización hacia la API
 
-- Room / SQLite
-- WorkManager
-- Descarga de asignaciones diarias
-- Gestiones, GPS, fotografías
-- Fase 4B (en ningún caso)
+## Fuera de alcance (siempre)
 
-## Pruebas ejecutadas
+- GPS / fotografías
+- Admin Web
+- Despliegue VPS
+- Funcionalidad de autenticación (cerrada en Fase 4A)
 
-| Suite | Resultado |
-|---|---|
-| API — `./mvnw clean verify` | ✅ 247 tests — 0 failures |
-| Android — `assembleDebug` | ✅ BUILD SUCCESSFUL |
-| Android — `lint` | ✅ BUILD SUCCESSFUL |
-| Android — `testDebugUnitTest` | ✅ 38 tests — 0 failures |
-| Android — `assembleDebugAndroidTest` | ✅ BUILD SUCCESSFUL |
-| Android — `connectedDebugAndroidTest` | ⏭️ Sin emulador en WSL2 |
+## connectedDebugAndroidTest pendiente
 
-## Siguiente acción exacta
-
-1. Recibir autorización del usuario.
-2. `git add` de los archivos listados en `SESSION_HANDOFF.md`.
-3. Commit con mensaje convencional describiendo Fase 4A completa.
-4. Abrir PR hacia `main`.
+APK instrumentado compilado. Ejecutar cuando haya emulador o dispositivo físico.

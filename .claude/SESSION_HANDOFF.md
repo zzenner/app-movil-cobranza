@@ -1,42 +1,34 @@
-# Checkpoint de sesión — Fase 4A
+# Checkpoint de sesión — cierre Fase 4A / apertura Fase 4B
 
 **Fecha:** 2026-08-02
-**Rama:** `feature/fase-4a-android-base`
-**Commit base:** `98854cf feat(api): implementar api rest asignaciones y gestiones fase 3d`
-**Estado:** VALIDADA ✅ — pendiente de cierre Git
+**Rama activa:** `feature/fase-4b-descarga-offline`
 
 ---
 
-## Estado del árbol (git status --short)
+## Estado de Git
 
-**Modificados (M) — 16 archivos:**
-- `CLAUDE.md` — añadida sección "Recuperación y cierre de sesiones"
-- 9 archivos Java API (`autenticacion/`, `dispositivos/`)
-- `AutenticacionIntegracionTest.java`
-- `contracts/openapi/cobranza-api.yaml`
-- `docs/arquitectura/ARQUITECTURA_GENERAL.md`, `MODULOS.md`
-- `docs/gestion/CHANGELOG.md`, `ROADMAP.md`, `STATUS.md`
+| Referencia | Hash |
+|---|---|
+| main local | `3d00ccf` |
+| origin/main | `3d00ccf` |
+| feature/fase-4a-android-base | `3d00ccf` |
+| feature/fase-4b-descarga-offline | `3d00ccf` (base = main) |
+| v0.9.0-android-base | `3d00ccf` |
 
-**Sin rastrear (??) — 14 entradas:**
-- `.claude/` (TASK_CURRENT.md, SESSION_HANDOFF.md)
-- `.github/workflows/android-ci.yml`
-- `apps/mobile-android/` (proyecto completo)
-- `docs/adr/0031-*.md`, `docs/adr/0032-*.md`
-
-**Sin errores de espacios en blanco.** (`git diff --check` OK)
+Árbol limpio — sin cambios sin rastrear ni modificados.
 
 ---
 
-## Resultados de pruebas
+## Pruebas validadas
 
 | Suite | Resultado |
 |---|---|
-| API `./mvnw clean verify` | ✅ 247 tests — 0 failures — BUILD SUCCESS |
+| API `./mvnw clean verify` | ✅ 247 tests — 0 failures — Modularidad PASS |
 | Android `assembleDebug` | ✅ BUILD SUCCESSFUL |
-| Android `lint` | ✅ BUILD SUCCESSFUL — sin errores |
+| Android `lint` | ✅ BUILD SUCCESSFUL |
 | Android `testDebugUnitTest` | ✅ 38 tests — 0 failures |
 | Android `assembleDebugAndroidTest` | ✅ BUILD SUCCESSFUL |
-| Android `connectedDebugAndroidTest` | ⏭️ Sin emulador en WSL2 — APK compilado |
+| Android `connectedDebugAndroidTest` | ⏭️ No ejecutado — sin emulador en WSL2 |
 
 ---
 
@@ -45,13 +37,11 @@
 | Componente | Versión |
 |---|---|
 | AGP | 9.3.0 |
-| Gradle Wrapper | 9.6.1 |
+| Gradle | 9.6.1 |
 | Kotlin | 2.4.10 |
 | KSP | 2.3.10 |
 | Compose BOM | 2026.06.01 |
-| Lifecycle | 2.9.0 (libs) / 2.11.0 (BOM) |
-| Hilt Android | 2.60.1 |
-| Hilt AndroidX | 1.4.0 |
+| Hilt | 2.60.1 / AndroidX 1.4.0 |
 | compileSdk | 37 |
 | targetSdk | 36 |
 | minSdk | 29 |
@@ -60,32 +50,17 @@
 
 ## Siguiente acción exacta
 
-Recibir autorización del usuario para commit. Ejecutar:
-
-```bash
-git add CLAUDE.md \
-  apps/api/src/main/java/cl/zzenner/cobranza/autenticacion/ \
-  apps/api/src/main/java/cl/zzenner/cobranza/dispositivos/ \
-  apps/api/src/test/java/cl/zzenner/cobranza/autenticacion/ \
-  contracts/openapi/cobranza-api.yaml \
-  docs/ \
-  .claude/ \
-  .github/workflows/android-ci.yml \
-  apps/mobile-android/
-
-git commit -m "feat(android): implementar base Android Fase 4A — red, seguridad, autenticación"
-```
-
-Luego abrir PR hacia `main`.
+Revisar `docs/gestion/ROADMAP.md`, `docs/sincronizacion/ESTRATEGIA_OFFLINE.md`, `docs/sincronizacion/PROTOCOLO_SINCRONIZACION.md` y `docs/dominio/MODELO_DATOS.md` para planificar Fase 4B. Presentar plan al usuario antes de implementar.
 
 ---
 
 ## No repetir
 
-- Instalar Android SDK (ya en `$HOME/Android/Sdk`)
-- Corrección TOCTOU `buscarORegistrar` (ya aplicada)
-- Corrección `LoginViewModel` estado error (ya aplicada)
-- Corrección AGP 9.0: plugin `kotlin.android` y `kotlinOptions` (ya eliminados)
-- Cambiar compileSdk/targetSdk (compileSdk=37, targetSdk=36 — definitivos)
-- Crear recursos Android base (strings.xml, themes.xml, icons — ya creados)
-- Actualizar CI a `android-37.1` (ya actualizado)
+- Commit de Fase 4A (ya en `3d00ccf`)
+- Merge a main (fast-forward completado)
+- Tag `v0.9.0-android-base` (publicado)
+- Crear rama `feature/fase-4b-descarga-offline` (ya existe)
+- Corregir `buscarORegistrar` TOCTOU (en producción desde `3d00ccf`)
+- Modificar contrato de login (corregido en `3d00ccf`)
+- Instalar Android SDK 37.1 (instalado en `$HOME/Android/Sdk`)
+- Cambiar compileSdk/targetSdk (definitivos: 37/36)
