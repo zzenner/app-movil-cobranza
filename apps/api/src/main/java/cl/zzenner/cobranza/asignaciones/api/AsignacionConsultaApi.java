@@ -14,4 +14,8 @@ public interface AsignacionConsultaApi {
     boolean personaEnAsignacionMensualActiva(UUID personaId, UUID carteraId);
 
     Optional<DatosAsignacionDiaria> findAsignacionDiariaPublicada(UUID ejecutivoId, LocalDate fecha);
+
+    Optional<DatosAsignacionDiaria> findAsignacionDiaria(UUID asignacionDiariaId);
+
+    boolean personaEnAsignacionDiaria(UUID personaId, UUID asignacionDiariaId);
 }

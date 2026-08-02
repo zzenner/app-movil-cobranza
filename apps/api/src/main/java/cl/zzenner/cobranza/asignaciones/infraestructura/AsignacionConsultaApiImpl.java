@@ -22,13 +22,16 @@ class AsignacionConsultaApiImpl implements AsignacionConsultaApi {
     private final AsignacionMensualRepository asignacionMensualRepository;
     private final AsignacionMensualPersonaRepository asignacionMensualPersonaRepository;
     private final AsignacionDiariaRepository asignacionDiariaRepository;
+    private final AsignacionDiariaPersonaRepository asignacionDiariaPersonaRepository;
 
     AsignacionConsultaApiImpl(AsignacionMensualRepository asignacionMensualRepository,
                                AsignacionMensualPersonaRepository asignacionMensualPersonaRepository,
-                               AsignacionDiariaRepository asignacionDiariaRepository) {
+                               AsignacionDiariaRepository asignacionDiariaRepository,
+                               AsignacionDiariaPersonaRepository asignacionDiariaPersonaRepository) {
         this.asignacionMensualRepository = asignacionMensualRepository;
         this.asignacionMensualPersonaRepository = asignacionMensualPersonaRepository;
         this.asignacionDiariaRepository = asignacionDiariaRepository;
+        this.asignacionDiariaPersonaRepository = asignacionDiariaPersonaRepository;
     }
 
     @Override
@@ -61,6 +64,17 @@ class AsignacionConsultaApiImpl implements AsignacionConsultaApi {
         return asignacionDiariaRepository
                 .findByEjecutivoIdAndFechaAndEstado(ejecutivoId, fecha, EstadoAsignacionDiaria.PUBLICADA)
                 .map(this::toDtoDiaria);
+    }
+
+    @Override
+    public Optional<DatosAsignacionDiaria> findAsignacionDiaria(UUID asignacionDiariaId) {
+        return asignacionDiariaRepository.findById(asignacionDiariaId).map(this::toDtoDiaria);
+    }
+
+    @Override
+    public boolean personaEnAsignacionDiaria(UUID personaId, UUID asignacionDiariaId) {
+        return asignacionDiariaPersonaRepository
+                .existsByAsignacionDiariaIdAndPersonaId(asignacionDiariaId, personaId);
     }
 
     private DatosAsignacionMensual toDtoMensual(AsignacionMensual am) {

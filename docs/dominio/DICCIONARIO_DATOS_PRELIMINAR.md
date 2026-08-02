@@ -265,25 +265,30 @@ Valores iniciales: `CONTACTO_FAMILIAR`, `COMPROMISO_PAGO`, `SIN_CONTACTO`.
 
 ## `gestiones`
 
-| Columna | Tipo | Nulo | Descripción |
-|---|---|---|---|
-| `id` | UUID | No | PK. **Generado en el dispositivo Android**, no en la BD. |
-| `ejecutivo_id` | UUID | No | FK → `usuarios`. |
-| `persona_id` | UUID | No | FK → `personas`. |
-| `tipo_gestion` | VARCHAR(30) | No | FK → `tipos_gestion.codigo`. |
-| `observaciones` | TEXT | Sí | Texto libre del ejecutivo. |
-| `fecha_compromiso` | DATE | Sí | Obligatorio si `tipo_gestion = COMPROMISO_PAGO`. |
-| `latitud` | DOUBLE PRECISION | No | Coordenada capturada al momento del registro. |
-| `longitud` | DOUBLE PRECISION | No | Coordenada capturada al momento del registro. |
-| `precision_metros` | REAL | No | Precisión GPS en metros. |
-| `fecha_captura_gps` | TIMESTAMPTZ | No | Momento en que se capturó la ubicación. |
-| `proveedor_gps` | VARCHAR(50) | No | Proveedor (GPS, NETWORK, FUSED, etc.). |
-| `ubicacion_simulada` | BOOLEAN | No | Si Android detectó mock location. |
-| `ubicacion` | GEOMETRY(POINT,4326) | No | Punto PostGIS derivado de latitud/longitud. |
-| `fecha_gestion` | TIMESTAMPTZ | No | Fecha y hora en el reloj del dispositivo. |
-| `created_at` | TIMESTAMPTZ | No | Momento de recepción en la API. |
+Implementada en V010. Append-only: sin `updated_at`. Ver ADR-0026, ADR-0027, ADR-0028, ADR-0029.
 
-Inmutable: no tiene `updated_at`. No hay mecanismo de corrección en el MVP.
+| Columna                   | Tipo              | Nulo | Descripción |
+|---------------------------|-------------------|------|-------------|
+| `id`                      | UUID              | No   | PK. **Generado en el dispositivo Android** (ADR-0027). |
+| `origen_gestion`          | VARCHAR(30)       | No   | `ASIGNACION_DIARIA` o `BUSQUEDA_DIRECTA` (ADR-0026). CHECK constraint. |
+| `asignacion_diaria_id`    | UUID              | Sí   | FK → `asignaciones_diarias`. NULL si `origen_gestion = BUSQUEDA_DIRECTA`. |
+| `persona_id`              | UUID              | No   | FK → `personas`. |
+| `ejecutivo_id`            | UUID              | No   | FK → `usuarios`. Debe tener rol `EJECUTIVO_TERRENO`. |
+| `tipo_gestion`            | VARCHAR(30)       | No   | `CONTACTO_FAMILIAR`, `COMPROMISO_PAGO`, `SIN_CONTACTO`. CHECK constraint. |
+| `fecha_gestion`           | TIMESTAMPTZ       | No   | Fecha y hora en el reloj del **dispositivo** (ADR-0029). |
+| `observacion`             | TEXT              | Sí   | Texto libre del ejecutivo. |
+| `observacion_direccion`   | TEXT              | Sí   | Dirección reportada como incorrecta desde terreno. |
+| `latitud`                 | DOUBLE PRECISION  | No   | Coordenada capturada al momento del registro. |
+| `longitud`                | DOUBLE PRECISION  | No   | Coordenada capturada al momento del registro. |
+| `precision_metros`        | REAL              | No   | Precisión GPS en metros (≥ 0). |
+| `proveedor_gps`           | VARCHAR(50)       | Sí   | Proveedor (GPS, NETWORK, FUSED, etc.). |
+| `ubicacion_simulada`      | BOOLEAN           | No   | Si Android detectó mock location. Sin DEFAULT. |
+| `fecha_captura_gps`       | TIMESTAMPTZ       | No   | Momento en que se capturó la ubicación GPS. |
+| `fecha_compromiso`        | DATE              | Sí   | Obligatorio si `tipo_gestion = COMPROMISO_PAGO`. Sin monto. |
+| `fecha_creacion_servidor` | TIMESTAMPTZ       | No   | Momento de recepción en la API (generado en servidor, ADR-0029). |
+
+Inmutable: sin `updated_at`. No hay corrección ni anulación en el MVP (ADR-0028).
+`tipo_gestion` y `origen_gestion` usan CHECK constraints, no FK a tabla de catálogo.
 
 ---
 

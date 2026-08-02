@@ -184,25 +184,35 @@ Personas incluidas en una asignación diaria.
 PK compuesta: `(asignacion_diaria_id, persona_id)`.
 
 ### `gestiones`
-| Columna              | Tipo              | Descripción                                                      |
-|----------------------|-------------------|------------------------------------------------------------------|
-| `id`                 | UUID PK           | **Generado en el dispositivo Android (no en la base de datos).**  |
-| `ejecutivo_id`       | UUID FK           | Ejecutivo que registró la gestión.                               |
-| `persona_id`         | UUID FK           | Persona sobre la que se realizó la gestión.                      |
-| `tipo_gestion`       | VARCHAR(30)       | `CONTACTO_FAMILIAR`, `COMPROMISO_PAGO`, `SIN_CONTACTO`.          |
-| `observaciones`      | TEXT              | Texto libre del ejecutivo.                                       |
-| `fecha_compromiso`   | DATE              | Obligatorio si `tipo_gestion = COMPROMISO_PAGO`. NULL en otros. |
-| `latitud`            | DOUBLE PRECISION  | Coordenada geográfica (obligatoria).                             |
-| `longitud`           | DOUBLE PRECISION  | Coordenada geográfica (obligatoria).                             |
-| `precision_metros`   | REAL              | Precisión GPS en metros.                                         |
-| `fecha_captura_gps`  | TIMESTAMPTZ       | Momento en que se capturó la ubicación.                          |
-| `proveedor_gps`      | VARCHAR(50)       | Proveedor de ubicación (GPS, NETWORK, etc.).                     |
-| `ubicacion_simulada` | BOOLEAN           | Si Android detectó ubicación simulada.                           |
-| `ubicacion`          | GEOMETRY(POINT,4326) | Punto PostGIS (derivado de latitud/longitud).                |
-| `fecha_gestion`      | TIMESTAMPTZ       | Fecha y hora registrada en el dispositivo.                       |
-| `created_at`         | TIMESTAMPTZ       | Fecha de recepción en la API.                                    |
 
-Gestiones son inmutables: no hay columnas `updated_at`.
+Implementada en V010. Tabla append-only (inmutable); sin `updated_at` ni `version`. Ver ADR-0026, ADR-0027, ADR-0028, ADR-0029.
+
+| Columna                  | Tipo              | Nulo | Descripción                                                                            |
+|--------------------------|-------------------|------|----------------------------------------------------------------------------------------|
+| `id`                     | UUID PK           | No   | **Generado en el dispositivo Android** (ADR-0027). Sin `@GeneratedValue`.              |
+| `origen_gestion`         | VARCHAR(30)       | No   | `ASIGNACION_DIARIA` o `BUSQUEDA_DIRECTA` (ADR-0026).                                   |
+| `asignacion_diaria_id`   | UUID FK           | Sí   | Referencia a `asignaciones_diarias`. NULL si `origen_gestion = BUSQUEDA_DIRECTA`.      |
+| `persona_id`             | UUID FK           | No   | Persona sobre la que se realizó la gestión.                                            |
+| `ejecutivo_id`           | UUID FK           | No   | Ejecutivo que registró la gestión (debe tener rol `EJECUTIVO_TERRENO`).                |
+| `tipo_gestion`           | VARCHAR(30)       | No   | `CONTACTO_FAMILIAR`, `COMPROMISO_PAGO`, `SIN_CONTACTO`. CHECK constraint (no FK).     |
+| `fecha_gestion`          | TIMESTAMPTZ       | No   | Fecha y hora registrada en el **dispositivo** (ADR-0029).                              |
+| `observacion`            | TEXT              | Sí   | Texto libre del ejecutivo.                                                             |
+| `observacion_direccion`  | TEXT              | Sí   | Dirección reportada como incorrecta o incompleta desde terreno.                        |
+| `latitud`                | DOUBLE PRECISION  | No   | Coordenada geográfica capturada al momento del registro.                               |
+| `longitud`               | DOUBLE PRECISION  | No   | Coordenada geográfica capturada al momento del registro.                               |
+| `precision_metros`       | REAL              | No   | Precisión GPS en metros (≥ 0).                                                         |
+| `proveedor_gps`          | VARCHAR(50)       | Sí   | Proveedor de ubicación (GPS, NETWORK, FUSED, etc.).                                    |
+| `ubicacion_simulada`     | BOOLEAN           | No   | Si Android detectó mock location. Sin DEFAULT: el dispositivo lo informa explícitamente. |
+| `fecha_captura_gps`      | TIMESTAMPTZ       | No   | Momento en que se capturó la ubicación GPS.                                            |
+| `fecha_compromiso`       | DATE              | Sí   | Obligatorio si `tipo_gestion = COMPROMISO_PAGO`. NULL en otros tipos.                  |
+| `fecha_creacion_servidor`| TIMESTAMPTZ       | No   | Momento de recepción en la API (generado en servidor, ADR-0029).                       |
+
+**Restricciones CHECK:**
+- Coherencia `origen_gestion` ↔ `asignacion_diaria_id`: si `ASIGNACION_DIARIA` entonces FK no nulo; si `BUSQUEDA_DIRECTA` entonces FK nulo.
+- Coherencia `tipo_gestion` ↔ `fecha_compromiso`: si `COMPROMISO_PAGO` entonces fecha no nula; en otros tipos debe ser nula.
+- Rangos: `latitud BETWEEN -90 AND 90`, `longitud BETWEEN -180 AND 180`, `precision_metros >= 0`.
+
+**Nota:** No se almacena columna `ubicacion GEOMETRY`. La latitud y longitud se almacenan como `DOUBLE PRECISION`; PostGIS no se usa en gestiones en el MVP.
 
 ### `fotografias_gestiones`
 | Columna        | Tipo         | Descripción                                           |

@@ -5,6 +5,86 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-01 — Fase 3C validada: tests concurrentes + auditoría de dominio ✅
+
+### Pruebas adicionales (Tests 22–25)
+
+- **Test 22**: Concurrencia — mismo UUID, contenido conflictivo (2 hilos). Un ganador, un `GestionConflictivaException`, una sola fila en BD.
+- **Test 23**: Reintento idempotente no modifica `fecha_creacion_servidor`.
+- **Test 24**: `fecha_creacion_servidor` generada en servidor; distinta de `fecha_gestion` del dispositivo.
+- **Test 25**: Conflicto no modifica la gestión original — `persona_id` en BD verificado por JDBC.
+
+### Documentación de dominio actualizada
+
+| Documento | Cambio |
+|---|---|
+| `MODELO_DATOS.md` | Tabla `gestiones` reescrita con columnas reales de V010: `origen_gestion`, `asignacion_diaria_id`, `observacion_direccion`, `fecha_creacion_servidor`; eliminadas `ubicacion GEOMETRY` y `created_at`. |
+| `MODELO_DOMINIO.md` | Sección Gestión ampliada: dos orígenes, GPS completo, `fecha_gestion` vs `fecha_creacion_servidor`, fotografías diferidas. |
+| `DIAGRAMA_ENTIDAD_RELACION.md` | Entidad GESTIONES corregida; relación `}o--o|` con ASIGNACIONES_DIARIAS; notas actualizadas. |
+| `DICCIONARIO_DATOS_PRELIMINAR.md` | Sección `gestiones` corregida con columnas reales y referencias a ADRs. |
+| `REGLAS_NEGOCIO.md` | RN-12 fraccionada: RN-12 (dos orígenes, ADR-0026) + RN-12b (reglas de registro). |
+| `REQUISITOS_FUNCIONALES.md` | RF-05i (dos orígenes) + RF-05j (idempotencia atómica) agregados. |
+
+**210 pruebas — 0 failures — BUILD SUCCESS.**
+
+---
+
+## [Sin versión] — 2026-08-01 — Fase 3C corrección: idempotencia atómica con ON CONFLICT ✅
+
+### Corrección — Idempotencia concurrentemente segura en `GestionService`
+
+**Problema:** La estrategia read-check-then-write tenía una ventana TOCTOU: dos solicitudes concurrentes con el mismo UUID podían superar la verificación `findById` simultáneamente y luego ambas intentar el `INSERT`, provocando una excepción de PK no manejada que envenenaba la transacción JPA.
+
+**Cambios:**
+
+- `GestionRepository` — nuevo método `insertarSiNoExiste()` con `@Modifying(clearAutomatically = true)` y native query `INSERT ... ON CONFLICT (id) DO NOTHING`. Retorna 1 si se insertó, 0 si ya existía.
+- `GestionService.recibirGestion()` — reestructurado en dos niveles:
+  1. Fast-path: `findById` para el caso común de reintento simple (sin pasar por validaciones).
+  2. Insert atómico: `insertarSiNoExiste()` para proteger contra concurrencia; si retorna 0, relee y compara contenido.
+- `GestionesIntegracionTest` — **Test 21** agregado: 5 hilos simultáneos con el mismo UUID → ninguna excepción, exactamente 1 fila en BD.
+- `ADR-0027` — actualizado para documentar la estrategia en dos niveles y el fundamento de `ON CONFLICT DO NOTHING` frente al manejo de `DataIntegrityViolationException`.
+
+**BUILD SUCCESS — compilación limpia sin errores.**
+
+---
+
+## [Sin versión] — 2026-08-01 — Fase 3C: Gestiones de cobranza ✅
+
+### Nuevo — Módulo `gestiones` completo
+
+**Alcance:** Recepción idempotente de gestiones de cobranza en la API. Las gestiones son inmutables; el UUID se genera en el dispositivo Android.
+
+**Migración V010 (`gestiones`):**
+- Tabla `cobranza.gestiones` con: `id` (UUID PK, generado en dispositivo), `origen_gestion`, `asignacion_diaria_id` (nullable), `persona_id`, `ejecutivo_id`, `tipo_gestion`, `fecha_gestion` (timestamp dispositivo), `fecha_creacion_servidor` (timestamp servidor), GPS completo (`latitud`, `longitud`, `precision_metros`, `proveedor_gps`, `ubicacion_simulada`, `fecha_captura_gps`), `observacion`, `observacion_direccion`, `fecha_compromiso`.
+- Sin `fecha_actualizacion` ni `version`: tabla append-only.
+- CHECK constraints: coherencia `origen_gestion` ↔ `asignacion_diaria_id`, coherencia `tipo_gestion` ↔ `fecha_compromiso`, rangos GPS, precision >= 0.
+
+**Orígenes:**
+- `ASIGNACION_DIARIA`: requiere diaria PUBLICADA o FINALIZADA (caso offline); ejecutivo debe ser el destinatario; persona debe estar en la diaria.
+- `BUSQUEDA_DIRECTA`: persona existe; ejecutivo tiene rol `EJECUTIVO_TERRENO`; sin restricción de cartera.
+
+**Módulo `gestiones`:**
+- `OrigenGestion`, `TipoGestion` — enums de dominio.
+- `Gestion` — entidad JPA inmutable; constructor valida todas las reglas de dominio; `tieneContenidoConflictivo()` para detección de conflictos de idempotencia.
+- `GestionConflictivaException` — excepción de dominio para UUID con contenido conflictivo.
+- `GestionRepository` — Spring Data JPA.
+- `ComandoCrearGestion` — record de aplicación.
+- `GestionService.recibirGestion()` — recepción idempotente con check de contenido antes de insertar; valida origen, rol, membresía, estado de diaria y fecha de compromiso con zona horaria de negocio (`America/Santiago`).
+- `GestionConsultaApi` + `DatosGestion` — interfaz pública (`@NamedInterface("api")`).
+- `GestionConsultaApiImpl` — consulta por persona.
+
+**Extensión `asignaciones::api`:**
+- `findAsignacionDiaria(UUID)` — buscar diaria por ID (para validación cross-módulo).
+- `personaEnAsignacionDiaria(UUID, UUID)` — verificar pertenencia de persona a diaria.
+
+**Tests:**
+- 20 tests de integración: 2 flujos exitosos de ASIGNACION_DIARIA (PUBLICADA y FINALIZADA), 2 rechazos de estado (BORRADOR y CANCELADA), 2 rechazos de membresía/destinatario, 2 flujos BUSQUEDA_DIRECTA (con y sin restricción de cartera), 4 rechazos de dominio (origen incoherente, COMPROMISO sin fecha, tipo con fecha, coordenadas/precision), 1 idempotencia, 1 conflicto, 1 rol, 1 schema (sin fecha_actualizacion), 1 modularidad, 1 persistencia completa.
+- **205 pruebas — 0 failures — Modularidad PASS — BUILD SUCCESS**.
+
+**ADRs:** ADR-0026 (dos orígenes), ADR-0027 (UUID dispositivo e idempotencia), ADR-0028 (gestión inmutable), ADR-0029 (separación temporal), ADR-0030 (fotografías diferidas).
+
+---
+
 ## [Sin versión] — 2026-08-01 — Fase 3B corrección: historial individual de asignaciones mensuales ✅
 
 ### Corrección — AsignacionMensualPersona: historial individual por persona

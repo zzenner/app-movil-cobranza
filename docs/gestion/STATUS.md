@@ -1,7 +1,8 @@
 # Estado del proyecto
 
 **Última actualización:** 2026-08-01
-**Fase actual:** Fase 3B — Asignaciones mensuales y diarias (implementación completada, corrección de historial individual aprobada, sin endpoints REST)
+**Fase actual:** Fase 3D — API REST de asignaciones y gestiones (no iniciada)
+**Fase anterior:** Fase 3C — Gestiones de cobranza ✅ CERRADA (v0.7.0-gestiones)
 
 ## Resumen
 
@@ -19,7 +20,8 @@
 | **API — modelo físico usuarios/roles/dispositivos (1C)**  | **Completado ✅**      |
 | **API — autenticación y sesiones (Fase 2)**               | **Completado ✅**      |
 | **API — corrección persona-cartera (Fase 3A fix)**        | **Completado ✅**      |
-| **API — asignaciones mensuales y diarias (Fase 3B)**      | **En progreso 🔄**    |
+| **API — asignaciones mensuales y diarias (Fase 3B)**      | **Completado ✅**      |
+| **API — gestiones de cobranza (Fase 3C — validada)**      | **Completado ✅**      |
 | Admin Web (Angular)                                       | No iniciado           |
 | App Android (Kotlin)                                      | No iniciado           |
 | Despliegue en VPS                                         | No iniciado           |
@@ -121,7 +123,7 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 
 | ID   | Pregunta                                                                                                      |
 |------|---------------------------------------------------------------------------------------------------------------|
-| P-01 | ¿El ejecutivo puede registrar gestiones sobre personas fuera de su asignación diaria activa?                 |
+| ~~P-01~~ | ~~¿El ejecutivo puede registrar gestiones sobre personas fuera de su asignación diaria activa?~~ **Resuelta: dos orígenes (ADR-0026)** |
 | P-02 | ¿Los ejecutivos ven gestiones de otros ejecutivos sobre la misma persona en la app Android?                  |
 | P-03 | ¿Cuál es el catálogo completo futuro de tipos de gestión? (los tres iniciales están confirmados)             |
 | P-04 | ¿Se implementa exportación a Excel en la Fase 1 o en una posterior?                                         |
@@ -209,9 +211,35 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 | Modularidad Spring Modulith — PASS | ✅ |
 | **182 pruebas — 0 failures** | ✅ |
 
+## Fase 3C completada (2026-08-01) — corregida idempotencia atómica
+
+### Módulo gestiones — Recepción idempotente de gestiones de cobranza
+
+| Item | Resultado |
+|---|---|
+| V010: tabla `gestiones` (append-only, sin fecha_actualizacion) | ✅ |
+| `OrigenGestion`, `TipoGestion` — enums de dominio | ✅ |
+| `Gestion` — entidad inmutable, UUID generado en dispositivo | ✅ |
+| `GestionConflictivaException` — excepción de dominio | ✅ |
+| `GestionService.recibirGestion()` — idempotente, validaciones completas | ✅ |
+| `GestionRepository.insertarSiNoExiste()` — `INSERT ... ON CONFLICT (id) DO NOTHING` | ✅ |
+| Idempotencia atómica: fast-path findById + insert atómico | ✅ |
+| `GestionConsultaApi` — interfaz pública `@NamedInterface("api")` | ✅ |
+| `AsignacionConsultaApi` — extendida con `findAsignacionDiaria` y `personaEnAsignacionDiaria` | ✅ |
+| 25 tests de integración (idempotencia, concurrencia, conflicto, persistencia) | ✅ |
+| Prueba concurrente 5 hilos mismo UUID — 0 errores, 1 fila | ✅ |
+| Prueba concurrente 2 hilos UUID conflictivo — 1 éxito, 1 GestionConflictivaException | ✅ |
+| fecha_creacion_servidor no cambia en reintento idempotente | ✅ |
+| fecha_creacion_servidor generada en servidor, distinta de fecha_gestion dispositivo | ✅ |
+| Conflicto no modifica gestión original (persona_id en BD verificado) | ✅ |
+| Modularidad Spring Modulith — PASS | ✅ |
+| **210 pruebas — 0 failures — 0 errors — BUILD SUCCESS** | ✅ |
+| ADR-0026 a ADR-0030 (ADR-0027 actualizado con estrategia ON CONFLICT) | ✅ |
+| MODELO_DATOS, MODELO_DOMINIO, DIAGRAMA_ER, DICCIONARIO, REGLAS_NEGOCIO, RF actualizados | ✅ |
+
 ## Próximo paso recomendado
 
-Endpoints REST de asignaciones (Fase 3C) o resolución de DP-01/DP-02 (gestiones).
+Endpoints REST de gestiones y asignaciones (Fase 3D), o fotografías de gestión (diferidas).
 
 ## Historial de fases
 
@@ -224,3 +252,4 @@ Endpoints REST de asignaciones (Fase 3C) o resolución de DP-01/DP-02 (gestiones
 | Fase 2  | Autenticación y sesiones (JWT RS256, refresh tokens, sesiones) | Completado | 2026-07-28 |
 | Fase 3A fix | Corrección persona–cartera N:M (V008, carteras_personas) | Completado | 2026-08-01 |
 | Fase 3B | Asignaciones mensuales y diarias (V009, dominio, servicio, API) | Completado | 2026-08-01 |
+| Fase 3C | Gestiones de cobranza (V010, dominio, servicio, API) | Completado | 2026-08-01 |

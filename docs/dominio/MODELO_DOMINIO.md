@@ -151,24 +151,33 @@ La descarga no es un estado funcional de la asignación; es un evento técnico r
 ---
 
 ### Gestión
-Registro inmutable de un contacto o acción realizada por un ejecutivo sobre una persona.
+Registro inmutable de un contacto o acción realizada por un ejecutivo sobre una persona. Ver ADR-0026, ADR-0027, ADR-0028, ADR-0029, ADR-0030.
+
+**Origen (ADR-0026):**
+- `ASIGNACION_DIARIA` — ejecutivo gestiona una persona de su asignación diaria activa (PUBLICADA o FINALIZADA). Requiere `asignacion_diaria_id`.
+- `BUSQUEDA_DIRECTA` — ejecutivo gestiona cualquier persona conocida en el sistema, sin restricción de cartera. No requiere asignación diaria.
 
 **Atributos:**
-- UUID generado en el dispositivo.
-- Ejecutivo.
+- UUID generado en el dispositivo (ADR-0027).
+- Origen: `ASIGNACION_DIARIA` o `BUSQUEDA_DIRECTA`.
+- Asignación diaria asociada (solo para `ASIGNACION_DIARIA`).
+- Ejecutivo (debe tener rol `EJECUTIVO_TERRENO`).
 - Persona visitada.
 - Tipo: `CONTACTO_FAMILIAR`, `COMPROMISO_PAGO`, `SIN_CONTACTO`.
-- Fecha y hora del registro en el dispositivo.
-- Geolocalización puntual (obligatoria).
-- Observaciones (texto libre).
-- Fecha de compromiso (solo para `COMPROMISO_PAGO`).
-- Fotografías (opcionales, varias permitidas).
-- Estado técnico de sincronización.
+- Fecha y hora del registro en el **dispositivo** (`fecha_gestion`).
+- Fecha de recepción en el **servidor** (`fecha_creacion_servidor`, ADR-0029).
+- Geolocalización puntual: latitud, longitud, precisión, proveedor, indicador de simulación, fecha de captura.
+- Observación (texto libre).
+- Observación de dirección (cuando el ejecutivo detecta dirección incorrecta).
+- Fecha de compromiso (solo para `COMPROMISO_PAGO`, sin monto).
+- Fotografías (opcionales, varias permitidas; implementación diferida a Fase 3D, ADR-0030).
+- Estado técnico de sincronización (solo en dispositivo Android).
 
 **Reglas:**
 - Registrada sobre una persona (no sobre una operación específica).
-- Inmutable desde su creación. No hay rectificaciones ni anulaciones.
+- Inmutable desde su creación. No hay rectificaciones ni anulaciones (ADR-0028).
 - La geolocalización es obligatoria; sin coordenadas no se puede guardar.
+- El servidor acepta la gestión con idempotencia por UUID: mismo UUID + mismo contenido → éxito; mismo UUID + contenido distinto → rechazo con HTTP 409 (ADR-0027).
 
 ---
 

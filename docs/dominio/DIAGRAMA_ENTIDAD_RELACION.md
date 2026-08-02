@@ -162,20 +162,22 @@ erDiagram
 
     GESTIONES {
         uuid id PK
-        uuid ejecutivo_id FK
+        varchar origen_gestion
+        uuid asignacion_diaria_id FK
         uuid persona_id FK
-        varchar tipo_gestion FK
-        text observaciones
-        date fecha_compromiso
+        uuid ejecutivo_id FK
+        varchar tipo_gestion
+        timestamptz fecha_gestion
+        text observacion
+        text observacion_direccion
         double latitud
         double longitud
         real precision_metros
-        timestamptz fecha_captura_gps
         varchar proveedor_gps
         boolean ubicacion_simulada
-        geometry ubicacion
-        timestamptz fecha_gestion
-        timestamptz created_at
+        timestamptz fecha_captura_gps
+        date fecha_compromiso
+        timestamptz fecha_creacion_servidor
     }
 
     FOTOGRAFIAS_GESTION {
@@ -227,7 +229,7 @@ erDiagram
     OPERACIONES ||--o{ CUOTAS : "tiene"
     PERSONAS ||--o{ GESTIONES : "gestionada en"
     GESTIONES ||--o{ FOTOGRAFIAS_GESTION : "adjunta"
-    GESTIONES }o--|| TIPOS_GESTION : "clasificada por"
+    GESTIONES }o--o| ASIGNACIONES_DIARIAS : "desde (opcional)"
     USUARIOS ||--o{ SUPERVISION_USUARIOS : "supervisor en"
     USUARIOS ||--o{ SUPERVISION_USUARIOS : "ejecutivo en"
     USUARIOS ||--o{ DISPOSITIVOS : "usa"
@@ -245,10 +247,14 @@ erDiagram
 
 ## Notas del modelo
 
-- `TIPOS_GESTION` puede ser una tabla de catálogo o un tipo enumerado. Los valores iniciales son: `CONTACTO_FAMILIAR`, `COMPROMISO_PAGO`, `SIN_CONTACTO`.
+- `TIPOS_GESTION` no es una tabla en la implementación actual: `tipo_gestion` es un `VARCHAR(30)` con CHECK constraint. Valores: `CONTACTO_FAMILIAR`, `COMPROMISO_PAGO`, `SIN_CONTACTO`.
+- `GESTIONES.origen_gestion`: `ASIGNACION_DIARIA` (requiere `asignacion_diaria_id` no nulo) o `BUSQUEDA_DIRECTA` (sin asignación). Ver ADR-0026.
+- `GESTIONES.asignacion_diaria_id`: opcional (NULL para `BUSQUEDA_DIRECTA`).
 - `GESTIONES.fecha_compromiso` solo aplica cuando `tipo_gestion = COMPROMISO_PAGO`.
-- `GESTIONES.id` es el único caso donde el UUID se genera en el dispositivo, no en la base de datos.
-- `GESTIONES` no tiene `updated_at` porque son inmutables.
+- `GESTIONES.fecha_gestion`: timestamp del dispositivo. `GESTIONES.fecha_creacion_servidor`: generada por el servidor al recibir la gestión. Ver ADR-0029.
+- `GESTIONES.id` es el único caso donde el UUID se genera en el dispositivo, no en la base de datos. Ver ADR-0027.
+- `GESTIONES` no tiene `updated_at` porque son inmutables. Ver ADR-0028.
+- No se almacena `ubicacion GEOMETRY` en gestiones; la posición se representa como `latitud` y `longitud` (`DOUBLE PRECISION`).
 - `ASIGNACIONES_DIARIAS_PERSONAS` y `ASIGNACIONES_MENSUALES_PERSONAS` son tablas de relación N:M no mostradas en el diagrama para mantenerlo legible. Ver `MODELO_DATOS.md`.
 - El atributo `estado` de `ASIGNACIONES_DIARIAS` acepta: `BORRADOR`, `PUBLICADA`, `FINALIZADA`, `CANCELADA`.
 - `OPERACIONES_SINCRONIZACION` representa el outbox de sincronización; puede combinarse con los campos de estado en `GESTIONES` si se prefiere un esquema más compacto.

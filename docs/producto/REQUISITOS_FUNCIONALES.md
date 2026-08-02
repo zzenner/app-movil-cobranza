@@ -57,6 +57,8 @@
 | RF-05f | Las observaciones son texto libre opcional.                                                         |
 | RF-05g | Una gestión es inmutable desde su creación. No se puede modificar ni anular por ningún usuario.    |
 | RF-05h | El ejecutivo puede registrar una observación de dirección cuando detecta que la dirección de una persona es incorrecta. Esta observación **no** modifica la dirección original del sistema. |
+| RF-05i | **Dos orígenes de gestión (ADR-0026):** `ASIGNACION_DIARIA` — solo personas de la diaria activa (PUBLICADA o FINALIZADA); `BUSQUEDA_DIRECTA` — cualquier persona del sistema, sin restricción de cartera. |
+| RF-05j | La API acepta gestiones con idempotencia atómica por UUID del dispositivo: mismo UUID + mismo contenido → éxito; mismo UUID + contenido distinto → HTTP 409. Ver ADR-0027. |
 
 ## RF-06 Sincronización
 

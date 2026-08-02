@@ -83,11 +83,15 @@ Los tipos de gestión confirmados son:
 - `COMPROMISO_PAGO` — acuerdo verbal de pago.
 - `SIN_CONTACTO` — visita sin resultado de contacto.
 
-### RN-12 Reglas del registro de gestiones
+### RN-12 Orígenes de gestión
+Toda gestión tiene un origen que determina el contexto de la visita (ADR-0026):
+- **`ASIGNACION_DIARIA`**: el ejecutivo gestiona una persona de su asignación diaria activa. La asignación debe estar en estado `PUBLICADA` o `FINALIZADA` (gestión offline sincronizada). Requiere que la persona pertenezca a esa asignación diaria y que el ejecutivo sea su destinatario.
+- **`BUSQUEDA_DIRECTA`**: el ejecutivo gestiona cualquier persona conocida en el sistema, sin restricción de cartera ni asignación activa. Disponible para cualquier ejecutivo con rol `EJECUTIVO_TERRENO`.
+
+### RN-12b Reglas del registro de gestiones
 - Toda gestión se registra sobre una **persona** (no sobre una operación específica).
-- `COMPROMISO_PAGO` exige una fecha de compromiso.
-- El compromiso **no** incluye monto.
-- Las fotografías son opcionales; se permiten varias por gestión.
+- `COMPROMISO_PAGO` exige una fecha de compromiso. El compromiso **no** incluye monto.
+- Las fotografías son opcionales; se permiten varias por gestión (implementación diferida, ADR-0030).
 - La geolocalización puntual es **obligatoria** para registrar una gestión.
 - No se registran pagos.
 - No se solicita firma.

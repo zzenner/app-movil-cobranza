@@ -1,6 +1,6 @@
 # Roadmap
 
-## Fase actual: Fase 1C completada — preparando Fase 2
+## Fase actual: Fase 3D — API REST de asignaciones y gestiones (próxima)
 
 ## Fase 0 — Inicialización del repositorio ✅
 
@@ -76,22 +76,66 @@
 
 ---
 
-## Fase 2 — Autenticación y módulos de cartera (PENDIENTE)
+## Fase 2 — Autenticación JWT y sesiones ✅
 
-> Anteriormente llamado "segunda mitad de Fase 1". Se inicia después de que Fase 1B esté estable.
-
-**Objetivo:** Implementar los módulos de carteras, asignaciones, personas, créditos y gestiones en la API.
-
-**Incluye (borrador):**
-- Módulos de carteras y asignaciones en la API.
-- Módulo de personas y créditos (o integración con sistema externo: PENDIENTE).
-- Módulo de gestiones: recepción idempotente, persistencia, consulta.
-- Endpoints de sincronización para Android.
-- Ampliación del contrato OpenAPI.
+**Completado (2026-07-29):**
+- Autenticación con JWT RS256 (access token 15 min).
+- Refresh tokens opacos con rotación y revocación.
+- Sesiones de dispositivo asociadas al access token.
+- Spring Security con filtro JWT, `GlobalExceptionHandler`.
+- Migraciones V004–V006: `sesiones`, `refresh_tokens`, `configuracion_sistema`.
+- ADR-0022, ADR-0023, ADR-0024, ADR-0025.
 
 ---
 
-## Fase 3 — App Android (PENDIENTE)
+## Fase 3A — Dominio de cobranza: carteras, personas, créditos ✅
+
+**Completado:**
+- Módulo `personas`: entidad, repositorio, `PersonaConsultaApi`.
+- Módulo `carteras`: `CarterapersonsaRelation`, asignaciones mensuales.
+- Módulo `operaciones`: créditos, cuotas.
+- Migraciones V007–V008.
+
+---
+
+## Fase 3B — Asignaciones diarias ✅
+
+**Completado (2026-07-31):**
+- Módulo `asignaciones`: `AsignacionDiaria`, `AsignacionMensual`, estados (`BORRADOR`, `PUBLICADA`, `FINALIZADA`, `CANCELADA`).
+- Consulta de asignaciones por ejecutivo (`AsignacionConsultaApi`).
+- Migración V009.
+- 155+ pruebas integración.
+
+---
+
+## Fase 3C — Gestiones de cobranza ✅ CERRADA (v0.7.0-gestiones)
+
+**Completado (2026-08-01):**
+- Módulo `gestiones`: entidad inmutable, dos orígenes (`ASIGNACION_DIARIA` / `BUSQUEDA_DIRECTA`).
+- `GestionService` con idempotencia atómica: fast-path `findById` + `INSERT … ON CONFLICT (id) DO NOTHING`.
+- `GestionConflictivaException` para mismo UUID con contenido distinto.
+- Validación: origen coherente con `asignacion_diaria_id`; diaria en estado `PUBLICADA` o `FINALIZADA`; GPS obligatorio; `COMPROMISO_PAGO` requiere `fecha_compromiso`.
+- `fecha_gestion` generada en dispositivo; `fecha_creacion_servidor` generada en servidor.
+- Migración V010.
+- 210 pruebas (0 failures, 0 errors); Spring Modulith verify PASS.
+- ADR-0026 a ADR-0030.
+
+---
+
+## Fase 3D — API REST de asignaciones y gestiones (PRÓXIMA)
+
+**Objetivo:** Exponer los endpoints HTTP que consume la app Android para sincronizar asignaciones y enviar gestiones.
+
+**Incluye (borrador):**
+- `GET /asignaciones/diaria/activa` — descarga asignación diaria activa del ejecutivo autenticado.
+- `POST /gestiones` — recepción de gestión con respuesta 200/409 según idempotencia.
+- Autenticación con JWT en todos los endpoints.
+- Paginación y respuesta parcial para asignaciones grandes.
+- Ampliación del contrato OpenAPI (`contracts/openapi/cobranza-api.yaml`).
+
+---
+
+## Fase 4 — App Android (PENDIENTE)
 
 **Objetivo:** Crear la app Android con soporte offline-first, registro de gestiones y sincronización.
 
@@ -104,7 +148,7 @@
 
 ---
 
-## Fase 4 — Administración web (PENDIENTE)
+## Fase 5 — Administración web (PENDIENTE)
 
 **Objetivo:** Crear la aplicación web Angular para la administración del sistema.
 
@@ -115,7 +159,7 @@
 
 ---
 
-## Fase 5 — Despliegue en VPS (PENDIENTE)
+## Fase 6 — Despliegue en VPS (PENDIENTE)
 
 **Objetivo:** Desplegar el sistema completo en un VPS Ubuntu con Docker Compose y Nginx.
 
