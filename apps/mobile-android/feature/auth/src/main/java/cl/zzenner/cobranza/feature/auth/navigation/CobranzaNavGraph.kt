@@ -1,76 +1,69 @@
 package cl.zzenner.cobranza.feature.auth.navigation
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.compose.NavHost
+import androidx.navigation.NavController
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navigation
 import cl.zzenner.cobranza.feature.auth.domain.AuthState
 import cl.zzenner.cobranza.feature.auth.ui.CheckScreen
-import cl.zzenner.cobranza.feature.auth.ui.HomeScreen
 import cl.zzenner.cobranza.feature.auth.ui.LoginScreen
 import cl.zzenner.cobranza.feature.auth.ui.LoginViewModel
 
-private object Routes {
-    const val CHECK = "check"
-    const val LOGIN = "login"
-    const val HOME = "home"
-}
-
 /**
- * Grafo de navegación principal.
- * La pantalla de inicio es siempre [CHECK]; desde allí el estado de autenticación
- * determina si navegar a [LOGIN] o [HOME].
+ * Grafo de navegación del flujo de autenticación.
+ *
+ * Expone únicamente el flujo de auth (check + login) como un sub-grafo
+ * con ruta raíz "auth". La navegación hacia otras features se delega
+ * al callback [onLoginExitoso], que el host (:app) resuelve.
+ *
+ * Restricción: :feature:auth NO conoce a :feature:asignacion ni a ninguna
+ * otra feature. Toda la coordinación es responsabilidad de :app.
  */
-@Composable
-fun CobranzaNavGraph(
-    viewModel: LoginViewModel = hiltViewModel(),
+fun NavGraphBuilder.authNavGraph(
+    navController: NavController,
+    onLoginExitoso: () -> Unit,
 ) {
-    val navController = rememberNavController()
-    val authState by viewModel.authState.collectAsState()
-    val uiState by viewModel.uiState.collectAsState()
+    navigation(startDestination = "check", route = "auth") {
 
-    LaunchedEffect(authState) {
-        when (authState) {
-            is AuthState.Verificando -> Unit
-            is AuthState.NoAutenticado, is AuthState.Error ->
-                navController.navigate(Routes.LOGIN) {
-                    popUpTo(Routes.CHECK) { inclusive = true }
-                }
-            is AuthState.Autenticando -> Unit
-            is AuthState.Autenticado ->
-                navController.navigate(Routes.HOME) {
-                    popUpTo(0) { inclusive = true }
-                }
-        }
-    }
+        composable("check") {
+            val viewModel: LoginViewModel = hiltViewModel()
+            val authState by viewModel.authState.collectAsState()
 
-    NavHost(navController = navController, startDestination = Routes.CHECK) {
-
-        composable(Routes.CHECK) {
             LaunchedEffect(Unit) { viewModel.verificarSesion() }
+
+            LaunchedEffect(authState) {
+                when (authState) {
+                    is AuthState.NoAutenticado, is AuthState.Error ->
+                        navController.navigate("login") {
+                            popUpTo("check") { inclusive = true }
+                        }
+                    is AuthState.Autenticado -> onLoginExitoso()
+                    else -> Unit
+                }
+            }
+
             CheckScreen()
         }
 
-        composable(Routes.LOGIN) {
+        composable("login") {
+            val viewModel: LoginViewModel = hiltViewModel()
+            val authState by viewModel.authState.collectAsState()
+            val uiState by viewModel.uiState.collectAsState()
+
+            LaunchedEffect(authState) {
+                if (authState is AuthState.Autenticado) onLoginExitoso()
+            }
+
             LoginScreen(
                 uiState = uiState,
                 authState = authState,
                 onUsuarioChanged = viewModel::onUsuarioChanged,
                 onContrasenaChanged = viewModel::onContrasenaChanged,
                 onLogin = viewModel::login,
-            )
-        }
-
-        composable(Routes.HOME) {
-            val autenticado = authState as? AuthState.Autenticado
-                ?: AuthState.Autenticado("Usuario")
-            HomeScreen(
-                authState = autenticado,
-                onLogout = viewModel::logout,
             )
         }
     }

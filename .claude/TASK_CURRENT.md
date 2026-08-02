@@ -2,47 +2,47 @@
 
 ## Identificación
 
-- **Fase:** 4B — Cartera offline (Room + WorkManager + descarga de asignación)
-- **Estado:** pendiente de planificación — sin implementación iniciada
+- **Fase:** 4B — Cartera offline — COMPLETADA ✅
+- **Estado:** VALIDADA — 2026-08-02
 - **Rama activa:** `feature/fase-4b-descarga-offline`
 - **Commit base:** `3d00ccf feat(android): implementar base y autenticacion fase 4a`
-- **Tag base:** `v0.9.0-android-base`
+- **Nota:** Sin commit propio (usuario indicó explícitamente NO hacer commit)
 
-## Fase 4A — CERRADA ✅
+## Fase 4B — COMPLETADA ✅
 
-- **Commit:** `3d00ccf`
-- **Tag:** `v0.9.0-android-base`
-- **main local y remoto:** apuntan a `3d00ccf`
-- **Pruebas API:** 247 — 0 failures
-- **Pruebas Android JVM:** 38 — 0 failures
-- **Instrumentadas:** compiladas — NO ejecutadas (sin emulador en WSL2)
+### Pruebas
 
-## Objetivo actual
+| Suite | Resultado |
+|---|---|
+| API `./mvnw clean verify` | ✅ 247 tests — 0 failures |
+| Android `:core:database:testDebugUnitTest` | ✅ 0 failures |
+| Android `:feature:asignacion:testDebugUnitTest` | ✅ 31 tests — 0 failures |
+| Android `assembleDebug` | ✅ BUILD SUCCESSFUL |
+| Android `connectedDebugAndroidTest` | ⏭️ Sin emulador en WSL2 |
 
-Planificar Fase 4B antes de implementar nada. Leer en orden:
+### Módulos entregados
 
-1. `docs/gestion/ROADMAP.md` — alcance de Fase 4B
-2. `docs/sincronizacion/ESTRATEGIA_OFFLINE.md`
-3. `docs/sincronizacion/PROTOCOLO_SINCRONIZACION.md`
-4. `docs/dominio/MODELO_DATOS.md` — tablas que necesita Room
-5. ADR existentes relacionados con offline, sincronización, Room
+- `:core:database` — Room 2.7.2; 9 entidades, 8 DAOs, BundleReplacementTransaction
+- `:core:network` — SyncModels, BigDecimalSerializer, SincronizacionApi
+- `:feature:asignacion` — Repository, Worker, Scheduler, ViewModel, Screens, Navigator
+- `:feature:auth` — SessionRepository @Singleton, AuthModule
+- `:app` — NavHost, LogoutUseCase, Configuration.Provider
 
-Presentar plan al usuario antes de implementar.
+## Próximo objetivo
 
-## Alcance previsto (según ROADMAP)
-
-- Room: entidades para asignación diaria, personas, operaciones, cuotas, gestiones pendientes
-- WorkManager: sincronización periódica en background
-- Descarga de asignación diaria desde API y persistencia local
-- Cola de gestiones pendientes y sincronización hacia la API
+**Fase 4C — Gestiones offline** (no iniciada):
+- Entidad `GestionPendienteEntity` (outbox Room)
+- Worker de envío de gestiones con idempotencia
+- Pantallas de registro de gestiones (GPS obligatorio)
+- Fotografías diferidas (ADR-0030)
 
 ## Fuera de alcance (siempre)
 
-- GPS / fotografías
 - Admin Web
 - Despliegue VPS
 - Funcionalidad de autenticación (cerrada en Fase 4A)
+- Modificar Fase 4B (cerrada)
 
 ## connectedDebugAndroidTest pendiente
 
-APK instrumentado compilado. Ejecutar cuando haya emulador o dispositivo físico.
+APKs de debug compilados. Ejecutar cuando haya emulador o dispositivo físico.

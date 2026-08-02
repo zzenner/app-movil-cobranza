@@ -2,6 +2,7 @@ package cl.zzenner.cobranza.core.security
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -74,11 +75,11 @@ class SecureTokenStoreInstrumentedTest {
     fun has_refresh_token_flow_refleja_estado_correcto() = runTest {
         store.clearRefreshToken()
 
-        val tieneBefore = kotlinx.coroutines.flow.first(store.hasRefreshTokenFlow()) { true }
+        val tieneBefore = store.hasRefreshTokenFlow().first()
         assertFalse(tieneBefore)
 
         store.saveRefreshToken("token-de-prueba")
-        val tieneAfter = kotlinx.coroutines.flow.first(store.hasRefreshTokenFlow()) { true }
+        val tieneAfter = store.hasRefreshTokenFlow().first()
         assertTrue(tieneAfter)
     }
 }

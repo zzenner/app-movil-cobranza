@@ -25,4 +25,6 @@ rootProject.name = "CobranzaMovil"
 include(":app")
 include(":core:network")
 include(":core:security")
+include(":core:database")
 include(":feature:auth")
+include(":feature:asignacion")

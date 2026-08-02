@@ -14,7 +14,7 @@ android {
         minSdk = 29
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.0-fase4a"
+        versionName = "0.1.0-fase4b"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -48,7 +48,9 @@ android {
 dependencies {
     implementation(project(":core:network"))
     implementation(project(":core:security"))
+    implementation(project(":core:database"))
     implementation(project(":feature:auth"))
+    implementation(project(":feature:asignacion"))
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
@@ -60,9 +62,18 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.compiler.androidx)
+
+    implementation(libs.workmanager.ktx)
     implementation(libs.navigation.compose)
 
     debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.room.testing)
+    testImplementation(libs.androidx.test.core)
 }

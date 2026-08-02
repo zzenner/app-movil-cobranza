@@ -36,6 +36,9 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
@@ -52,6 +55,7 @@ class AsignacionDescargaRestTest {
 
     @Autowired TestRestTemplate rest;
     @Autowired JwtEncoder jwtEncoder;
+    @Autowired ObjectMapper objectMapper;
     @Autowired UsuarioService usuarioService;
     @Autowired SupervisionService supervisionService;
     @Autowired CarteraService carteraService;
@@ -274,5 +278,76 @@ class AsignacionDescargaRestTest {
         MediaType ct = resp.getHeaders().getContentType();
         assertThat(ct).isNotNull();
         assertThat(ct.toString()).contains("application/json");
+    }
+
+    // ── Test 13: Estructura exacta del JSON — contrato Android ──────────────
+    //
+    // Verifica los nombres de campos tal como los leerá el cliente Android
+    // (kotlinx.serialization + BigDecimalSerializer). Un cambio en el contrato
+    // rompería la deserialización en el cliente sin error en tiempo de compilación.
+
+    @Test
+    void get_diaria_activa_json_tiene_estructura_de_contrato_android() throws Exception {
+        var resp = rest.exchange(ENDPOINT, HttpMethod.GET,
+                new HttpEntity<>(conToken(tokenEjecutivo)), String.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        JsonNode root = objectMapper.readTree(resp.getBody());
+
+        // Campos raíz del bundle
+        assertThat(root.has("id")).isTrue();
+        assertThat(root.has("ejecutivoId")).isTrue();
+        assertThat(root.has("fecha")).isTrue();
+        assertThat(root.has("estado")).isTrue();
+        assertThat(root.has("personas")).isTrue();
+
+        // UUIDs en minúsculas con guiones (lowercase)
+        assertThat(root.get("id").asText())
+                .matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+        // fecha como "YYYY-MM-DD"
+        assertThat(root.get("fecha").asText()).matches("\\d{4}-\\d{2}-\\d{2}");
+
+        JsonNode personas = root.get("personas");
+        assertThat(personas.isArray()).isTrue();
+        assertThat(personas.size()).isGreaterThan(0);
+
+        JsonNode persona = personas.get(0);
+        assertThat(persona.has("id")).isTrue();
+        assertThat(persona.has("rutNumero")).isTrue();
+        assertThat(persona.has("rutDv")).isTrue();
+        assertThat(persona.has("nombre")).isTrue();
+        assertThat(persona.has("direcciones")).isTrue();
+        assertThat(persona.has("avales")).isTrue();
+        assertThat(persona.has("operaciones")).isTrue();
+        assertThat(persona.has("ultimasGestiones")).isTrue();
+
+        // operaciones: BigDecimal debe serializarse como número JSON (no string)
+        JsonNode operaciones = persona.get("operaciones");
+        assertThat(operaciones.isArray()).isTrue();
+        if (operaciones.size() > 0) {
+            JsonNode op = operaciones.get(0);
+            assertThat(op.has("id")).isTrue();
+            assertThat(op.has("personaId")).isTrue();
+            assertThat(op.has("numeroOperacion")).isTrue();
+            assertThat(op.has("estado")).isTrue();
+            assertThat(op.get("capital").isNumber()).as("capital debe ser número JSON").isTrue();
+            assertThat(op.get("interesPenal").isNumber()).as("interesPenal debe ser número JSON").isTrue();
+            assertThat(op.get("gastosCobranza").isNumber()).as("gastosCobranza debe ser número JSON").isTrue();
+            assertThat(op.get("totalVigente").isNumber()).as("totalVigente debe ser número JSON").isTrue();
+            assertThat(op.has("cuotas")).isTrue();
+        }
+
+        // ultimasGestiones: fechas como strings ISO-8601 (no números epoch)
+        JsonNode gestiones = persona.get("ultimasGestiones");
+        assertThat(gestiones.isArray()).isTrue();
+        assertThat(gestiones.size()).isGreaterThan(0);
+        JsonNode gestion = gestiones.get(0);
+        assertThat(gestion.has("id")).isTrue();
+        assertThat(gestion.has("tipoGestion")).isTrue();
+        assertThat(gestion.has("fechaGestion")).isTrue();
+        assertThat(gestion.get("fechaGestion").isTextual()).as("fechaGestion debe ser ISO-8601 string").isTrue();
+        assertThat(gestion.has("fechaCreacionServidor")).isTrue();
+        assertThat(gestion.get("fechaCreacionServidor").isTextual())
+                .as("fechaCreacionServidor debe ser ISO-8601 string").isTrue();
     }
 }

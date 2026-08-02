@@ -100,4 +100,11 @@ object NetworkModule {
         .client(okHttpClient)
         .addConverterFactory(json.asConverterFactory(CONTENT_TYPE))
         .build()
+
+    @Provides
+    @Singleton
+    fun provideSincronizacionApi(
+        @Named("authenticated") retrofit: Retrofit,
+    ): cl.zzenner.cobranza.core.network.api.SincronizacionApi =
+        retrofit.create(cl.zzenner.cobranza.core.network.api.SincronizacionApi::class.java)
 }

@@ -1,8 +1,8 @@
 # Estado del proyecto
 
 **Última actualización:** 2026-08-02
-**Fase actual:** Fase 4A — Base Android (autenticación + almacenamiento seguro) — VALIDADA ✅
-**Fase anterior:** Fase 3D — API REST de asignaciones y gestiones ✅ CERRADA
+**Fase actual:** Fase 4C — Gestiones offline (outbox, GPS) — PENDIENTE DE PLANIFICACIÓN
+**Fase anterior:** Fase 4B — Cartera offline (Room + WorkManager + descarga asignación) ✅ CERRADA
 
 ## Resumen
 
@@ -24,7 +24,9 @@
 | **API — gestiones de cobranza (Fase 3C — validada)**      | **Completado ✅**      |
 | **API — REST asignaciones y gestiones (Fase 3D)**         | **Validada ✅ — Lista para cierre**      |
 | Admin Web (Angular)                                       | No iniciado           |
-| **App Android — Fase 4A (base auth + red + seguridad)**   | **Validada ✅ — Lista para cierre** |
+| **App Android — Fase 4A (base auth + red + seguridad)**   | **Completado ✅**                   |
+| **App Android — Fase 4B (cartera offline Room + WorkManager)** | **Cerrada ✅**               |
+| **App Android — Fase 4C (gestiones offline: outbox, GPS)**     | **Pendiente**               |
 | Despliegue en VPS                                         | No iniciado           |
 
 ## Resultado de auditoría Fase 1A (2026-07-26)
@@ -317,9 +319,61 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 | **SingleFlightAuthenticator auditado** | ✅ Mutex + stale-token comparison |
 | **CI workflow corregido** | ✅ `platforms;android-37.1`, `build-tools;37.0.0` |
 
+## Fase 4B — Cartera offline (2026-08-02) — CERRADA ✅
+
+### Room + WorkManager + descarga de asignación diaria
+
+| Item | Resultado |
+|---|---|
+| `libs.versions.toml` — Room 2.7.2, WorkManager 2.10.1, Robolectric 4.14.1 | ✅ |
+| `:core:database` — 9 entidades Room (asignacion_diaria, persona, asignacion_persona, direccion, aval, operacion, cuota, gestion_historica, sync_metadata) | ✅ |
+| `:core:database` — Room versión 1; `exportSchema = true` | ✅ |
+| `:core:database` — Esquema exportado en `apps/mobile-android/core/database/schemas/cl.zzenner.cobranza.core.database.CobranzaDatabase/1.json` | ✅ |
+| `:core:database` — Sin `fallbackToDestructiveMigration` — las migraciones son explícitas | ✅ |
+| `:core:database` — DAOs con `Flow<T>` para consultas reactivas; búsqueda por RUT en `PersonaDao` | ✅ |
+| `:core:database` — `BundleReplacementTransaction.reemplazar()` — DELETE hijos→padres, INSERT padres→hijos, UPDATE metadata en una sola transacción | ✅ |
+| `:core:database` — `BundleReplacementTransaction.marcarSinAsignacion()` — 204: preserva datos anteriores, marca `datosMarcadosComoDesactualizados = true` | ✅ |
+| `:core:database` — `BundleReplacementTransaction.limpiarTodo()` — logout: vacía todas las tablas | ✅ |
+| `:core:database` — `SyncMetadataEntity` (singleton id=1): estado, fechaConsultada, asignacionId, ultimaDescargaExitosa, error, flags desactualizados | ✅ |
+| `:core:database` — TypeConverters (BigDecimal→String, Instant→Long, LocalDate→String) | ✅ |
+| `:core:database` — FK con ON DELETE CASCADE; `PRAGMA foreign_keys = ON` en `onOpen` | ✅ |
+| `:core:database` — 4 suites de pruebas (DatabaseSchemaTest, BundleReplacementTransactionTest, PersonaDaoTest, SyncMetadataDaoTest) | ✅ |
+| `:core:network` — `SyncModels.kt` (DTOs de descarga), `BigDecimalSerializer`, `SincronizacionApi` | ✅ |
+| `:feature:asignacion` — `AsignacionRepository` con Mutex single-flight; 200/204/401/403/5xx/IOException | ✅ |
+| `:feature:asignacion` — `DescargaAsignacionWorker` (@HiltWorker) + `AsignacionSyncScheduler` (KEEP, CONNECTED, EXPONENTIAL 30s) | ✅ |
+| `:feature:asignacion` — WorkManager periódico cada 4h; inmediato en login/restauración/inicio/manual | ✅ |
+| `:feature:asignacion` — `AsignacionViewModel` con `combine` + `stateIn(WhileSubscribed)` | ✅ |
+| `:feature:asignacion` — `AsignacionListScreen` (lista con búsqueda por RUT/nombre), `PersonaDetalleScreen` (detalle con operaciones y cuotas) | ✅ |
+| `:feature:asignacion` — Consulta local offline: funciona sin red (Room como fuente de verdad) | ✅ |
+| `:feature:asignacion` — 5 suites de pruebas (AsignacionRepositoryTest, DescargaAsignacionWorkerTest, AsignacionViewModelTest, AsignacionMapperTest, BigDecimalSerializerTest) | ✅ |
+| `:feature:auth` — `SessionRepository` cambiado a `@Singleton`; `AuthModule` con `@Binds` | ✅ |
+| `:feature:auth` — `authNavGraph` como extensión de `NavGraphBuilder` | ✅ |
+| `:app` — `CobranzaApp` implementa `Configuration.Provider` (WorkManager manual) | ✅ |
+| `:app` — `CobranzaNavGraph.kt` — NavHost completo con auth, home, asignacion/lista, asignacion/persona/{id} | ✅ |
+| `:app` — `LogoutUseCase` — cancela workers → limpia Room → cierra sesión (best-effort: `runCatching` en logout remoto) | ✅ |
+| `:app` — `LogoutUseCaseTest` (4 tests mock) + `LogoutIntegrationTest` (4 tests Room/Robolectric) | ✅ |
+| `AndroidManifest.xml` — WorkManager auto-init deshabilitado (`tools:node="remove"`) | ✅ |
+| ADR-0033 (Room), ADR-0034 (WorkManager), ADR-0035 (bundle atómico), ADR-0036 (arquitectura feature:asignacion) | ✅ |
+| **API — `./mvnw clean verify`** | ✅ **248 tests — 0 failures — BUILD SUCCESS** |
+| **Android — `assembleDebug`** | ✅ BUILD SUCCESSFUL |
+| **Android — `lint`** | ✅ BUILD SUCCESSFUL |
+| **Android — `testDebugUnitTest`** | ✅ **97 tests JVM — 0 failures** |
+| **Android — `assembleDebugAndroidTest`** | ✅ APK compilado |
+| **Android — `connectedDebugAndroidTest`** | ⏭️ No ejecutado — sin emulador en WSL2 |
+| **Tag** | `v0.10.0-descarga-offline` |
+
+## Fase 4C — Gestiones offline (Pendiente de planificación)
+
+Alcance futuro (no iniciado):
+- `GestionPendienteEntity` (outbox Room), `GestionPendienteDao`, estados de sincronización
+- Worker de envío idempotente: POST /api/v1/gestiones con exponential backoff
+- Pantallas de registro de gestión: tipo, observación, GPS obligatorio
+- Política de logout con gestiones pendientes (ADR-0024 confirma: bloquear si pendientes+sin red)
+- Fotografías: diferidas, **fuera del alcance de Fase 4C** salvo decisión expresa posterior
+
 ## Próximo paso recomendado
 
-Cierre formal de Fase 4A y apertura de Fase 4B (cartera offline con Room y WorkManager).
+Revisar documentación de gestiones, GPS, outbox y sincronización para planificar Fase 4C.
 
 ## Historial de fases
 
@@ -335,3 +389,5 @@ Cierre formal de Fase 4A y apertura de Fase 4B (cartera offline con Room y WorkM
 | Fase 3C | Gestiones de cobranza (V010, dominio, servicio, API) | Completado | 2026-08-01 |
 | Fase 3D | API REST de asignaciones y gestiones (endpoints Android)   | Completado | 2026-08-01 |
 | Fase 4A | Base Android: red, seguridad, auth (sin Room ni WorkManager) | Completado ✅ | 2026-08-02 |
+| Fase 4B | Cartera offline: Room, WorkManager, descarga asignación diaria | Cerrado ✅ — tag v0.10.0-descarga-offline | 2026-08-02 |
+| Fase 4C | Gestiones offline: outbox, GPS, sincronización | Pendiente | — |

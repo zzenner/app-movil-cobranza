@@ -5,6 +5,92 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [v0.10.0-descarga-offline] — 2026-08-02 — Fase 4B: Cartera offline — CERRADA ✅
+
+### Añadido — Módulo `:core:database`
+
+**Room 2.7.2 con KSP. 9 entidades, 8 DAOs, 1 transacción atómica, 4 suites de prueba.**
+
+Entidades: `AsignacionDiariaEntity`, `PersonaEntity`, `AsignacionPersonaEntity`, `DireccionEntity`, `AvalEntity`, `OperacionEntity`, `CuotaEntity`, `GestionHistoricaEntity`, `SyncMetadataEntity`.
+
+`BundleReplacementTransaction`:
+- `reemplazar(bundle)` — transacción atómica delete-all → insert-all → update metadata.
+- `marcarSinAsignacion(fecha)` — 204 API response: preserva datos anteriores, marca como desactualizados.
+- `limpiarTodo()` — logout: elimina todas las tablas y resetea metadata.
+
+Convenciones de tipos: UUID→String, BigDecimal→String, Instant→Long epoch, LocalDate→String ISO.
+FK con `ON DELETE CASCADE`; `PRAGMA foreign_keys = ON` en `RoomDatabase.Callback.onOpen`.
+
+### Añadido — DTOs y API de sincronización en `:core:network`
+
+- `SyncModels.kt` — DTOs: `RespuestaAsignacionDiariaDto`, `PersonaDescargaDto`, `DireccionDescargaDto`, `AvalDescargaDto`, `OperacionDescargaDto`, `CuotaDescargaDto`, `GestionDescargaDto`.
+- `BigDecimalSerializer.kt` — `KSerializer<BigDecimal>` que acepta primitivos JSON numéricos o cadena.
+- `SincronizacionApi.kt` — `GET /api/v1/asignaciones/diaria/activa` retorna `Response<RespuestaAsignacionDiariaDto>`.
+- `NetworkModule.kt` — añadido `provideSincronizacionApi`.
+
+### Añadido — Módulo `:feature:asignacion`
+
+**Repository, Worker, ViewModel, Screens, Scheduler, Mapper — 5 suites de prueba (31 tests).**
+
+- `AsignacionRepository` — Mutex single-flight; maneja 200 (reemplazar), 204 (marcarSinAsignacion), 401/403 (ErrorPermanente), IOException (ErrorReintentar), 4xx/5xx, `SerializationException`.
+- `DescargaAsignacionWorker` — `@HiltWorker`; mapea `ResultadoDescarga` → `WorkManager.Result`.
+- `AsignacionSyncScheduler` — `programarInmediato()` (KEEP), `programarPeriodico()` cada 4h, `cancelarTodo()`.
+- `AsignacionViewModel` — `combine(personas, metadata, busqueda).stateIn(WhileSubscribed(5_000))`; filtro por RUT/nombre en ViewModel.
+- `AsignacionListScreen`, `PersonaDetalleScreen` — pantallas Compose con navegación.
+- `asignacionNavGraph(navController, onLogout)` — extensión `NavGraphBuilder`.
+- `ResultadoDescarga` — `Exito`, `SinAsignacion`, `ErrorReintentar`, `ErrorPermanente`, `VersionNoSoportada`.
+
+### Modificado — `:feature:auth`
+
+- `SessionRepository` cambiado de `@ActivityRetainedScoped` a `@Singleton` (requerido por `AsignacionRepository @Singleton` que necesita `TokenProvider`).
+- `AuthModule.kt` añadido con `@Binds @Singleton abstract fun bindTokenProvider(impl: SessionRepository): TokenProvider`.
+- `CobranzaNavGraph.kt` refactorizado a `authNavGraph(navController, onLoginExitoso)` extensión de `NavGraphBuilder`.
+
+### Modificado — `:app`
+
+- `CobranzaApp.kt` — implementa `Configuration.Provider`; inyecta `HiltWorkerFactory` para WorkManager manual.
+- `CobranzaNavGraph.kt` (nuevo) — NavHost completo: rutas auth, home, asignacion/lista, asignacion/persona/{personaId}.
+- `HomeScreen.kt` (nuevo) — pantalla principal con botón de cartera y logout.
+- `LogoutUseCase.kt` (nuevo) — cancela workers, limpia BD, cierra sesión.
+- `AndroidManifest.xml` — WorkManager auto-init deshabilitado con `tools:node="remove"` en `InitializationProvider`.
+
+### Modificado — `libs.versions.toml`
+
+- Añadidas versiones: `room = "2.7.2"`, `workmanager = "2.10.1"`, `robolectric = "4.14.1"`, `androidxTestCore = "1.6.1"`.
+- Añadidas libraries: `room-runtime`, `room-ktx`, `room-compiler`, `room-testing`, `workmanager-ktx`, `workmanager-testing`, `hilt-work`, `hilt-compiler-androidx`, `robolectric`, `androidx-test-core`.
+
+### Añadido — `settings.gradle.kts`
+
+- `include(":core:database")` y `include(":feature:asignacion")`.
+
+### Añadido — ADRs
+
+- `ADR-0033` — Room como base de datos local Android.
+- `ADR-0034` — WorkManager para sincronización de background.
+- `ADR-0035` — Reemplazo atómico del bundle descargado.
+- `ADR-0036` — Arquitectura del módulo `:feature:asignacion`.
+
+### Correcciones aplicadas en verificación final
+
+- `BundleReplacementTransaction.reemplazar()`: añadido `fechaConsultada = bundle.asignacion.fecha` en upsert de `SyncMetadataEntity`.
+- `LogoutUseCase`: `sessionRepository.logout()` envuelto en `runCatching` (logout remoto best-effort).
+- `AsignacionDescargaRestTest`: Test 13 — contrato JSON Android (nombres de campos, BigDecimal como número, UUID lowercase, fechas ISO-8601).
+- `LogoutUseCaseTest` (4 tests mock) + `LogoutIntegrationTest` (4 tests Room/Robolectric).
+- `CobranzaDatabase`: `exportSchema = true`; esquema v1 en `core/database/schemas/`.
+
+### Resultados de verificación final
+
+| Suite | Resultado |
+|---|---|
+| API — `./mvnw clean verify` | ✅ **248 tests — 0 failures — BUILD SUCCESS** |
+| Android — `assembleDebug` | ✅ BUILD SUCCESSFUL |
+| Android — `lint` | ✅ BUILD SUCCESSFUL |
+| Android — `testDebugUnitTest` (total JVM) | ✅ **97 tests — 0 failures** |
+| Android — `assembleDebugAndroidTest` | ✅ APK compilado |
+| Android — `connectedDebugAndroidTest` | ⏭️ No ejecutado — sin emulador en WSL2 |
+
+---
+
 ## [Sin versión] — 2026-08-02 — Fase 4A: Base Android — VALIDADA ✅
 
 ### Corrección — Contrato de login API

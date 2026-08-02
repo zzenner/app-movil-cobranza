@@ -1,6 +1,6 @@
 # Roadmap
 
-## Fase actual: Fase 4A — Base Android (autenticación + almacenamiento seguro) — EN PROGRESO
+## Fase actual: Fase 4C — Gestiones offline (outbox, GPS) — PENDIENTE DE PLANIFICACIÓN
 
 ## Fase 0 — Inicialización del repositorio ✅
 
@@ -137,38 +137,41 @@
 
 ---
 
-## Fase 4A — Base Android: autenticación y almacenamiento seguro — EN PROGRESO
+## Fase 4A — Base Android: autenticación y almacenamiento seguro ✅
 
 **Objetivo:** Crear el proyecto Android con la capa de red, seguridad y autenticación completa, sin funcionalidades de cartera ni gestiones.
 
-**Completado (2026-08-02) — Pendiente de revisión:**
-- Toolchain: AGP 9.3.0, Gradle 9.6.1, Kotlin 2.4.10, KSP 2.3.10, `compileSdk/targetSdk=36`, `minSdk=29`.
+**Completado (2026-08-02):**
+- Toolchain: AGP 9.3.0, Gradle 9.6.1, Kotlin 2.4.10, KSP 2.3.10, `compileSdk/targetSdk=37`, `minSdk=29`.
 - Corrección API: `SolicitudLogin.dispositivoId` → `identificadorInstalacion`; auto-registro de dispositivo post-login.
 - `:core:network` — cliente público + autenticado, `SingleFlightAuthenticator` (Mutex), `TokenProvider`.
 - `:core:security` — `InstallationIdStore` (DataStore) + `SecureTokenStore` (Keystore AES-256-GCM).
 - `:feature:auth` — `SessionRepository`, `LoginViewModel`, `AuthState`, pantallas Check/Login/Home.
 - Backup deshabilitado: `allowBackup=false` + `data_extraction_rules.xml`.
-- Pruebas JVM: 5 suites (SingleFlightAuthenticator, InstallationIdStore, SecureTokenStore, LoginViewModel, SessionRepository).
+- Pruebas JVM: 5 suites — 38 tests, 0 failures.
 - CI: `.github/workflows/android-ci.yml`.
 - ADR-0031 (identificadorInstalacion), ADR-0032 (stack técnico Android).
 
-**No incluye:**
-- Room / SQLite / DAOs.
-- WorkManager / sincronización offline.
-- Pantallas de cartera, asignaciones ni gestiones.
-- GPS.
-
 ---
 
-## Fase 4B — Cartera offline (PENDIENTE)
+## Fase 4B — Cartera offline ✅ CERRADA — tag v0.10.0-descarga-offline
 
 **Objetivo:** Implementar descarga y visualización offline de la asignación diaria.
 
-**Incluye (borrador):**
-- `:core:database` — Room con DAOs para personas, operaciones, cuotas, asignaciones.
-- `:feature:cartera` — pantallas de lista de personas y detalle de créditos/cuotas.
-- WorkManager para descarga inicial de la asignación diaria.
-- Migración Room versionada.
+**Completado (2026-08-02):**
+- `:core:database` — Room 2.7.2 con 9 entidades, 8 DAOs, `BundleReplacementTransaction` atómica, `SyncMetadataEntity` con 5 estados.
+- `:core:network` — DTOs de sincronización (`SyncModels.kt`), `BigDecimalSerializer`, `SincronizacionApi`.
+- `:feature:asignacion` — `AsignacionRepository` (Mutex single-flight), `DescargaAsignacionWorker` (@HiltWorker), `AsignacionSyncScheduler`, `AsignacionViewModel`, pantallas `AsignacionListScreen` y `PersonaDetalleScreen`.
+- `:feature:auth` — `SessionRepository` elevado a `@Singleton`; `AuthModule` con `@Binds`.
+- `:app` — NavHost completo, `LogoutUseCase`, `CobranzaApp` con `Configuration.Provider`.
+- WorkManager 2.10.1 con inicialización manual (HiltWorkerFactory).
+- Pruebas: `core:database` + `feature:asignacion` = 31+ tests, 0 failures.
+- ADR-0033, ADR-0034, ADR-0035, ADR-0036.
+
+**No incluye:**
+- Outbox de gestiones pendientes.
+- GPS.
+- Fotografías diferidas.
 
 ---
 

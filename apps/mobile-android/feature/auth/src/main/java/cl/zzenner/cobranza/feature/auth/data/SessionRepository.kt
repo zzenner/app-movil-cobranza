@@ -8,7 +8,7 @@ import cl.zzenner.cobranza.core.security.InstallationIdStore
 import cl.zzenner.cobranza.core.security.SecureTokenStore
 import cl.zzenner.cobranza.feature.auth.domain.AuthState
 import cl.zzenner.cobranza.feature.auth.domain.ErrorTipo
-import dagger.hilt.android.scopes.ActivityRetainedScoped
+import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,7 +28,7 @@ import javax.inject.Inject
  * NOTA: El nombre de usuario se conserva dentro del AuthState para la UI.
  * El usuario y contraseña NUNCA se almacenan.
  */
-@ActivityRetainedScoped
+@Singleton
 class SessionRepository @Inject constructor(
     private val publicAuthApi: AuthApi,
     private val secureTokenStore: SecureTokenStore,

@@ -4,8 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import cl.zzenner.cobranza.feature.auth.navigation.CobranzaNavGraph
 import cl.zzenner.cobranza.feature.auth.ui.theme.CobranzaTheme
+import cl.zzenner.cobranza.navigation.CobranzaNavGraph
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

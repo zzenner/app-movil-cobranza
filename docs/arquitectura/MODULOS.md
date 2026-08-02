@@ -35,24 +35,36 @@ compartido    --> (sin dependencias de dominio)
 
 ## Módulos de la app Android
 
-### Fase 4A — Base implementada
+### Implementados
 
-| Módulo / feature     | Responsabilidad                                                   | Estado               |
-|----------------------|-------------------------------------------------------------------|----------------------|
-| `:app`               | Actividad principal, Hilt, grafo de navegación raíz.             | Implementado (4A ✅) |
-| `:core:network`      | Cliente HTTP público y autenticado, single-flight refresh.        | Implementado (4A ✅) |
-| `:core:security`     | Keystore AES-256-GCM para refresh token, DataStore para sesión.   | Implementado (4A ✅) |
-| `:feature:auth`      | LoginViewModel, pantallas Check/Login/Home, SessionRepository.    | Implementado (4A ✅) |
+| Módulo / feature        | Responsabilidad                                                                    | Estado               |
+|-------------------------|------------------------------------------------------------------------------------|----------------------|
+| `:app`                  | Actividad principal, Hilt, NavHost completo, LogoutUseCase, CobranzaApp.           | Implementado (4B ✅) |
+| `:core:network`         | Cliente HTTP público y autenticado, single-flight refresh, DTOs de sincronización. | Implementado (4B ✅) |
+| `:core:security`        | Keystore AES-256-GCM para refresh token, DataStore para sesión.                    | Implementado (4A ✅) |
+| `:core:database`        | Room 2.7.2 v1: 9 entidades, 8 DAOs, BundleReplacementTransaction, SyncMetadataEntity. `exportSchema=true`; esquema en `schemas/...CobranzaDatabase/1.json`. Sin `fallbackToDestructiveMigration`. | Implementado (4B ✅) |
+| `:feature:auth`         | LoginViewModel, pantallas Check/Login, SessionRepository (@Singleton), AuthModule. | Implementado (4B ✅) |
+| `:feature:asignacion`   | AsignacionRepository, DescargaAsignacionWorker, AsignacionViewModel, pantallas.    | Implementado (4B ✅) |
+
+### Grafo de dependencias Gradle
+
+```
+:app --> :feature:auth, :feature:asignacion, :core:database, :core:network, :core:security
+:feature:asignacion --> :core:database, :core:network
+:feature:auth --> :core:network, :core:security
+:core:database --> (solo Room, Hilt, Coroutines)
+:core:network --> (solo Retrofit, OkHttp, Hilt, kotlinx.serialization)
+:core:security --> (solo DataStore, Hilt, Coroutines)
+```
+
+Los módulos `:feature:*` no dependen entre sí. `:app` es el único que conoce todos los features.
 
 ### Fases futuras (pendiente)
 
-| Módulo / feature     | Responsabilidad                                                   |
-|----------------------|-------------------------------------------------------------------|
-| `feature:cartera`    | Pantallas de lista de personas y detalle de créditos/cuotas.      |
-| `feature:gestiones`  | Pantallas de registro y listado de gestiones.                     |
-| `feature:sincronizacion` | WorkManager, cola outbox, lógica de sincronización.           |
-| `core:database`      | Room, DAOs, migraciones de Room.                                  |
-| `core:ui`            | Componentes Compose reutilizables, temas, estilos.                |
+| Módulo / feature       | Responsabilidad                                                    |
+|------------------------|--------------------------------------------------------------------|
+| `:feature:gestiones`   | Pantallas de registro de gestiones con GPS y fotografías.          |
+| `:core:ui`             | Componentes Compose reutilizables, temas, estilos.                 |
 
 ## Módulos de la web Angular
 
