@@ -2,47 +2,42 @@
 
 ## Identificación
 
-- **Fase:** 4B — Cartera offline — COMPLETADA ✅
-- **Estado:** VALIDADA — 2026-08-02
-- **Rama activa:** `feature/fase-4b-descarga-offline`
-- **Commit base:** `3d00ccf feat(android): implementar base y autenticacion fase 4a`
-- **Nota:** Sin commit propio (usuario indicó explícitamente NO hacer commit)
+- **Fase:** 4C — Gestiones offline — PENDIENTE
+- **Estado:** PREPARACIÓN — 2026-08-02
+- **Rama activa:** `feature/fase-4c-gestiones-offline`
+- **Base (main):** `f9382a2 feat(android): implementar descarga y consulta offline fase 4b`
+- **Tag de fase anterior:** `v0.10.0-descarga-offline`
 
-## Fase 4B — COMPLETADA ✅
+## Fase 4B — CERRADA ✅
 
-### Pruebas
+- **Commit:** `f9382a2` — rama `feature/fase-4b-descarga-offline`
+- **Tag:** `v0.10.0-descarga-offline`
+- **API:** 248 pruebas — 0 failures
+- **Android JVM:** 97 pruebas — 0 failures
+- **assembleDebug:** BUILD SUCCESSFUL
+- **lint:** BUILD SUCCESSFUL
+- **assembleDebugAndroidTest:** BUILD SUCCESSFUL
+- **connectedDebugAndroidTest:** ⏭️ sin emulador en WSL2
+- **Esquema Room v1:** exportado y versionado en `core/database/schemas/`
+- **Sin migraciones destructivas:** confirmado
 
-| Suite | Resultado |
-|---|---|
-| API `./mvnw clean verify` | ✅ 247 tests — 0 failures |
-| Android `:core:database:testDebugUnitTest` | ✅ 0 failures |
-| Android `:feature:asignacion:testDebugUnitTest` | ✅ 31 tests — 0 failures |
-| Android `assembleDebug` | ✅ BUILD SUCCESSFUL |
-| Android `connectedDebugAndroidTest` | ⏭️ Sin emulador en WSL2 |
+## Fase 4C — Alcance pendiente de planificación
 
-### Módulos entregados
+**Objetivo:** Registro y sincronización offline de gestiones de cobranza.
 
-- `:core:database` — Room 2.7.2; 9 entidades, 8 DAOs, BundleReplacementTransaction
-- `:core:network` — SyncModels, BigDecimalSerializer, SincronizacionApi
-- `:feature:asignacion` — Repository, Worker, Scheduler, ViewModel, Screens, Navigator
-- `:feature:auth` — SessionRepository @Singleton, AuthModule
-- `:app` — NavHost, LogoutUseCase, Configuration.Provider
+### Incluye (borrador)
+- `:feature:gestiones` — pantallas de registro de gestión con GPS obligatorio
+- `GestionPendienteEntity` en `:core:database` (patrón outbox)
+- Worker de envío con backoff exponencial e idempotencia
+- Estados de sincronización: `PENDIENTE_ENVIO`, `ENVIANDO`, `SINCRONIZADA`, `ERROR_REINTENTABLE`, `ERROR_PERMANENTE`
+- Fotografías diferidas (ver ADR-0030)
 
-## Próximo objetivo
-
-**Fase 4C — Gestiones offline** (no iniciada):
-- Entidad `GestionPendienteEntity` (outbox Room)
-- Worker de envío de gestiones con idempotencia
-- Pantallas de registro de gestiones (GPS obligatorio)
-- Fotografías diferidas (ADR-0030)
-
-## Fuera de alcance (siempre)
-
+### No incluye
+- Modificar Fase 4B (cerrada)
 - Admin Web
 - Despliegue VPS
-- Funcionalidad de autenticación (cerrada en Fase 4A)
-- Modificar Fase 4B (cerrada)
+- Nuevas funcionalidades de autenticación
 
 ## connectedDebugAndroidTest pendiente
 
-APKs de debug compilados. Ejecutar cuando haya emulador o dispositivo físico.
+APKs de debug compilados en Fase 4B. Ejecutar cuando haya emulador o dispositivo físico.
