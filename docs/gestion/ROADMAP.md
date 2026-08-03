@@ -1,6 +1,6 @@
 # Roadmap
 
-## Fase actual: Fase 4C — Gestiones offline (outbox, GPS) — PENDIENTE DE PLANIFICACIÓN
+## Fase actual: Fase 4C-A — Gestiones offline ASIGNACION_DIARIA — IMPLEMENTADA ✅ PENDIENTE COMMIT
 
 ## Fase 0 — Inicialización del repositorio ✅
 
@@ -175,15 +175,31 @@
 
 ---
 
-## Fase 4C — Gestiones offline (PENDIENTE)
+## Fase 4C-A — Gestiones offline ASIGNACION_DIARIA ✅ IMPLEMENTADA
 
-**Objetivo:** Registro y sincronización offline de gestiones de cobranza.
+**Objetivo:** Registro y sincronización offline de gestiones desde la asignación diaria activa.
 
-**Incluye (borrador):**
-- `:feature:gestiones` — pantallas de registro de gestión con GPS.
-- Patrón outbox en Room para gestiones pendientes de envío.
-- WorkManager para sincronización con backoff exponencial.
-- Estados de sincronización: `PENDIENTE_ENVIO`, `ENVIANDO`, `SINCRONIZADA`, `ERROR_REINTENTABLE`, `ERROR_PERMANENTE`.
+**Implementado:**
+- `:core:database` Room v2 — tabla `gestion_local` con outbox pattern, lease atómico, backoff exponencial, migración 1→2 no destructiva.
+- `:core:network` — `GestionApi`, `GestionDtos`.
+- `:feature:gestion` — `GestionRepository` (outbox + Mutex), `AndroidLocationProvider` (LocationManager, timeout 30s), `EnvioGestionWorker` (@HiltWorker), `GestionSyncScheduler`, pantallas Compose form + historial.
+- `HomeViewModel.EstadoLogout` — bloqueo de logout con gestiones pendientes, sin "salir igualmente".
+- 6 estados de sincronización: `PENDIENTE_ENVIO`, `ENVIANDO`, `SINCRONIZADA`, `ERROR_REINTENTABLE`, `ERROR_PERMANENTE`, `CONFLICTO`.
+- ADR-0037..0040 creados.
+- 135 tests JVM — 0 failures.
+
+**No incluye:**
+- BUSQUEDA_DIRECTA (requiere endpoint API global por RUT — pendiente Fase 4C-B).
+- Fotografías (diferidas — ADR-0030).
+
+## Fase 4C-B — Búsqueda directa por RUT (PENDIENTE)
+
+**Objetivo:** Permitir gestionar personas fuera de la asignación diaria buscando por RUT.
+
+**Requiere:**
+- Endpoint API `GET /api/v1/personas/buscar?rut=...` con autenticación.
+- UI de búsqueda global en Android.
+- `origenGestion = BUSQUEDA_DIRECTA`.
 
 ---
 

@@ -39,7 +39,7 @@ import cl.zzenner.cobranza.feature.asignacion.domain.PersonaResumen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AsignacionListScreen(
-    onNavigateToDetalle: (personaId: String) -> Unit,
+    onNavigateToDetalle: (personaId: String, asignacionDiariaId: String) -> Unit,
     viewModel: AsignacionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -109,7 +109,9 @@ fun AsignacionListScreen(
                     items(state.personas, key = { it.id }) { persona ->
                         PersonaItem(
                             persona = persona,
-                            onClick = { onNavigateToDetalle(persona.id) },
+                            onClick = {
+                                onNavigateToDetalle(persona.id, state.asignacionDiariaId ?: "")
+                            },
                         )
                     }
                 }

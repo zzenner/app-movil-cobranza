@@ -8,6 +8,7 @@ import cl.zzenner.cobranza.core.database.entity.AvalEntity
 import cl.zzenner.cobranza.core.database.entity.CuotaEntity
 import cl.zzenner.cobranza.core.database.entity.DireccionEntity
 import cl.zzenner.cobranza.core.database.entity.GestionHistoricaEntity
+import cl.zzenner.cobranza.core.database.entity.GestionLocalEntity
 import cl.zzenner.cobranza.core.database.entity.OperacionEntity
 import cl.zzenner.cobranza.core.database.entity.PersonaEntity
 import cl.zzenner.cobranza.core.database.transaction.BundleDescargado
@@ -145,5 +146,47 @@ class BundleReplacementTransactionTest {
         val meta = db.syncMetadataDao().getMetadata()
         assertEquals("SIN_ASIGNACION", meta?.estado)
         assertTrue(meta?.datosAnterioresDisponibles == false)
+    }
+
+    @Test
+    fun `reemplazar preserva gestion_local existente (outbox no se borra en descarga)`() = runTest {
+        db.gestionLocalDao().insert(
+            GestionLocalEntity(
+                id = "g-local-pre",
+                personaId = "p-1",
+                personaRutNumero = "27000001",
+                personaRutDv = "0",
+                personaNombre = "Test",
+                asignacionDiariaId = "asig-1",
+                origenGestion = "ASIGNACION_DIARIA",
+                tipoGestion = "SIN_CONTACTO",
+                fechaGestionEpoch = 1000L,
+                fechaCapturaGpsEpoch = 1000L,
+                observacion = null,
+                observacionDireccion = null,
+                latitud = -33.45,
+                longitud = -70.66,
+                precisionMetros = 5.0f,
+                ubicacionSimulada = false,
+                proveedorGps = "gps",
+                fechaCompromiso = null,
+                estadoSincronizacion = "PENDIENTE_ENVIO",
+                fechaCreacionLocalEpoch = 1000L,
+                cantidadIntentos = 0,
+                leaseHastaEpoch = null,
+                fechaProximoIntentoEpoch = null,
+                codigoErrorServidor = null,
+                mensajeError = null,
+            ),
+        )
+        assertEquals(1, db.gestionLocalDao().contarNoResueltas())
+
+        tx.reemplazar(bundle())
+
+        assertEquals(
+            "reemplazar() no debe borrar gestion_local",
+            1,
+            db.gestionLocalDao().contarNoResueltas(),
+        )
     }
 }

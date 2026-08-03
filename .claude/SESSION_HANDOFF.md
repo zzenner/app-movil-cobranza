@@ -1,4 +1,4 @@
-# Handoff de sesión — inicio Fase 4C
+# Handoff de sesión — Fase 4C-A auditada
 
 **Fecha:** 2026-08-02
 **Rama activa:** `feature/fase-4c-gestiones-offline`
@@ -10,55 +10,127 @@
 | Referencia | Hash | Descripción |
 |---|---|---|
 | `main` (local + origin) | `f9382a2` | feat(android): implementar descarga y consulta offline fase 4b |
-| `origin/main` | `f9382a2` | Igual a main local |
+| `feature/fase-4c-gestiones-offline` | `f9382a2` | Base = main; cambios en worktree sin commit aún |
 | `tag v0.10.0-descarga-offline` | `f9382a2` | Fase 4B cerrada y etiquetada |
-| `feature/fase-4c-gestiones-offline` | `f9382a2` | Base = main; sin commits propios aún |
-| `feature/fase-4b-descarga-offline` | `f9382a2` | Cerrada y fusionada a main |
 
-Árbol limpio. Sin cambios sin confirmar.
+**Árbol:** 19 archivos modificados + 1 módulo nuevo `feature/gestion` + schema v2 sin confirmar.
 
 ---
 
-## Pruebas validadas — Fase 4B (resultado final)
+## Pruebas validadas — Fase 4C-A (Auditoría final)
 
 | Suite | Resultado |
 |---|---|
-| API `./mvnw clean verify` | ✅ 248 tests — 0 failures — BUILD SUCCESS |
-| Android JVM total | ✅ 97 tests — 0 failures |
+| API `./mvnw clean verify` | ✅ **248 tests — 0 failures — BUILD SUCCESS** |
 | Android `assembleDebug` | ✅ BUILD SUCCESSFUL |
 | Android `lint` | ✅ BUILD SUCCESSFUL — sin errores |
-| Android `assembleDebugAndroidTest` | ✅ BUILD SUCCESSFUL |
-| Android `connectedDebugAndroidTest` | ⏭️ Sin emulador en WSL2 |
+| Android `testDebugUnitTest` (total JVM) | ✅ **143 tests — 0 failures — 0 errors** |
+| Room schema v2 | ✅ Generado en `core/database/schemas/.../2.json` |
 
-### Desglose JVM
+### Desglose JVM (Fase 4C-A agrega 46 tests a los 97 anteriores)
 
-| Clase | Tests |
-|---|---|
-| `BigDecimalSerializerTest` | 8 |
-| `AsignacionRepositoryTest` | 7 |
-| `AsignacionViewModelTest` | 5 |
-| `DescargaAsignacionWorkerTest` | 5 |
-| `AsignacionMapperTest` | 6 |
-| `DatabaseSchemaTest` | 4 |
-| `BundleReplacementTransactionTest` | 6 |
-| `PersonaDaoTest` | 5 |
-| `SyncMetadataDaoTest` | 5 |
-| `LogoutUseCaseTest` | 4 |
-| `LogoutIntegrationTest` | 4 |
-| Fase 4A (auth, network, security) | 38 |
-| **Total** | **97** |
+| Módulo | Clase | Tests |
+|---|---|---|
+| core:database | MigrationTest | 4 |
+| core:database | GestionLocalDaoTest | 14 (+4 por estado individual: ENVIANDO, ERROR_PERMANENTE, CONFLICTO, todos-5-estados) |
+| core:database | BundleReplacementTransactionTest | 7 (+1 test reemplazar preserva gestion_local) |
+| feature:gestion | GestionValidatorTest | 7 |
+| feature:gestion | GestionMapperTest | 5 |
+| feature:gestion | GestionRepositoryTest | 10 (+3 tests 400/403/404 → ERROR_PERMANENTE) |
+| feature:gestion | EnvioGestionWorkerTest | 4 |
+| app | LogoutUseCaseTest (actualizado) | 4 |
+| app | LogoutIntegrationTest (actualizado) | 4 |
+| *Fase 4B* | *(97 tests existentes)* | 97 |
+| **Total** | | **143** |
 
 ---
 
-## Correcciones aplicadas en verificación final Fase 4B
+## Auditoría completada — secciones
 
-1. `BundleReplacementTransaction.reemplazar()` — añadido `fechaConsultada = bundle.asignacion.fecha`
-2. `SyncMetadataEntity` — `versionContrato` y `generadoEn` documentados como reservados
-3. `LogoutUseCase.invoke()` — `runCatching { sessionRepository.logout() }` (best-effort)
-4. `AsignacionDescargaRestTest` Test 13 — contrato JSON Android validado
-5. `LogoutUseCaseTest` — 4 tests MockK
-6. `LogoutIntegrationTest` — 4 tests Robolectric Room
-7. `CobranzaDatabase` — `exportSchema = true`; schema `1.json` versionado
+| Sección | Estado |
+|---|---|
+| S1 — Recovery protocol | ✅ Rama confirmada, árbol limpio (sin diff --check errors) |
+| S2 — ADR-0037..0040 creados | ✅ |
+| S2 — MODULOS.md actualizado | ✅ |
+| S2 — STATUS.md actualizado | ✅ |
+| S2 — CHANGELOG.md actualizado | ✅ |
+| S2 — ROADMAP.md actualizado | ✅ |
+| S3 — Room v2: gestion_local sin FK, BundleReplacement preserva outbox | ✅ test explícito |
+| S4 — Lease/CAS: todos los estados, backoff, HTTP 400/403/404/409 | ✅ tests explícitos |
+| S5 — GPS: LocationManager, no FusedLocation, timeout, mock detection | ✅ ADR-0039 |
+| S6 — Form/historial: double-tap guard, UUID, COMPROMISO_PAGO, dedup | ✅ |
+| S7 — Logout: 5 estados no-SINCRONIZADA individualmente testeados | ✅ contarNoResueltas |
+| S8 — API ./mvnw clean verify | ✅ 248 tests |
+| S8 — Android full build + tests | ✅ 143 tests |
+| S9 — SESSION_HANDOFF actualizado | ✅ |
+
+---
+
+## Archivos creados (nuevos) — Fase 4C-A completo
+
+### core:database
+- `entity/GestionLocalEntity.kt`
+- `dao/GestionLocalDao.kt`
+- `migration/Migrations.kt`
+- `schemas/.../2.json`
+- `GestionLocalDaoTest.kt` (14 tests)
+- `MigrationTest.kt` (4 tests)
+
+### core:network
+- `api/GestionDtos.kt`
+- `api/GestionApi.kt`
+
+### feature:gestion (módulo nuevo)
+- `build.gradle.kts`, `consumer-rules.pro`, `AndroidManifest.xml`
+- `domain/GestionModels.kt`, `domain/GestionValidator.kt`
+- `data/GestionMapper.kt`, `data/GestionRepository.kt`
+- `location/LocationProvider.kt`, `location/AndroidLocationProvider.kt`
+- `worker/EnvioGestionWorker.kt`, `worker/GestionSyncScheduler.kt`
+- `di/GestionModule.kt`
+- `ui/GestionFormViewModel.kt`, `ui/GestionFormScreen.kt`
+- `ui/GestionHistorialViewModel.kt`, `ui/GestionHistorialScreen.kt`
+- `ui/GestionNavigation.kt`
+- Tests: `GestionValidatorTest.kt` (7), `GestionMapperTest.kt` (5), `GestionRepositoryTest.kt` (10), `EnvioGestionWorkerTest.kt` (4)
+
+### docs/adr
+- `0037-outbox-migracion-room-v2.md`
+- `0038-estados-lease-workmanager.md`
+- `0039-gps-location-manager.md`
+- `0040-logout-gestiones-no-resueltas.md`
+
+---
+
+## Archivos modificados — Fase 4C-A completo
+
+### core:database
+- `CobranzaDatabase.kt` — version=2, GestionLocalEntity, gestionLocalDao()
+- `di/DatabaseModule.kt` — addMigrations(MIGRATION_1_2), provideGestionLocalDao
+- `transaction/BundleReplacementTransaction.kt` — limpiarTodo() con gestionLocalDao.deleteAll() primero
+- `build.gradle.kts` — sourceSets test assets para schemas
+- `BundleReplacementTransactionTest.kt` — +1 test preservación outbox
+
+### core:network
+- `client/NetworkModule.kt` — provideGestionApi
+
+### settings.gradle.kts — include(":feature:gestion")
+
+### app
+- `build.gradle.kts` — impl project(":feature:gestion")
+- `ui/LogoutUseCase.kt`
+- `ui/HomeViewModel.kt`
+- `ui/HomeScreen.kt`
+- `navigation/CobranzaNavGraph.kt`
+- Tests `LogoutUseCaseTest.kt` y `LogoutIntegrationTest.kt`
+
+### feature:asignacion
+- `ui/AsignacionNavigation.kt`, `AsignacionViewModel.kt`, `AsignacionListScreen.kt`
+- `ui/PersonaDetalleViewModel.kt`, `ui/PersonaDetalleScreen.kt`
+
+### docs
+- `docs/gestion/STATUS.md`
+- `docs/gestion/CHANGELOG.md`
+- `docs/gestion/ROADMAP.md`
+- `docs/arquitectura/MODULOS.md`
 
 ---
 
@@ -66,27 +138,25 @@
 
 **Rama:** `feature/fase-4c-gestiones-offline`
 
-**Acción:** Revisar documentación de gestiones, GPS, outbox y sincronización antes de proponer plan para Fase 4C.
+**Acción:** Crear commit de Fase 4C-A. Comandos:
 
-Documentos a leer:
-1. `docs/sincronizacion/PROTOCOLO_SINCRONIZACION.md`
-2. `docs/adr/0026-dos-origenes-de-gestion.md`
-3. `docs/adr/0027-*` a `docs/adr/0030-fotografias-diferidas.md`
-4. ADR-0033 a ADR-0036 (decisiones técnicas Android Fase 4B)
+```bash
+git add -p  # revisar cada cambio antes de staging
+git commit -m "feat(android): implementar gestiones offline fase 4c-a"
+```
 
-**No implementar nada** hasta que el plan de Fase 4C esté aprobado.
+**Luego:** Planificar Fase 4C-B (BUSQUEDA_DIRECTA):
+- Endpoint API `GET /api/v1/personas/buscar?rut=...`
+- UI Android de búsqueda global por RUT
+- `origenGestion = BUSQUEDA_DIRECTA`
 
 ---
 
 ## No repetir
 
-- Commit de Fase 4B (en `f9382a2`)
-- Push de `feature/fase-4b-descarga-offline` (publicada)
-- Merge a main (fast-forward completado)
-- Tag `v0.10.0-descarga-offline` (publicado)
-- Crear rama `feature/fase-4c-gestiones-offline` (creada y publicada)
-- Agregar `fechaConsultada` a `BundleReplacementTransaction` (corregido en 4B)
-- Agregar Test 13 a `AsignacionDescargaRestTest` (corregido en 4B)
-- Crear `LogoutUseCaseTest` (creado en 4B)
-- Crear `LogoutIntegrationTest` Room/Robolectric (creado en 4B)
-- Corregir best-effort en `LogoutUseCase` (corregido en 4B)
+- Todos los items de Fase 4C-A (hecho)
+- ADR-0037..0040 (creados)
+- Documentación actualizada (hecho)
+- 143 tests — 0 failures (validado)
+- 248 API tests (validado, sin cambios en API)
+- Commit / push (pendiente autorización)

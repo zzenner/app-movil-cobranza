@@ -59,11 +59,11 @@ Estado: BORRADOR — pendiente de refinamiento y estimación.
 - Puedo seleccionar el tipo de resultado de la gestión desde un catálogo.
 - Puedo ingresar observaciones de texto libre.
 - Puedo registrar opcionalmente un compromiso de pago con fecha de compromiso (sin monto).
-- Puedo agregar fotografías.
-- La geolocalización se captura automáticamente.
+- La geolocalización se captura en el momento del registro (obligatoria; sin GPS no se puede guardar).
 - La gestión queda registrada localmente aunque no haya conexión.
 
-**PENDIENTE:** Catálogo de resultados; número máximo de fotografías.
+**PENDIENTE:** Catálogo de resultados.
+**DIFERIDO (ADR-0030):** Fotografías opcionales — fuera del alcance de la Fase 4C.
 
 ---
 

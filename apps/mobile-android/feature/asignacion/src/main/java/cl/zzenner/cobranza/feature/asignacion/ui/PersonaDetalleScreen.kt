@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,6 +33,7 @@ import cl.zzenner.cobranza.core.database.dao.OperacionConCuotas
 import cl.zzenner.cobranza.core.database.dao.PersonaConDetalle
 import cl.zzenner.cobranza.core.database.entity.DireccionEntity
 import cl.zzenner.cobranza.core.database.entity.GestionHistoricaEntity
+import cl.zzenner.cobranza.core.database.entity.GestionLocalEntity
 import cl.zzenner.cobranza.feature.asignacion.domain.formatearRut
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -42,12 +44,16 @@ import java.math.BigDecimal
 @Composable
 fun PersonaDetalleScreen(
     personaId: String,
+    asignacionDiariaId: String,
     onNavigateBack: () -> Unit,
+    onRegistrarGestion: () -> Unit,
+    onVerHistorial: () -> Unit,
     viewModel: PersonaDetalleViewModel = hiltViewModel(),
 ) {
     val personaConDetalle by viewModel.personaConDetalle.collectAsState(initial = null)
     val operaciones by viewModel.operacionesConCuotas.collectAsState(initial = emptyList())
     val gestiones by viewModel.gestionesHistoricas.collectAsState(initial = emptyList())
+    val gestionesLocales by viewModel.gestionesLocales.collectAsState(initial = emptyList())
 
     val persona = personaConDetalle
 
@@ -102,38 +108,14 @@ fun PersonaDetalleScreen(
 
                 // Gestiones históricas (readonly)
                 SeccionGestiones(gestiones)
+                HorizontalDivider()
 
-                // Placeholder para Fase 4C
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    ),
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column {
-                            Text(
-                                "Registrar gestión",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            )
-                            Text(
-                                "Disponible en próxima versión",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                            )
-                        }
-                        TextButton(onClick = {}, enabled = false) {
-                            Text("Registrar")
-                        }
-                    }
-                }
+                // Gestiones locales pendientes de sincronizar
+                SeccionGestionesLocales(
+                    gestionesLocales = gestionesLocales,
+                    onRegistrar = onRegistrarGestion,
+                    onVerHistorial = onVerHistorial,
+                )
             }
         }
     }
@@ -214,6 +196,40 @@ private fun SeccionOperaciones(operaciones: List<OperacionConCuotas>) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SeccionGestionesLocales(
+    gestionesLocales: List<GestionLocalEntity>,
+    onRegistrar: () -> Unit,
+    onVerHistorial: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Gestiones en este dispositivo", style = MaterialTheme.typography.titleMedium)
+            if (gestionesLocales.isNotEmpty()) {
+                TextButton(onClick = onVerHistorial) { Text("Ver todas") }
+            }
+        }
+        if (gestionesLocales.isEmpty()) {
+            Text("Sin gestiones registradas en esta sesión", style = MaterialTheme.typography.bodySmall)
+        } else {
+            val formato = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.ROOT)
+            gestionesLocales.take(3).forEach { g ->
+                Text(
+                    "${g.tipoGestion} — ${formato.format(Date(g.fechaGestionEpoch))} — ${g.estadoSincronizacion}",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+        Button(onClick = onRegistrar, modifier = Modifier.fillMaxWidth()) {
+            Text("Registrar gestión")
         }
     }
 }

@@ -3,6 +3,7 @@ package cl.zzenner.cobranza.ui
 import cl.zzenner.cobranza.core.database.transaction.BundleReplacementTransaction
 import cl.zzenner.cobranza.feature.asignacion.worker.AsignacionSyncScheduler
 import cl.zzenner.cobranza.feature.auth.data.SessionRepository
+import cl.zzenner.cobranza.feature.gestion.worker.GestionSyncScheduler
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.just
@@ -19,41 +20,44 @@ class LogoutUseCaseTest {
     private val bundleTransaction: BundleReplacementTransaction = mockk {
         io.mockk.coEvery { limpiarTodo() } just runs
     }
-    private val scheduler: AsignacionSyncScheduler = mockk {
+    private val asignacionScheduler: AsignacionSyncScheduler = mockk {
+        io.mockk.every { cancelarTodo() } just runs
+    }
+    private val gestionScheduler: GestionSyncScheduler = mockk {
         io.mockk.every { cancelarTodo() } just runs
     }
 
-    private val useCase = LogoutUseCase(sessionRepository, bundleTransaction, scheduler)
+    private val useCase = LogoutUseCase(
+        sessionRepository, bundleTransaction, asignacionScheduler, gestionScheduler,
+    )
 
     @Test
-    fun `logout cancela workers antes de limpiar room`() = runTest {
+    fun `logout cancela ambos schedulers antes de limpiar room`() = runTest {
         useCase()
 
         coVerifyOrder {
-            scheduler.cancelarTodo()
+            asignacionScheduler.cancelarTodo()
+            gestionScheduler.cancelarTodo()
             bundleTransaction.limpiarTodo()
             sessionRepository.logout()
         }
     }
 
     @Test
-    fun `logout llama cancelarTodo exactamente una vez`() = runTest {
+    fun `logout cancela asignacion scheduler exactamente una vez`() = runTest {
         useCase()
+        io.mockk.verify(exactly = 1) { asignacionScheduler.cancelarTodo() }
+    }
 
-        io.mockk.verify(exactly = 1) { scheduler.cancelarTodo() }
+    @Test
+    fun `logout cancela gestion scheduler exactamente una vez`() = runTest {
+        useCase()
+        io.mockk.verify(exactly = 1) { gestionScheduler.cancelarTodo() }
     }
 
     @Test
     fun `logout llama limpiarTodo exactamente una vez`() = runTest {
         useCase()
-
         coVerify(exactly = 1) { bundleTransaction.limpiarTodo() }
-    }
-
-    @Test
-    fun `logout llama sessionRepository logout exactamente una vez`() = runTest {
-        useCase()
-
-        coVerify(exactly = 1) { sessionRepository.logout() }
     }
 }

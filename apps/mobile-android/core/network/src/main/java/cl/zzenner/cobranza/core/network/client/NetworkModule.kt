@@ -1,6 +1,7 @@
 package cl.zzenner.cobranza.core.network.client
 
 import cl.zzenner.cobranza.core.network.api.AuthApi
+import cl.zzenner.cobranza.core.network.api.GestionApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -107,4 +108,9 @@ object NetworkModule {
         @Named("authenticated") retrofit: Retrofit,
     ): cl.zzenner.cobranza.core.network.api.SincronizacionApi =
         retrofit.create(cl.zzenner.cobranza.core.network.api.SincronizacionApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideGestionApi(@Named("authenticated") retrofit: Retrofit): GestionApi =
+        retrofit.create(GestionApi::class.java)
 }

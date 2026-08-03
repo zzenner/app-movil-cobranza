@@ -25,6 +25,7 @@ data class AsignacionUiState(
     val cargando: Boolean = false,
     val personas: List<PersonaResumen> = emptyList(),
     val syncMetadata: SyncMetadataUi = SyncMetadataUi(),
+    val asignacionDiariaId: String? = null,
     val isOnline: Boolean = false,
     val error: String? = null,
     val textoBusqueda: String = "",
@@ -56,6 +57,7 @@ class AsignacionViewModel @Inject constructor(
         AsignacionUiState(
             personas = personasFiltradas,
             syncMetadata = metadata?.toUi() ?: SyncMetadataUi(),
+            asignacionDiariaId = metadata?.asignacionIdAlmacenada,
             textoBusqueda = busqueda,
         )
     }.stateIn(

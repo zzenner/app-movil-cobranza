@@ -14,18 +14,18 @@ Una gestión enviada desde el dispositivo tiene el mismo UUID que una ya existen
 - Las gestiones son inmutables desde su creación.
 - La API acepta el mismo UUID múltiples veces como idempotencia normal.
 
-Si ocurriera contenido diferente con el mismo UUID, la API rechaza el reenvío con `409 Conflict`. El estado en Room se marca `ERROR_PERMANENTE` y se notifica al ejecutivo. No se intenta resolver automáticamente.
+Si ocurriera contenido diferente con el mismo UUID, la API rechaza el reenvío con `409 Conflict`. El estado en Room se marca `CONFLICTO` (estado propio, distinto de `ERROR_PERMANENTE`) y se notifica al ejecutivo. No se intenta resolver automáticamente. Ver ADR-0038.
 
 ---
 
 ### Conflicto de asignación (nueva asignación con operaciones pendientes)
 Llega una nueva asignación diaria mientras el dispositivo aún tiene gestiones de la asignación anterior en estado `PENDIENTE_ENVIO` o `ERROR_REINTENTABLE`.
 
-**Estrategia:**
-- Las gestiones pendientes **no se eliminan**. Siguen en la cola del outbox.
-- Los datos mínimos de las personas relacionadas se conservan en Room hasta que todas sus gestiones estén `SINCRONIZADA`.
-- Se descarga la nueva asignación en paralelo.
-- La interfaz distingue visualmente las gestiones pendientes de la asignación anterior.
+**Estrategia (implementada en Fase 4C-A):**
+- Las gestiones pendientes **no se eliminan**. `gestion_local` no tiene FK a persona; sobrevive intacta a cualquier descarga de bundle.
+- `BundleReplacementTransaction.reemplazar()` reemplaza **todos** los datos financieros (personas, operaciones, cuotas) pero no toca `gestion_local`.
+- Los campos de persona necesarios para enviar la gestión (`personaRutNumero`, `personaRutDv`, `personaNombre`) están **desnormalizados** en cada fila de `gestion_local`.
+- La interfaz muestra gestiones de cualquier asignación anterior hasta que se sincronicen. Ver ADR-0037.
 
 ---
 

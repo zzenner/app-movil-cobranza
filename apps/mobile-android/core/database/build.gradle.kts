@@ -29,6 +29,12 @@ android {
             isIncludeAndroidResources = true
         }
     }
+
+    sourceSets {
+        getByName("test") {
+            assets.srcDir(File(projectDir, "schemas"))
+        }
+    }
 }
 
 dependencies {

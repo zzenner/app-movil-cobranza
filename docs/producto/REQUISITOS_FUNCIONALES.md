@@ -10,7 +10,7 @@
 | RF-01d | No se usa PIN local ni biometría en el MVP. Los teléfonos son corporativos.                         |
 | RF-01e | Al recuperar conectividad, la app valida o renueva el access token antes de sincronizar.            |
 | RF-01f | Si el usuario fue desactivado o el dispositivo revocado, el servidor rechaza la renovación y la app termina la sesión. |
-| RF-01g | **Política de logout MVP (confirmada):** sin pendientes → logout permitido; con pendientes y conexión → intenta sincronizar (éxito=logout, fallo=mantener sesión); con pendientes y sin conexión → bloquear logout. No se eliminan silenciosamente gestiones ni fotografías pendientes. Cerrar la app no equivale a logout. No se permite iniciar sesión con otro usuario mientras haya pendientes. |
+| RF-01g | **Política de logout MVP (implementada en Fase 4C-A):** si `contarNoResueltas()=0` → logout inmediato; si hay gestiones en cualquier estado no-SINCRONIZADA (PENDIENTE_ENVIO, ENVIANDO, ERROR_REINTENTABLE, ERROR_PERMANENTE, CONFLICTO) → se ofrece "Sincronizar y cerrar"; si sincroniza y `contarNoResueltas()=0` → logout; si queda alguna no resuelta → logout bloqueado con opción de reintentar. **No existe opción "salir igualmente"**. No se eliminan silenciosamente gestiones ni fotografías pendientes. Cerrar la app no equivale a logout. Ver ADR-0040. |
 | RF-01h | El administrador web se autentica con las mismas credenciales institucionales.                      |
 
 ## RF-02 Gestión de usuarios

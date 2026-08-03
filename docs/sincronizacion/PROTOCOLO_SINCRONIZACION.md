@@ -8,48 +8,49 @@
 - **Gestiones: unidireccional** — van del dispositivo a la API, nunca al revés.
 - **Asignación y datos: bidireccional** — se descargan desde la API hacia el dispositivo.
 
-## Endpoints previstos (borrador)
+## Endpoints implementados (Fase 3D + 4C-A)
 
-Los endpoints definitivos se definirán en `contracts/openapi/` en la Fase 1.
+Contrato completo en `contracts/openapi/cobranza-api.yaml`.
 
 ### Descarga de asignación diaria
 ```
-GET /api/v1/sync/asignacion-diaria
+GET /api/v1/asignaciones/diaria/activa
 Authorization: Bearer <token>
 
-Response: asignación en estado PUBLICADA para el ejecutivo autenticado, incluyendo:
-  - Lista de personas (~50)
-  - Operaciones de cada persona
-  - Cuotas (~3 por operación)
-  - Últimas 10 gestiones por RUT (de cualquier ejecutivo)
-  - Direcciones
-  - Valores financieros vigentes
+Response 200: bundle completo para el ejecutivo autenticado:
+  - asignacion_diaria (id, fecha, estado)
+  - personas (~50): datos personales, direcciones vigentes, avales
+  - operaciones: todas las activas por persona
+  - cuotas: todas las VENCIDA/VIGENTE/FUTURA (excluye PAGADA)
+  - gestiones_historicas: últimas 10 por RUT (de cualquier ejecutivo)
+
+Response 204: no hay asignación activa para el ejecutivo hoy.
 ```
 
-### Envío de gestiones (carga)
+### Envío de gestiones (carga — individual, idempotente)
 ```
-POST /api/v1/sync/gestiones
+POST /api/v1/gestiones
 Authorization: Bearer <token>
 Content-Type: application/json
 
-Body: lista de gestiones con estado PENDIENTE_ENVIO.
-      Cada gestión incluye su UUID generado en el dispositivo (idempotencia).
-      Las fotografías se referencian por UUID (subida por separado o en el mismo payload: PENDIENTE).
+Body: una gestión por request (Android envía de a una, no en lote).
+  - id: UUID generado en el dispositivo (garantiza idempotencia)
+  - personaId, origenGestion, asignacionDiariaId, tipoGestion, fechaGestion
+  - latitud, longitud, precisionMetros, ubicacionSimulada, proveedorGps, fechaCapturaGps
+  - observacion, observacionDireccion, fechaCompromiso (opcionales)
 
-Response: resultado por gestión:
-  - sincronizada: confirmada y persistida.
-  - error_reintentable: fallo temporal, reintentar.
-  - error_permanente: fallo definitivo, no reintentar.
+Response 201 INSERTADA: gestión nueva persistida.
+Response 200 IDEMPOTENTE: mismo UUID + mismo contenido (reenvío seguro).
+Response 409 CONFLICTO: mismo UUID + contenido diferente (no recuperable).
 ```
 
 ### Subida de fotografías
 ```
-POST /api/v1/sync/fotografias/{gestion_id}
+POST /api/v1/gestiones/{id}/fotografias
 Authorization: Bearer <token>
 Content-Type: multipart/form-data
 
-Body: archivo de imagen.
-Nota: diseño exacto PENDIENTE según solución de almacenamiento (S3 compatible).
+Diseño exacto PENDIENTE (fuera de alcance Fase 4C-A, diferido — ADR-0030).
 ```
 
 ## Flujo de sincronización completo
@@ -90,21 +91,22 @@ WorkManager detecta conectividad (o ejecutivo inicia sincronización manual)
 | Gestiones pendientes        | Contador de gestiones con estado `PENDIENTE_ENVIO`.          |
 | Error de sincronización     | Alerta cuando existe alguna gestión en `ERROR_PERMANENTE`.   |
 
-## Manejo de errores HTTP
+## Manejo de errores HTTP (POST /api/v1/gestiones)
 
-| Código HTTP  | Acción                                                                        |
-|--------------|-------------------------------------------------------------------------------|
-| 200 / 201    | Éxito. Actualizar estado en Room a `SINCRONIZADA`.                            |
-| 401 / 403    | Token inválido o sin acceso. Solicitar reautenticación.                       |
-| 409          | Conflicto (UUID duplicado con contenido diferente). Marcar `ERROR_PERMANENTE`.|
-| 422          | Error de validación permanente. Marcar `ERROR_PERMANENTE`.                   |
-| 5xx / red    | Error temporal. Marcar `ERROR_REINTENTABLE`. Reintento con backoff.           |
+| Código HTTP | Estado Room resultante | Acción                                                       |
+|-------------|------------------------|--------------------------------------------------------------|
+| 201 / 200   | `SINCRONIZADA`         | Gestión confirmada. Estado terminal positivo.                |
+| 401         | `PENDIENTE_ENVIO`      | Lease liberado. Outbox abortado. El worker retorna `SesionExpirada`. |
+| 400, 403, 404 | `ERROR_PERMANENTE`   | Error definitivo del cliente. Sin reintento automático.      |
+| 409         | `CONFLICTO`            | UUID con contenido diferente. Requiere intervención manual.  |
+| 422         | `ERROR_PERMANENTE`     | Error de validación. Código interno: `VALIDACION`.           |
+| 5xx         | `ERROR_REINTENTABLE`   | Error transitorio de servidor. Backoff exponencial.          |
+| IOException | `ERROR_REINTENTABLE`   | Error de red. Backoff exponencial.                           |
+
+Backoff: `min(30_000ms × 2ⁿ, 24h)` por registro. Sin límite de intentos. Ver ADR-0038.
 
 ## PENDIENTE
 
-- Definir el contrato OpenAPI completo de los endpoints de sincronización (Fase 1).
-- Definir cómo se transmiten las fotografías: base64 en el payload o multipart separado.
-- Definir qué delta se incluye en la descarga incremental de la asignación (¿timestamp o secuencia?).
-- Definir la política de backoff: intervalo inicial, factor multiplicador y máximo de reintentos.
-- Definir si el token se renueva automáticamente durante la sincronización (refresh token).
-- Definir comportamiento cuando la asignación diaria del dispositivo ya no coincide con la del servidor (nueva asignación publicada mientras el ejecutivo trabaja).
+- Definir cómo se transmiten las fotografías: base64 en el payload o multipart separado (diferido — ADR-0030).
+- Definir qué delta se incluye en la descarga incremental de la asignación.
+- Definir comportamiento cuando la asignación diaria del dispositivo ya no coincide con la del servidor.

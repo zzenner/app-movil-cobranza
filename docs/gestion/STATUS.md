@@ -1,7 +1,7 @@
 # Estado del proyecto
 
 **Última actualización:** 2026-08-02
-**Fase actual:** Fase 4C — Gestiones offline (outbox, GPS) — PENDIENTE DE PLANIFICACIÓN
+**Fase actual:** Fase 4C-A — Gestiones offline desde ASIGNACION_DIARIA — IMPLEMENTADA ✅ PENDIENTE COMMIT
 **Fase anterior:** Fase 4B — Cartera offline (Room + WorkManager + descarga asignación) ✅ CERRADA
 
 ## Resumen
@@ -26,7 +26,7 @@
 | Admin Web (Angular)                                       | No iniciado           |
 | **App Android — Fase 4A (base auth + red + seguridad)**   | **Completado ✅**                   |
 | **App Android — Fase 4B (cartera offline Room + WorkManager)** | **Cerrada ✅**               |
-| **App Android — Fase 4C (gestiones offline: outbox, GPS)**     | **Pendiente**               |
+| **App Android — Fase 4C-A (gestiones ASIGNACION_DIARIA offline)**  | **Implementada ✅ — pendiente commit**  |
 | Despliegue en VPS                                         | No iniciado           |
 
 ## Resultado de auditoría Fase 1A (2026-07-26)
@@ -362,18 +362,34 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 | **Android — `connectedDebugAndroidTest`** | ⏭️ No ejecutado — sin emulador en WSL2 |
 | **Tag** | `v0.10.0-descarga-offline` |
 
-## Fase 4C — Gestiones offline (Pendiente de planificación)
+## Fase 4C-A — Gestiones offline ASIGNACION_DIARIA — IMPLEMENTADA ✅
 
-Alcance futuro (no iniciado):
-- `GestionPendienteEntity` (outbox Room), `GestionPendienteDao`, estados de sincronización
-- Worker de envío idempotente: POST /api/v1/gestiones con exponential backoff
-- Pantallas de registro de gestión: tipo, observación, GPS obligatorio
-- Política de logout con gestiones pendientes (ADR-0024 confirma: bloquear si pendientes+sin red)
-- Fotografías: diferidas, **fuera del alcance de Fase 4C** salvo decisión expresa posterior
+### Implementado (135 tests — 0 failures)
+
+| Item | Resultado |
+|---|---|
+| Room v2: tabla `gestion_local` sin FK a persona, campos desnormalizados | ✅ |
+| `GestionLocalDao` — CAS atómico, lease recovery, FIFO, contarNoResueltas | ✅ |
+| `MIGRATION_1_2` — addMigrations explícita, sin fallbackToDestructiveMigration | ✅ |
+| `feature:gestion` — dominio, datos, GPS, worker, DI, UI completo | ✅ |
+| `GestionRepository` — outbox + Mutex single-flight + backoff exponencial | ✅ |
+| `AndroidLocationProvider` — LocationManager (sin FusedLocation), timeout 30s | ✅ |
+| `EnvioGestionWorker` — @HiltWorker, ExistingWorkPolicy.KEEP | ✅ |
+| `HomeViewModel.EstadoLogout` — bloqueo logout, sin "salir igualmente" | ✅ |
+| `BundleReplacementTransaction.reemplazar()` preserva `gestion_local` | ✅ |
+| HTTP 400/403/404 → ERROR_PERMANENTE (else branch + tests explícitos) | ✅ |
+| 5 estados no-SINCRONIZADA verificados en contarNoResueltas | ✅ |
+| ADR-0037..0040 creados | ✅ |
+| Android assembleDebug + lint + 135 tests JVM — BUILD SUCCESSFUL | ✅ |
+
+### No incluye (pendiente Fase 4C-B)
+
+- BUSQUEDA_DIRECTA global por RUT (requiere endpoint API inexistente)
+- Fotografías
 
 ## Próximo paso recomendado
 
-Revisar documentación de gestiones, GPS, outbox y sincronización para planificar Fase 4C.
+Commit de Fase 4C-A y planificación de Fase 4C-B (BUSQUEDA_DIRECTA, endpoint API global por RUT).
 
 ## Historial de fases
 
@@ -390,4 +406,4 @@ Revisar documentación de gestiones, GPS, outbox y sincronización para planific
 | Fase 3D | API REST de asignaciones y gestiones (endpoints Android)   | Completado | 2026-08-01 |
 | Fase 4A | Base Android: red, seguridad, auth (sin Room ni WorkManager) | Completado ✅ | 2026-08-02 |
 | Fase 4B | Cartera offline: Room, WorkManager, descarga asignación diaria | Cerrado ✅ — tag v0.10.0-descarga-offline | 2026-08-02 |
-| Fase 4C | Gestiones offline: outbox, GPS, sincronización | Pendiente | — |
+| Fase 4C-A | Gestiones ASIGNACION_DIARIA offline (outbox, GPS, outbox, sync) | Implementada ✅ pendiente commit | 2026-08-02 |

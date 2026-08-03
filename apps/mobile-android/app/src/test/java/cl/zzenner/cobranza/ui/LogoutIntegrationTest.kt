@@ -8,12 +8,14 @@ import cl.zzenner.cobranza.core.database.entity.AsignacionPersonaCrossRef
 import cl.zzenner.cobranza.core.database.entity.CuotaEntity
 import cl.zzenner.cobranza.core.database.entity.DireccionEntity
 import cl.zzenner.cobranza.core.database.entity.GestionHistoricaEntity
+import cl.zzenner.cobranza.core.database.entity.GestionLocalEntity
 import cl.zzenner.cobranza.core.database.entity.OperacionEntity
 import cl.zzenner.cobranza.core.database.entity.PersonaEntity
 import cl.zzenner.cobranza.core.database.transaction.BundleDescargado
 import cl.zzenner.cobranza.core.database.transaction.BundleReplacementTransaction
 import cl.zzenner.cobranza.feature.asignacion.worker.AsignacionSyncScheduler
 import cl.zzenner.cobranza.feature.auth.data.SessionRepository
+import cl.zzenner.cobranza.feature.gestion.worker.GestionSyncScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -31,17 +33,14 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * Verifica que el logout limpia completamente Room, cancela workers y cierra sesión.
- * Usa base de datos en memoria real (Robolectric) — sin mocks de Room.
- */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class LogoutIntegrationTest {
 
     private lateinit var db: CobranzaDatabase
     private lateinit var bundleTransaction: BundleReplacementTransaction
-    private lateinit var scheduler: AsignacionSyncScheduler
+    private lateinit var asignacionScheduler: AsignacionSyncScheduler
+    private lateinit var gestionScheduler: GestionSyncScheduler
     private lateinit var sessionRepository: SessionRepository
     private lateinit var useCase: LogoutUseCase
 
@@ -53,11 +52,11 @@ class LogoutIntegrationTest {
         ).allowMainThreadQueries().build()
 
         bundleTransaction = BundleReplacementTransaction(db)
-
-        scheduler = mockk { every { cancelarTodo() } just runs }
+        asignacionScheduler = mockk { every { cancelarTodo() } just runs }
+        gestionScheduler = mockk { every { cancelarTodo() } just runs }
         sessionRepository = mockk { coEvery { logout() } just runs }
 
-        useCase = LogoutUseCase(sessionRepository, bundleTransaction, scheduler)
+        useCase = LogoutUseCase(sessionRepository, bundleTransaction, asignacionScheduler, gestionScheduler)
     }
 
     @After
@@ -78,9 +77,7 @@ class LogoutIntegrationTest {
                 personas = listOf(
                     PersonaEntity(id = "p-1", rutNumero = "27000001", rutDv = "0", nombre = "Test"),
                 ),
-                crossRefs = listOf(
-                    AsignacionPersonaCrossRef(asignacionId = "asig-1", personaId = "p-1"),
-                ),
+                crossRefs = listOf(AsignacionPersonaCrossRef("asig-1", "p-1")),
                 direcciones = listOf(
                     DireccionEntity(
                         personaId = "p-1", tipo = "DOMICILIO", texto = "Av. Test 123",
@@ -103,7 +100,7 @@ class LogoutIntegrationTest {
                 ),
                 gestionesHistoricas = listOf(
                     GestionHistoricaEntity(
-                        id = "g-1", personaId = "p-1", asignacionDiariaId = "asig-1",
+                        id = "g-hist-1", personaId = "p-1", asignacionDiariaId = "asig-1",
                         ejecutivoId = "eje-1", origenGestion = "ASIGNACION_DIARIA",
                         tipoGestion = "SIN_CONTACTO", fechaGestion = 1000L,
                         observacion = null, observacionDireccion = null,
@@ -117,34 +114,64 @@ class LogoutIntegrationTest {
         )
     }
 
-    @Test
-    fun `logout elimina todos los datos financieros de Room`() = runTest {
-        // 1. Insertar datos financieros
-        insertarDatosFinancieros()
+    private suspend fun insertarGestionLocal() {
+        db.gestionLocalDao().insert(
+            GestionLocalEntity(
+                id = "g-local-1",
+                personaId = "p-1",
+                personaRutNumero = "27000001",
+                personaRutDv = "0",
+                personaNombre = "Test",
+                asignacionDiariaId = "asig-1",
+                origenGestion = "ASIGNACION_DIARIA",
+                tipoGestion = "SIN_CONTACTO",
+                fechaGestionEpoch = 2000L,
+                fechaCapturaGpsEpoch = 2000L,
+                observacion = null,
+                observacionDireccion = null,
+                latitud = -33.45,
+                longitud = -70.66,
+                precisionMetros = 5.0f,
+                ubicacionSimulada = false,
+                proveedorGps = "gps",
+                fechaCompromiso = null,
+                estadoSincronizacion = "PENDIENTE_ENVIO",
+                fechaCreacionLocalEpoch = 2000L,
+                cantidadIntentos = 0,
+                leaseHastaEpoch = null,
+                fechaProximoIntentoEpoch = null,
+                codigoErrorServidor = null,
+                mensajeError = null,
+            ),
+        )
+    }
 
-        // Confirmar que existen antes del logout
+    @Test
+    fun `logout elimina todos los datos financieros incluyendo gestion_local`() = runTest {
+        insertarDatosFinancieros()
+        insertarGestionLocal()
+
         assertEquals("asig-1", db.asignacionDiariaDao().getActiva()?.id)
-        assertEquals(1, db.personaDao().buscarPorRut("270000010").size)
+        assertEquals(1, db.gestionLocalDao().contarNoResueltas())
 
-        // 2. Ejecutar logout
         useCase()
 
-        // 3. Verificar que Room queda vacío
-        assertNull("asignacion debe ser null", db.asignacionDiariaDao().getActiva())
-        assertEquals("personas deben ser 0", 0, db.personaDao().buscarPorRut("270000010").size)
-        assertNull("metadata debe ser null", db.syncMetadataDao().getMetadata())
+        assertNull(db.asignacionDiariaDao().getActiva())
+        assertNull(db.syncMetadataDao().getMetadata())
+        assertEquals(0, db.gestionLocalDao().contarNoResueltas())
     }
 
     @Test
-    fun `logout cancela workers de sincronizacion`() = runTest {
+    fun `logout cancela ambos schedulers`() = runTest {
         insertarDatosFinancieros()
         useCase()
 
-        verify(exactly = 1) { scheduler.cancelarTodo() }
+        verify(exactly = 1) { asignacionScheduler.cancelarTodo() }
+        verify(exactly = 1) { gestionScheduler.cancelarTodo() }
     }
 
     @Test
-    fun `logout cierra sesion local`() = runTest {
+    fun `logout cierra sesion remota`() = runTest {
         insertarDatosFinancieros()
         useCase()
 
@@ -153,18 +180,18 @@ class LogoutIntegrationTest {
 
     @Test
     fun `logout fallo de red no impide limpieza local`() = runTest {
-        // sessionRepository.logout() falla con IOException (sin red, token expirado, etc.)
         val sessionFallida: SessionRepository = mockk {
             coEvery { logout() } throws java.io.IOException("Sin red")
         }
-        val useCaseFallido = LogoutUseCase(sessionFallida, bundleTransaction, scheduler)
+        val useCaseFallido = LogoutUseCase(
+            sessionFallida, bundleTransaction, asignacionScheduler, gestionScheduler,
+        )
         insertarDatosFinancieros()
+        insertarGestionLocal()
 
-        // LogoutUseCase usa runCatching en logout() → no debe propagarse excepción
         useCaseFallido()
 
-        // Room sigue limpio aunque el logout remoto falló
-        assertNull("asignacion debe ser null incluso con fallo de red", db.asignacionDiariaDao().getActiva())
-        assertNull("metadata debe ser null incluso con fallo de red", db.syncMetadataDao().getMetadata())
+        assertNull(db.asignacionDiariaDao().getActiva())
+        assertEquals(0, db.gestionLocalDao().contarNoResueltas())
     }
 }

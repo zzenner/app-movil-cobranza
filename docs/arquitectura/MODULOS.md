@@ -42,15 +42,17 @@ compartido    --> (sin dependencias de dominio)
 | `:app`                  | Actividad principal, Hilt, NavHost completo, LogoutUseCase, CobranzaApp.           | Implementado (4B ✅) |
 | `:core:network`         | Cliente HTTP público y autenticado, single-flight refresh, DTOs de sincronización. | Implementado (4B ✅) |
 | `:core:security`        | Keystore AES-256-GCM para refresh token, DataStore para sesión.                    | Implementado (4A ✅) |
-| `:core:database`        | Room 2.7.2 v1: 9 entidades, 8 DAOs, BundleReplacementTransaction, SyncMetadataEntity. `exportSchema=true`; esquema en `schemas/...CobranzaDatabase/1.json`. Sin `fallbackToDestructiveMigration`. | Implementado (4B ✅) |
+| `:core:database`        | Room 2.7.2 v2: 10 entidades (incluye `gestion_local`), 9 DAOs, BundleReplacementTransaction. `exportSchema=true`; esquemas en `schemas/.../1.json` y `2.json`. Migration 1→2 explícita. Sin `fallbackToDestructiveMigration`. | Implementado (4C-A ✅) |
 | `:feature:auth`         | LoginViewModel, pantallas Check/Login, SessionRepository (@Singleton), AuthModule. | Implementado (4B ✅) |
 | `:feature:asignacion`   | AsignacionRepository, DescargaAsignacionWorker, AsignacionViewModel, pantallas.    | Implementado (4B ✅) |
+| `:feature:gestion`      | GestionRepository (outbox + Mutex), EnvioGestionWorker (@HiltWorker), GestionSyncScheduler, LocationProvider (LocationManager), GestionFormScreen, GestionHistorialScreen. | Implementado (4C-A ✅) |
 
 ### Grafo de dependencias Gradle
 
 ```
-:app --> :feature:auth, :feature:asignacion, :core:database, :core:network, :core:security
+:app --> :feature:auth, :feature:asignacion, :feature:gestion, :core:database, :core:network, :core:security
 :feature:asignacion --> :core:database, :core:network
+:feature:gestion --> :core:database, :core:network
 :feature:auth --> :core:network, :core:security
 :core:database --> (solo Room, Hilt, Coroutines)
 :core:network --> (solo Retrofit, OkHttp, Hilt, kotlinx.serialization)
@@ -63,7 +65,6 @@ Los módulos `:feature:*` no dependen entre sí. `:app` es el único que conoce 
 
 | Módulo / feature       | Responsabilidad                                                    |
 |------------------------|--------------------------------------------------------------------|
-| `:feature:gestiones`   | Pantallas de registro de gestiones con GPS y fotografías.          |
 | `:core:ui`             | Componentes Compose reutilizables, temas, estilos.                 |
 
 ## Módulos de la web Angular

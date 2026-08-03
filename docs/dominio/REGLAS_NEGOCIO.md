@@ -106,12 +106,13 @@ Toda gestión tiene un origen que determina el contexto de la visita (ADR-0026):
 ### RN-14 Sincronización de gestiones — estados técnicos
 Los estados técnicos de sincronización son distintos del ciclo de negocio de la gestión:
 - `PENDIENTE_ENVIO` — registrada localmente, esperando envío.
-- `ENVIANDO` — en proceso de envío.
-- `SINCRONIZADA` — confirmada por la API.
-- `ERROR_REINTENTABLE` — fallo temporal; se reintentará con backoff exponencial.
-- `ERROR_PERMANENTE` — fallo definitivo; requiere intervención.
+- `ENVIANDO` — en proceso de envío (lease activo en el worker).
+- `SINCRONIZADA` — confirmada por la API (201 o 200 idempotente).
+- `ERROR_REINTENTABLE` — fallo temporal (5xx, IOException); se reintentará con backoff exponencial sin límite de intentos.
+- `ERROR_PERMANENTE` — fallo definitivo (400, 403, 404, 422); requiere intervención manual.
+- `CONFLICTO` — la API respondió 409 (mismo UUID, contenido diferente); requiere intervención manual.
 
-Las gestiones offline **nunca** son reemplazadas por datos descargados desde el servidor.
+Las gestiones offline **nunca** son reemplazadas por datos descargados desde el servidor. Ver ADR-0038.
 
 ### RN-15 Reemplazo de datos financieros
 Los datos descargados desde el servidor **reemplazan** los valores locales vigentes:
@@ -180,16 +181,12 @@ Estados funcionales confirmados (ver `docs/dominio/CICLOS_DE_VIDA.md`):
 `DESCARGADA` **no es un estado funcional** de la asignación. La descarga es un evento técnico registrado por separado (ver concepto `descarga_asignacion_diaria` en `CICLOS_DE_VIDA.md`).
 
 ### RN-23 Retención de datos en el dispositivo Android
-- El dispositivo conserva principalmente la asignación diaria vigente.
-- Cuando llegue una nueva asignación, los datos de personas de asignaciones anteriores **pueden eliminarse** del almacenamiento local.
-- **No se pueden eliminar** datos relacionados con operaciones pendientes de sincronización:
-  - Gestiones con estado `PENDIENTE_ENVIO` o `ERROR_REINTENTABLE`.
-  - Fotografías pendientes de envío.
-  - Ubicaciones asociadas.
-  - Operaciones del outbox.
-  - Referencias mínimas de la persona relacionada.
-- Una vez que todas las operaciones pendientes hayan sido sincronizadas, los datos de la asignación anterior pueden eliminarse.
-- La limpieza no se implementa en el MVP; esta regla documenta el comportamiento esperado.
+- El dispositivo conserva la asignación diaria vigente como proyección completa.
+- En cada descarga de bundle, `BundleReplacementTransaction.reemplazar()` **reemplaza en su totalidad** los datos de personas, operaciones, cuotas, direcciones, avales y gestiones históricas.
+- La tabla `gestion_local` (outbox) **no tiene FK a persona** y **no se elimina** durante la descarga de un nuevo bundle. Las gestiones pendientes sobreviven a cualquier descarga.
+- Los campos de persona (`personaRutNumero`, `personaRutDv`, `personaNombre`) están **desnormalizados** en `gestion_local` para no depender de que la persona siga en Room.
+- Al cerrar sesión (logout), `limpiarTodo()` elimina `gestion_local` junto con todas las demás tablas.
+- La limpieza selectiva por asignación anterior **no se implementa en el MVP**. Ver ADR-0037.
 
 ### RN-24 Sesión local persistente y tokens de API
 El primer login siempre requiere conexión y usa usuario y contraseña.

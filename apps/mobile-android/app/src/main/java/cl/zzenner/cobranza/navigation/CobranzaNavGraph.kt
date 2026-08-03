@@ -8,17 +8,16 @@ import androidx.navigation.compose.rememberNavController
 import cl.zzenner.cobranza.feature.asignacion.ui.RUTA_LISTA_ASIGNACION
 import cl.zzenner.cobranza.feature.asignacion.ui.asignacionNavGraph
 import cl.zzenner.cobranza.feature.auth.navigation.authNavGraph
+import cl.zzenner.cobranza.feature.gestion.ui.RUTA_HISTORIAL_GESTION
+import cl.zzenner.cobranza.feature.gestion.ui.gestionNavGraph
 import cl.zzenner.cobranza.ui.HomeScreen
 
 /**
- * NavHost principal de la aplicación.
- *
- * Coordina la navegación entre las features sin crear dependencias entre ellas:
- * - authNavGraph: flujo check/login (en :feature:auth)
- * - home: pantalla principal con acceso a asignación (en :app)
- * - asignacionNavGraph: lista y detalle de asignación (en :feature:asignacion)
- *
- * Ninguna feature conoce a otra — toda la wiring está aquí.
+ * NavHost principal. Coordina las features sin crear dependencias entre ellas:
+ * - authNavGraph: flujo check/login
+ * - home: pantalla principal
+ * - asignacionNavGraph: lista y detalle de asignación
+ * - gestionNavGraph: formulario de gestión e historial
  */
 @Composable
 fun CobranzaNavGraph(
@@ -49,12 +48,20 @@ fun CobranzaNavGraph(
         }
 
         asignacionNavGraph(
-            onNavigateToDetalle = { personaId ->
-                navController.navigate("asignacion/persona/$personaId")
+            onNavigateToDetalle = { personaId, asignacionDiariaId ->
+                navController.navigate("asignacion/persona/$asignacionDiariaId/$personaId")
             },
-            onNavigateBack = {
-                navController.popBackStack()
+            onNavigateBack = { navController.popBackStack() },
+            onRegistrarGestion = { personaId, asignacionDiariaId ->
+                navController.navigate("gestion/form/$personaId/$asignacionDiariaId")
             },
+            onVerHistorial = { personaId ->
+                navController.navigate("gestion/historial/$personaId")
+            },
+        )
+
+        gestionNavGraph(
+            onNavigateBack = { navController.popBackStack() },
         )
     }
 }

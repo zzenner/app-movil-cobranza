@@ -107,6 +107,7 @@ class BundleReplacementTransaction @Inject constructor(
      */
     suspend fun limpiarTodo() {
         db.withTransaction {
+            db.gestionLocalDao().deleteAll()
             db.gestionHistoricaDao().deleteAll()
             db.operacionDao().deleteAllCuotas()
             db.operacionDao().deleteAll()

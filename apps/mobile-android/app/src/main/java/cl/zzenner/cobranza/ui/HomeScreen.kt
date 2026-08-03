@@ -5,9 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -25,11 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import cl.zzenner.cobranza.feature.auth.domain.AuthState
 
-/**
- * Pantalla principal — coordinada por :app.
- * Accede tanto al estado de autenticación (SessionRepository) como
- * al scheduler de asignaciones (AsignacionSyncScheduler) a través de HomeViewModel.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -38,11 +33,84 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val authState by viewModel.authState.collectAsState()
+    val estadoLogout by viewModel.estadoLogout.collectAsState()
     val nombreUsuario = (authState as? AuthState.Autenticado)?.nombreUsuario ?: ""
 
-    // Programar sync al entrar a Home
     LaunchedEffect(Unit) {
         viewModel.iniciarSincronizacion()
+    }
+
+    LaunchedEffect(estadoLogout) {
+        if (estadoLogout is EstadoLogout.Inactivo && authState is AuthState.NoAutenticado) {
+            onLogout()
+        }
+    }
+
+    when (val logout = estadoLogout) {
+        is EstadoLogout.GestionesPendientes -> {
+            AlertDialog(
+                onDismissRequest = viewModel::cancelarLogout,
+                title = { Text("Gestiones sin sincronizar") },
+                text = {
+                    Text(
+                        "Tiene ${logout.cantidad} gestión(es) que aún no han sido enviadas al servidor. " +
+                            "¿Desea intentar sincronizarlas antes de cerrar sesión?",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = viewModel::sincronizarYLogout) {
+                        Text("Sincronizar y cerrar sesión")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = viewModel::cancelarLogout) {
+                        Text("Cancelar")
+                    }
+                },
+            )
+        }
+
+        is EstadoLogout.SincronizandoParaCerrar -> {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("Sincronizando...") },
+                text = {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator()
+                        Text("Enviando gestiones pendientes al servidor")
+                    }
+                },
+                confirmButton = {},
+            )
+        }
+
+        is EstadoLogout.ErrorSincronizacion -> {
+            AlertDialog(
+                onDismissRequest = viewModel::cancelarLogout,
+                title = { Text("No se pudo sincronizar") },
+                text = {
+                    Text(
+                        "Quedan ${logout.pendientes} gestión(es) sin sincronizar. " +
+                            "Verifique la conexión e intente nuevamente.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = viewModel::sincronizarYLogout) {
+                        Text("Reintentar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = viewModel::cancelarLogout) {
+                        Text("Cancelar")
+                    }
+                },
+            )
+        }
+
+        else -> {}
     }
 
     Scaffold(
@@ -50,10 +118,10 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("Cobranza") },
                 actions = {
-                    TextButton(onClick = {
-                        viewModel.logout()
-                        onLogout()
-                    }) {
+                    TextButton(
+                        onClick = viewModel::solicitarLogout,
+                        enabled = estadoLogout is EstadoLogout.Inactivo,
+                    ) {
                         Text("Cerrar sesión")
                     }
                 },
@@ -81,34 +149,6 @@ fun HomeScreen(
             ) {
                 Text("Mi asignación diaria")
             }
-
-            DisabledFeatureCard(
-                titulo = "Registrar gestión",
-                descripcion = "Disponible en próxima versión",
-            )
-        }
-    }
-}
-
-@Composable
-private fun DisabledFeatureCard(titulo: String, descripcion: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        ),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = titulo,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-            )
-            Text(
-                text = descripcion,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-            )
         }
     }
 }

@@ -5,6 +5,85 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-02 — Fase 4C-A: Gestiones offline ASIGNACION_DIARIA — IMPLEMENTADA ✅
+
+### Añadido — `:core:database` (Room v2)
+
+- `GestionLocalEntity` — tabla `gestion_local`; sin FK a persona (campos desnormalizados: `personaRutNumero`, `personaRutDv`, `personaNombre`); campos de lease (`leaseHastaEpoch`) y backoff (`fechaProximoIntentoEpoch`, `cantidadIntentos`).
+- `GestionLocalDao` — `adquirirLease()` (CAS atómico, retorna filas afectadas), `recuperarLeasesExpirados()`, `getElegibles()` (FIFO, respeta backoff), `contarNoResueltas()`, `getGestionesPorPersona()`, `insert()`, `actualizarEstado()`, `deleteAll()`.
+- `MIGRATION_1_2` — migración aditiva v1→v2; añade `gestion_local` + 4 índices; sin `fallbackToDestructiveMigration`.
+- `schemas/...CobranzaDatabase/2.json` — esquema Room v2 exportado.
+- `BundleReplacementTransaction.reemplazar()` — preserva `gestion_local` (outbox no se toca en descarga).
+- `BundleReplacementTransaction.limpiarTodo()` — llama `gestionLocalDao.deleteAll()` como primera operación (logout borra outbox).
+- Tests: `GestionLocalDaoTest` (14 tests), `MigrationTest` (4 tests), `BundleReplacementTransactionTest` (7 tests, incluye nuevo test de preservación de outbox).
+
+### Añadido — `:core:network`
+
+- `GestionDtos.kt` — `SolicitudGestionDto` (precisionMetros: Double), `RespuestaGestionDto`.
+- `GestionApi.kt` — `POST /api/v1/gestiones`.
+- `NetworkModule.kt` — `provideGestionApi`.
+
+### Añadido — `:feature:gestion` (módulo nuevo)
+
+**Dominio:**
+- `GestionModels.kt` — `TipoGestion` (SIN_CONTACTO, CONTACTO_FAMILIAR, COMPROMISO_PAGO), `OrigenGestion` (ASIGNACION_DIARIA, BUSQUEDA_DIRECTA), `EstadoSincronizacion` (6 estados), `UbicacionCapturada`, `GestionForm`, `GestionResumen`, `ResultadoEnvio`, `ResultadoProcesamiento`.
+- `GestionValidator.kt` — validaciones: COMPROMISO_PAGO requiere `fechaCompromiso ≥ hoy`, `observacion ≤ 500 chars`, `observacionDireccion ≤ 200 chars`.
+
+**Datos:**
+- `GestionMapper.kt` — `formToEntity`, `entityToDto` (Float→Double precisionMetros, epoch→ISO-8601), `localEntityToResumen`, `historicaEntityToResumen`.
+- `GestionRepository.kt` — outbox procesarOutbox con `Mutex` single-flight; CAS por registro; backoff `min(30s * 2^n, 24h)`; historial unificado con dedup por UUID (local prevalece); mapeo HTTP: 201/200→SINCRONIZADA, 401→SesionExpirada, 409→CONFLICTO, 422→ERROR_PERMANENTE(VALIDACION), 400/403/404→ERROR_PERMANENTE(HTTP_N), 5xx→ERROR_REINTENTABLE, IOException→ERROR_REINTENTABLE.
+
+**GPS:**
+- `LocationProvider.kt` — interfaz con `ResultadoUbicacion` (Exito, PermisoDenegado, Timeout, ProveedorDeshabilitado).
+- `AndroidLocationProvider.kt` — `LocationManager` (sin FusedLocation), timeout 30s con `suspendCancellableCoroutine`, detección mock (`isMock`/`isFromMockProvider`), una sola lectura (sin tracking continuo).
+
+**Worker:**
+- `EnvioGestionWorker.kt` — `@HiltWorker`; mapea `ResultadoProcesamiento` → `WorkManager.Result`.
+- `GestionSyncScheduler.kt` — `programarEnvioInmediato()` (KEEP), `programarPeriodico()` (1h KEEP), `cancelarTodo()`.
+
+**UI:**
+- `GestionFormViewModel.kt` — `GpsState` sealed, `GestionFormState`, doble-tap guard vía `isSubmitting`.
+- `GestionFormScreen.kt` — `FilterChip` TipoGestion, tarjeta GPS, campos, botón Registrar deshabilitado hasta GPS capturado.
+- `GestionHistorialViewModel.kt` — combina `gestion_local` + `gestion_historica`; dedup por UUID (local prevalece).
+- `GestionHistorialScreen.kt` — lista con `BadgeEstado` para los 6 estados.
+- `GestionNavigation.kt` — rutas `gestion/form/{personaId}/{asignacionDiariaId}` y `gestion/historial/{personaId}`.
+
+**Tests:** `GestionValidatorTest` (7), `GestionMapperTest` (5), `GestionRepositoryTest` (10, incluye 400/403/404), `EnvioGestionWorkerTest` (4).
+
+### Modificado — `:app`
+
+- `LogoutUseCase.kt` — añadido `GestionSyncScheduler.cancelarTodo()`.
+- `HomeViewModel.kt` — `EstadoLogout` sealed class (Inactivo, Procesando, GestionesPendientes, SincronizandoParaCerrar, ErrorSincronizacion); `solicitarLogout()`, `sincronizarYLogout()`, `cancelarLogout()`.
+- `HomeScreen.kt` — diálogos para cada estado de logout; sin "salir igualmente".
+- `CobranzaNavGraph.kt` — rutas `gestionNavGraph`; callbacks `onRegistrarGestion` y `onVerHistorial` en `asignacionNavGraph`.
+- Tests: `LogoutUseCaseTest` (4), `LogoutIntegrationTest` (4).
+
+### Modificado — `:feature:asignacion`
+
+- `AsignacionNavigation.kt` — ruta incluye `asignacionDiariaId`; nuevos callbacks.
+- `AsignacionViewModel.kt` — `AsignacionUiState` añade `asignacionDiariaId`.
+- `AsignacionListScreen.kt` — pasa `asignacionDiariaId` en `onNavigateToDetalle`.
+- `PersonaDetalleViewModel.kt` — expone `asignacionDiariaId` y `gestionesLocales: Flow`.
+- `PersonaDetalleScreen.kt` — reemplaza placeholder Fase 4C con `SeccionGestionesLocales` real.
+
+### Añadido — ADRs
+
+- `ADR-0037` — Outbox pattern y migración Room v2.
+- `ADR-0038` — Estados de sincronización, lease atómico y WorkManager.
+- `ADR-0039` — GPS vía LocationManager (sin Google Play Services).
+- `ADR-0040` — Política de logout con gestiones no resueltas.
+
+### Resultados de verificación (parcial — pendiente ejecución completa)
+
+| Suite | Resultado |
+|---|---|
+| Android — `testDebugUnitTest` (total JVM) | ✅ 135 tests — 0 failures (validados en sesión anterior) |
+| Android — `assembleDebug` | ✅ BUILD SUCCESSFUL |
+| Android — `lint` | ✅ BUILD SUCCESSFUL |
+| API — `./mvnw clean verify` | ⏭️ Pendiente ejecución (sin cambios en API) |
+
+---
+
 ## [v0.10.0-descarga-offline] — 2026-08-02 — Fase 4B: Cartera offline — CERRADA ✅
 
 ### Añadido — Módulo `:core:database`

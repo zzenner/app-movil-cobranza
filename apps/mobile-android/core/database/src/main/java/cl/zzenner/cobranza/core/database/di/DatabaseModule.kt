@@ -7,9 +7,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import cl.zzenner.cobranza.core.database.CobranzaDatabase
 import cl.zzenner.cobranza.core.database.dao.AsignacionDiariaDao
 import cl.zzenner.cobranza.core.database.dao.GestionHistoricaDao
+import cl.zzenner.cobranza.core.database.dao.GestionLocalDao
 import cl.zzenner.cobranza.core.database.dao.OperacionDao
 import cl.zzenner.cobranza.core.database.dao.PersonaDao
 import cl.zzenner.cobranza.core.database.dao.SyncMetadataDao
+import cl.zzenner.cobranza.core.database.migration.MIGRATION_1_2
 import cl.zzenner.cobranza.core.database.transaction.BundleReplacementTransaction
 import dagger.Module
 import dagger.Provides
@@ -26,6 +28,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext ctx: Context): CobranzaDatabase =
         Room.databaseBuilder(ctx, CobranzaDatabase::class.java, "cobranza.db")
+            .addMigrations(MIGRATION_1_2)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     super.onOpen(db)
@@ -49,6 +52,10 @@ object DatabaseModule {
     @Provides
     fun provideGestionHistoricaDao(db: CobranzaDatabase): GestionHistoricaDao =
         db.gestionHistoricaDao()
+
+    @Provides
+    fun provideGestionLocalDao(db: CobranzaDatabase): GestionLocalDao =
+        db.gestionLocalDao()
 
     @Provides
     fun provideSyncMetadataDao(db: CobranzaDatabase): SyncMetadataDao =

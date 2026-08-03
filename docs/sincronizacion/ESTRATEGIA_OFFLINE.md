@@ -53,29 +53,27 @@ La app descarga exclusivamente la **asignación diaria vigente** y sus datos rel
 
 Estos estados pertenecen al mecanismo técnico de sincronización, no al ciclo de negocio de la gestión:
 
-| Estado               | Descripción                                                                 |
-|----------------------|-----------------------------------------------------------------------------|
-| `PENDIENTE_ENVIO`    | Registrada localmente, esperando envío.                                     |
-| `ENVIANDO`           | En proceso de envío a la API.                                               |
-| `SINCRONIZADA`       | Confirmada por la API.                                                      |
-| `ERROR_REINTENTABLE` | Fallo temporal (red, timeout). Se reintentará con backoff exponencial.      |
-| `ERROR_PERMANENTE`   | Fallo definitivo (error de validación, 4xx no recuperable). Requiere intervención. |
+| Estado               | Descripción                                                                            |
+|----------------------|----------------------------------------------------------------------------------------|
+| `PENDIENTE_ENVIO`    | Registrada localmente, esperando envío.                                                |
+| `ENVIANDO`           | En proceso de envío (lease activo). Un worker la está procesando.                     |
+| `SINCRONIZADA`       | Confirmada por la API (201 o 200 idempotente). Estado terminal positivo.              |
+| `ERROR_REINTENTABLE` | Fallo temporal (5xx, IOException). Se reintentará con backoff exponencial `min(30s·2ⁿ, 24h)`. Sin límite de intentos. |
+| `ERROR_PERMANENTE`   | Fallo definitivo (400, 403, 404, 422). Requiere revisión; no hay reintento automático. |
+| `CONFLICTO`          | La API respondió 409: mismo UUID con contenido diferente. Requiere intervención manual. |
 
 Las gestiones offline **nunca son reemplazadas** por datos descargados desde el servidor.
 
 ## Retención de datos locales
 
-El dispositivo conserva principalmente la **asignación diaria vigente**. Cuando llegue una nueva asignación:
+El dispositivo conserva la **asignación diaria vigente** como proyección completa. Cuando llega una nueva asignación:
 
-- Los datos de personas de asignaciones anteriores **pueden eliminarse** del almacenamiento local.
-- **No se pueden eliminar** mientras existan:
-  - Gestiones con estado `PENDIENTE_ENVIO` o `ERROR_REINTENTABLE`.
-  - Fotografías pendientes de envío.
-  - Operaciones del outbox.
-  - Referencias mínimas de la persona relacionada.
-- Una vez sincronizadas todas las operaciones pendientes, los datos de la asignación anterior pueden eliminarse.
+- `BundleReplacementTransaction.reemplazar()` elimina y recrea **todos** los datos de personas, operaciones, cuotas, direcciones, avales y gestiones históricas en una transacción atómica.
+- La tabla `gestion_local` (outbox) **no tiene FK a persona** y **no se toca** durante la descarga. Las gestiones pendientes de envío sobreviven a cualquier descarga de bundle.
+- Al hacer logout, `limpiarTodo()` elimina `gestion_local` junto con todas las demás tablas.
+- Los campos de persona relevantes (`personaRutNumero`, `personaRutDv`, `personaNombre`) están **desnormalizados** en cada fila de `gestion_local` para que no dependan de que la persona siga en Room.
 
-La limpieza automática **no se implementa en el MVP**. Ver `docs/dominio/CICLOS_DE_VIDA.md` para el modelo completo de retención.
+La limpieza selectiva por asignación **no se implementa en el MVP**. Ver `docs/dominio/CICLOS_DE_VIDA.md` para el modelo completo de retención.
 
 ## Indicadores en la interfaz
 
@@ -132,8 +130,12 @@ Se consideran pendientes: gestiones no enviadas, fotografías no enviadas, ubica
 
 ## PENDIENTE
 
-- Definir número máximo de reintentos antes de `ERROR_PERMANENTE`.
-- Definir política exacta de backoff (intervalo inicial, factor multiplicador).
-- Definir qué datos de la asignación diaria se sincronizan de forma incremental (delta) vs. reemplazo completo.
+- Definir qué datos de la asignación diaria se sincronizan de forma incremental (delta) vs. reemplazo completo (actualmente: reemplazo total).
 - Definir el mecanismo de autenticación offline (cómo reabrir la app sin conexión).
 - Evaluar cifrado de la base de datos local Room.
+
+## Decisiones resueltas en Fase 4C-A (2026-08-02)
+
+- **Backoff:** `min(30_000ms × 2ⁿ, 24h)` por registro. Sin límite de intentos. Ver ADR-0038.
+- **Número máximo de reintentos antes de ERROR_PERMANENTE:** ninguno. ERROR_REINTENTABLE reintenta indefinidamente hasta respuesta definitiva o logout. Ver ADR-0038.
+- **Retención de datos de persona:** implementación real = reemplazo total en cada descarga. Ver ADR-0037.
