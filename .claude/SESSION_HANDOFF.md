@@ -1,7 +1,7 @@
-# Handoff de sesión — Fase 4C-B IMPLEMENTADA ✅
+# Handoff de sesión — Fase 5 PENDIENTE DE PLANIFICACIÓN
 
 **Fecha:** 2026-08-03
-**Rama activa:** `feature/fase-4c-b-busqueda-directa`
+**Rama activa:** `feature/fase-5-admin-web`
 
 ---
 
@@ -9,15 +9,18 @@
 
 | Referencia | Hash | Descripción |
 |---|---|---|
-| `main` (local + origin) | `dec7b18` | feat(android): implementar gestiones offline fase 4c-a |
-| `feature/fase-4c-b-busqueda-directa` | `857ebea` | docs: preparar contexto para fase 4c-b |
-| `tag v0.11.0-gestiones-offline` | `dec7b18` | Fase 4C-A etiquetada |
+| `main` (local + origin) | `4cddf50` | feat: implementar busqueda directa por rut fase 4c-b |
+| `feature/fase-5-admin-web` | `4cddf50` | mismo commit — rama recién creada |
+| `tag v0.12.0-busqueda-directa` | `4cddf50` | Fase 4C-B etiquetada |
+| `tag v0.11.0-gestiones-offline` | `dec7b18` | Fase 4C-A |
 
-**Árbol:** implementación completa. Cambios no confirmados (sin commit — en espera de autorización).
+**Árbol:** limpio — sin cambios pendientes.
 
 ---
 
-## Resultado final de verificaciones
+## Cierre de Fase 4C-B — COMPLETADO ✅
+
+### Resultado final de verificaciones
 
 | Suite | Resultado |
 |---|---|
@@ -25,83 +28,71 @@
 | Android — `assembleDebug` | ✅ BUILD SUCCESSFUL |
 | Android — `lint` | ✅ BUILD SUCCESSFUL |
 | Android — `testDebugUnitTest` | ✅ **165 pruebas JVM — 0 failures** |
-| Room schema v3 (`3.json`) | ✅ generado; 11 entidades incluyendo `persona_directa` |
+| Android — `assembleDebugAndroidTest` | ✅ APK compilado |
+| Android — `connectedDebugAndroidTest` | ⏭ No ejecutado — sin emulador ni dispositivo |
+| Room schema v3 (`3.json`) | ✅ generado; 11 entidades |
+| Spring Modulith verify | ✅ PASS (incluido en `./mvnw verify`) |
+
+### Commit definitivo
+
+- **Hash:** `4cddf50`
+- **Mensaje:** `feat: implementar busqueda directa por rut fase 4c-b`
+- **Tag:** `v0.12.0-busqueda-directa`
+- **main local = origin/main = `4cddf50`**
+
+### 20 puntos de verificación — todos confirmados ✅
+
+1. `POST /api/v1/personas/busquedas` ✅
+2. RUT en body (no en URL) ✅
+3. `Cache-Control: no-store` ✅
+4. Rol `EJECUTIVO_TERRENO` ✅
+5. Respuesta versionada (`version: 1`) ✅
+6. Sin restricción de cartera o asignación ✅
+7. Spring Modulith — sin ciclos ✅
+8. Auditoría sin RUT completo ✅
+9. Room v3 ✅
+10. `MIGRATION_2_3` no destructiva ✅
+11. `3.json` generado y versionado ✅
+12. `gestion_local` preservada en migración ✅
+13. `PersonaDirectaEntity` con snapshot JSON ✅
+14. Navegación solo por `personaId` ✅
+15. `GestionForm.origenGestion` explícito ✅
+16. `BUSQUEDA_DIRECTA` exige `asignacionDiariaId = null` ✅
+17. `ASIGNACION_DIARIA` exige `asignacionDiariaId != null` ✅
+18. Reutilización de outbox, Worker, lease, GPS, logout ✅
+19. No archivos sensibles versionados ✅
+20. No `fallbackToDestructiveMigration` ✅
 
 ---
 
-## Fase 4C-B — IMPLEMENTADA (sin commit)
+## Fase 5 — Estado
 
-### Resumen de cambios
+**Estado:** PENDIENTE DE PLANIFICACIÓN
 
-**API:**
-- `personas.api.RutValidacionApi` + `personas.aplicacion.RutValidacionServicio`
-- `sincronizacion.aplicacion.BusquedaPersonaService`
-- `sincronizacion.aplicacion.RutInvalidoEnBusquedaException`
-- `sincronizacion.web.{SolicitudBusquedaPersona, RespuestaBusquedaPersona, BusquedaPersonaController}`
-- `test.BusquedaPersonaRestTest` (21 tests)
-- `contracts/openapi/cobranza-api.yaml` — v1.0.0
+**Alcance borrador (ROADMAP.md):**
+- Proyecto Angular con componentes standalone en `apps/admin-web/`
+- Módulos: usuarios, carteras, asignaciones, visualización de gestiones
+- Integración completa con la API
 
-**Android — :core:database:**
-- `PersonaDirectaEntity.kt`, `PersonaDirectaDao.kt`
-- `Migrations.kt` — MIGRATION_2_3 añadida (antes de MIGRATION_1_2)
-- `GestionLocalEntity.kt` — `asignacionDiariaId: String?`
-- `CobranzaDatabase.kt` — v3, `PersonaDirectaEntity` añadida
-- `DatabaseModule.kt` — MIGRATION_2_3, `providePersonaDirectaDao`
-- `BundleReplacementTransaction.kt` — `limpiarTodo()` incluye `personaDirectaDao.deleteAll()`
-- `schemas/3.json` — exportado por KSP en build
-
-**Android — :core:network:**
-- `BusquedaDtos.kt`, `PersonaBusquedaApi.kt`
-- `NetworkModule.kt` — `providePersonaBusquedaApi`
-
-**Android — :feature:busqueda (nuevo módulo):**
-- `RutValidator.kt`, `BusquedaDirectaRepository.kt`
-- `BusquedaDirectaViewModel.kt`, `BusquedaDirectaScreen.kt`, `BusquedaNavigation.kt`
-- `RutValidatorTest.kt` (13 tests), `BusquedaDirectaViewModelTest.kt` (9 tests)
-- `build.gradle.kts`, `consumer-rules.pro`, `AndroidManifest.xml`
-
-**Android — :feature:gestion:**
-- `GestionModels.kt` — `GestionForm.origenGestion: OrigenGestion`; `asignacionDiariaId: String?`
-- `GestionValidator.kt` — `OrigenIncoherente`; cross-validación origen ↔ asignacionDiariaId
-- `GestionMapper.kt` — `origenGestion = form.origenGestion.name`
-- `GestionFormViewModel.kt` — dos ramas init; deriva `origenGestion`
-- `GestionNavigation.kt` — ruta `gestion/form/busqueda/{personaId}`
-- Tests actualizados: `GestionMapperTest.kt`, `GestionValidatorTest.kt`
-
-**Android — :app:**
-- `CobranzaNavGraph.kt` — `onIrABusqueda`; `busquedaNavGraph`; ruta `gestion/form/busqueda/{personaId}`
-- `HomeScreen.kt` — botón "Buscar persona por RUT"
-- `app/build.gradle.kts` — `implementation(project(":feature:busqueda"))`
-- `settings.gradle.kts` — `include(":feature:busqueda")`
-
-**Documentación:**
-- `docs/adr/0041-endpoint-busqueda-privacidad-rut.md` ✅
-- `docs/adr/0042-persistencia-snapshot-directo-room-v3.md` ✅
-- `docs/gestion/STATUS.md`, `CHANGELOG.md`, `ROADMAP.md` ✅
-- `docs/arquitectura/MODULOS.md` ✅
-- `docs/sincronizacion/ESTRATEGIA_OFFLINE.md`, `PROTOCOLO_SINCRONIZACION.md` ✅
-- `docs/dominio/REGLAS_NEGOCIO.md` ✅
-- `docs/producto/REQUISITOS_FUNCIONALES.md`, `HISTORIAS_USUARIO.md` ✅
-- `apps/api/README.md`, `apps/mobile-android/README.md` ✅
-- `contracts/openapi/cobranza-api.yaml` ✅
+**La sesión siguiente debe:**
+1. Leer `docs/gestion/ROADMAP.md` para confirmar alcance de Fase 5.
+2. Leer `docs/arquitectura/ARQUITECTURA_GENERAL.md` y `docs/arquitectura/MODULOS.md`.
+3. Revisar el directorio `apps/admin-web/` para ver si existe estructura base.
+4. Proponer un plan de implementación al usuario.
+5. Esperar aprobación antes de implementar.
 
 ---
 
 ## Siguiente acción exacta
 
-**Aguardar autorización de commit del usuario.**
-
-Cuando el usuario autorice:
-1. `git add` archivos de ambas fases (4C-A y 4C-B están en la misma rama)
-2. Crear commit(s) descriptivo(s)
-3. El usuario decide si crear tag `v0.12.0` o similar
+**Leer `docs/arquitectura/ARQUITECTURA_GENERAL.md` y la carpeta `apps/admin-web/`, luego proponer al usuario un plan acotado para Fase 5 antes de implementar nada.**
 
 ---
 
 ## No repetir
 
-- Fase 4C-A completa (commit dec7b18)
-- Room migración v1→v2 (completa, en dec7b18)
+- Fase 4C-B completa (commit 4cddf50, tag v0.12.0-busqueda-directa)
+- Fase 4C-A completa (commit dec7b18, tag v0.11.0-gestiones-offline)
 - Lease/CAS/backoff (no modificar)
 - GPS (no modificar)
 - Logout (no modificar)

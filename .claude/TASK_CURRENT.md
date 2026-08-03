@@ -2,76 +2,50 @@
 
 ## Identificación
 
-- **Fase:** 4C-B — Búsqueda directa por RUT (BUSQUEDA_DIRECTA)
-- **Estado:** IMPLEMENTADA ✅ — PENDIENTE COMMIT
-- **Rama activa:** `feature/fase-4c-b-busqueda-directa`
-- **Base (main):** `dec7b18 feat(android): implementar gestiones offline fase 4c-a`
-- **Tag de fase anterior:** `v0.11.0-gestiones-offline`
+- **Fase:** 5 — Administración web (Angular)
+- **Estado:** PENDIENTE DE PLANIFICACIÓN
+- **Rama activa:** `feature/fase-5-admin-web`
+- **Base (main):** `4cddf50 feat: implementar busqueda directa por rut fase 4c-b`
+- **Tag de fase anterior:** `v0.12.0-busqueda-directa`
 
 ## Objetivo
 
-Permitir al ejecutivo registrar gestiones para personas **fuera de su asignación diaria**, buscando por RUT directamente en la API.
+Crear la aplicación web Angular para la administración del sistema (usuarios, carteras, asignaciones, visualización de gestiones).
 
 ## Estado de verificación
 
 | Suite | Resultado |
 |---|---|
-| API — `./mvnw clean verify` | ✅ 269 pruebas — 0 failures |
-| Android — `assembleDebug` | ✅ BUILD SUCCESSFUL |
-| Android — `lint` | ✅ BUILD SUCCESSFUL |
-| Android — `testDebugUnitTest` | ✅ 165 pruebas — 0 failures |
+| API — `./mvnw clean verify` | N/A — sin cambios aún |
+| Android — `assembleDebug` | N/A — sin cambios aún |
 
 ## Implementado
 
-### API (`apps/api/`)
+_Nada aún — fase pendiente de planificación._
 
-- `POST /api/v1/personas/busquedas` — RUT en body, `Cache-Control: no-store`, rol `EJECUTIVO_TERRENO`
-- `RutValidacionApi` en `personas.api` — sin exponer tipo `Rut` interno
-- `BusquedaPersonaService` en módulo `sincronizacion`
-- `RutInvalidoEnBusquedaException` con código `RUT_INVALIDO`
-- 21 tests de integración; **269 pruebas totales**
+## Contexto de la fase anterior (4C-B — CERRADA)
 
-### Android (`apps/mobile-android/`)
+- **Commit:** `4cddf50` — rama `feature/fase-4c-b-busqueda-directa`
+- **Tag:** `v0.12.0-busqueda-directa`
+- **API:** 269 pruebas — 0 failures
+- **Android JVM:** 165 pruebas — 0 failures
+- **Instrumentadas:** APK compilado, no ejecutado (sin emulador)
 
-- Room v3: `persona_directa` (snapshot JSON), `asignacionDiariaId` nullable, `MIGRATION_2_3` no destructiva
-- `:feature:busqueda` completo (RutValidator, Repository, ViewModel, Screen, Navigation)
-- `GestionForm.origenGestion` explícito; GestionMapper y GestionValidator actualizados
-- `HomeScreen` botón "Buscar persona por RUT"; `CobranzaNavGraph` con rutas de búsqueda
-- Schema Room v3: `3.json` (11 entidades)
-- **165 pruebas JVM totales — 0 failures**
+## No incluye (alcance borrador de Fase 5)
 
-### Documentación
-
-- ADR-0041: endpoint-busqueda-privacidad-rut.md ✅
-- ADR-0042: persistencia-snapshot-directo-room-v3.md ✅
-- contracts/openapi/cobranza-api.yaml — v1.0.0 con nuevo endpoint ✅
-- STATUS.md, CHANGELOG.md, ROADMAP.md ✅
-- MODULOS.md, ESTRATEGIA_OFFLINE.md, PROTOCOLO_SINCRONIZACION.md ✅
-- REGLAS_NEGOCIO.md, REQUISITOS_FUNCIONALES.md, HISTORIAS_USUARIO.md ✅
-- apps/api/README.md, apps/mobile-android/README.md ✅
-
-## No incluye
-
+- Cambios en API ni Android hasta que se defina la integración
 - Fotografías (diferidas — ADR-0030)
-- Cambios en outbox/lease/GPS
-- No push al remoto sin autorización explícita
+- Despliegue en VPS (Fase 6)
 
 ## Constraints activos
 
-- No fallbackToDestructiveMigration
 - No push al remoto sin autorización explícita
 - No commit sin autorización explícita
-- GPS via LocationManager (no FusedLocationProviderClient)
-- CAS atómico para lease (no bulk reset al iniciar worker)
 
-## Fase 4C-A — CERRADA ✅
+## Fases anteriores — CERRADAS ✅
 
-- **Commit:** `dec7b18` — rama `feature/fase-4c-gestiones-offline`
-- **Tag:** `v0.11.0-gestiones-offline`
-- **API:** 248 pruebas — 0 failures
-- **Android JVM:** 143 pruebas — 0 failures (antes de Fase 4C-B)
-
-## Fase 4B — CERRADA ✅
-
-- **Tag:** `v0.10.0-descarga-offline`
-- **Android JVM:** 97 pruebas — 0 failures
+| Fase | Tag | Commit |
+|---|---|---|
+| 4C-B Búsqueda directa | `v0.12.0-busqueda-directa` | `4cddf50` |
+| 4C-A Gestiones offline | `v0.11.0-gestiones-offline` | `dec7b18` |
+| 4B Cartera offline | `v0.10.0-descarga-offline` | (ver ROADMAP) |
