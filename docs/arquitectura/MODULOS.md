@@ -71,13 +71,27 @@ Los módulos `:feature:*` no dependen entre sí. `:app` es el único que conoce 
 
 ## Módulos de la web Angular
 
+### Implementados — Fase 5A ✅
+
+| Módulo / feature      | Estado | Responsabilidad                                                               |
+|-----------------------|--------|-------------------------------------------------------------------------------|
+| `core/auth`           | ✅     | Autenticación web: `AuthService` (signals), `TokenStorageService` (memoria), `SessionBootstrapService` (`APP_INITIALIZER`). |
+| `core/http`           | ✅     | `authInterceptor` funcional: Bearer + retry 401 + protección bucle.           |
+| `core/guards`         | ✅     | `authGuard`, `loginGuard`, `roleGuard` — esperan INICIALIZANDO.               |
+| `core/layout`         | ✅     | Sidenav Material, toolbar con usuario y logout.                               |
+| `features/login`      | ✅     | Formulario reactivo, sin doble submit, manejo de errores.                     |
+| `features/home`       | ✅     | Pantalla de inicio con perfil real desde `/me`.                               |
+| `features/forbidden`  | ✅     | Página 403.                                                                   |
+| `features/not-found`  | ✅     | Página 404.                                                                   |
+
+### Pendientes — Fases 5B y posteriores
+
 | Módulo / feature   | Responsabilidad                                                    |
 |--------------------|--------------------------------------------------------------------|
-| `auth`             | Login y gestión de sesión en el navegador.                         |
-| `usuarios`         | Pantallas de gestión de usuarios.                                  |
-| `carteras`         | Pantallas de gestión de carteras y asignaciones.                   |
-| `gestiones`        | Pantallas de visualización de gestiones registradas.               |
-| `shared`           | Componentes UI reutilizables, guards, interceptores HTTP.          |
+| `features/usuarios`    | Listado de usuarios (solo lectura — Fase 5B).                  |
+| `features/carteras`    | Gestión de carteras y asignaciones.                            |
+| `features/gestiones`   | Visualización de gestiones registradas.                        |
+| `features/dispositivos`| Estado de dispositivos Android.                                |
 
 ## PENDIENTE
 

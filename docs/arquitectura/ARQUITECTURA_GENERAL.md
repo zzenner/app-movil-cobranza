@@ -12,13 +12,14 @@ El sistema sigue un estilo de **monolito modular con cliente móvil offline-firs
 
 ### API (`apps/api/`)
 - Java 21, Spring Boot 3.5.16, Spring Modulith 1.4.12.
-- Autenticación: JWT RS256 (access token 15 min) + refresh tokens opacos con rotación (ADR-0022, ADR-0023).
-- Contrato: OpenAPI 3.1 en `contracts/openapi/cobranza-api.yaml` (v0.9.0).
-- Migraciones de esquema: Flyway (V001–V010).
+- Autenticación Android: JWT RS256 (access token 15 min) + refresh tokens opacos con rotación + registro de dispositivo (ADR-0022, ADR-0023, ADR-0031).
+- Autenticación Web: mismos tokens pero sin registro de dispositivo; refresh token en cookie HttpOnly `rt_web` (SameSite=Strict); `WebOriginValidationFilter` valida Origin/Referer (ADR-0044). V011 separa `tipo_cliente` ANDROID/WEB.
+- Contrato: OpenAPI 3.1 en `contracts/openapi/cobranza-api.yaml`.
+- Migraciones de esquema: Flyway (V001–V011).
 - Base de datos: PostgreSQL 16 + PostGIS 3.4.
 
-**Módulos implementados (Fases 1B–3D):**
-- `autenticacion` — login con auto-registro de dispositivo (ADR-0031), tokens JWT, sesiones.
+**Módulos implementados (Fases 1B–5A):**
+- `autenticacion` — login Android con auto-registro de dispositivo + login WEB sin dispositivo; tokens JWT; sesiones por tipo_cliente; `WebOriginValidationFilter`.
 - `usuarios` — usuarios, roles, permisos, supervisión (BCrypt).
 - `dispositivos` — registro y revocación de dispositivos Android.
 - `carteras` — carteras y relación N:M con personas (historial).
@@ -26,7 +27,7 @@ El sistema sigue un estilo de **monolito modular con cliente móvil offline-firs
 - `personas` — copia operacional: personas, avales, direcciones.
 - `operaciones` — copia operacional: créditos y cuotas.
 - `gestiones` — recepción idempotente con `INSERT ... ON CONFLICT`.
-- `sincronizacion` — bundle de descarga para Android (8 queries IN, sin N+1).
+- `sincronizacion` — bundle de descarga para Android + búsqueda directa por RUT (8 queries IN, sin N+1).
 
 ### App Android (`apps/mobile-android/`)
 - Kotlin 2.4.10 + Jetpack Compose (BOM 2026.06.01) + Hilt 2.60.1.
@@ -37,9 +38,11 @@ El sistema sigue un estilo de **monolito modular con cliente móvil offline-firs
 - **Fases futuras:** Room (offline-first), WorkManager (sincronización), pantallas de cartera y gestiones.
 
 ### Administración web (`apps/admin-web/`)
-- Angular con componentes standalone.
-- Consume la API REST. No tiene base de datos propia.
-- Sin soporte offline.
+- Angular 22.1.0, TypeScript 6.0.2 (`strict: true`), Angular Material 22.1.0 (ADR-0043).
+- Componentes standalone; sin módulos NgModule.
+- Autenticación: access token en memoria únicamente; refresh token en cookie HttpOnly `rt_web`; bootstrap con `APP_INITIALIZER`; guards funcionales (`authGuard`, `loginGuard`, `roleGuard`); single-flight refresh (ADR-0044).
+- Desarrollo local: `proxy.conf.json` redirige `/api/**` a `localhost:8080` (mismo origen — ADR-0045).
+- Consume la API REST. No tiene base de datos propia. Sin soporte offline.
 
 ### Base de datos
 - PostgreSQL 16 con PostGIS 3.4.

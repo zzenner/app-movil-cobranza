@@ -65,10 +65,14 @@ class AutenticacionController {
     ResponseEntity<RespuestaInfoUsuario> me(@AuthenticationPrincipal Jwt jwt) {
         List<String> roles = jwt.getClaimAsStringList("roles");
         List<String> permisos = jwt.getClaimAsStringList("permisos");
+        String didStr = jwt.getClaimAsString("did");
+        UUID dispositivoId = didStr != null ? UUID.fromString(didStr) : null;
+        String tipoCliente = jwt.getClaimAsString("tipo_cliente");
         var info = new RespuestaInfoUsuario(
                 UUID.fromString(jwt.getSubject()),
                 UUID.fromString(jwt.getClaimAsString("sid")),
-                UUID.fromString(jwt.getClaimAsString("did")),
+                dispositivoId,
+                tipoCliente != null ? tipoCliente : "ANDROID",
                 jwt.getClaimAsString("preferred_username"),
                 roles != null ? roles : List.of(),
                 permisos != null ? permisos : List.of());

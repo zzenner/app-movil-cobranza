@@ -1,4 +1,4 @@
-# Handoff de sesión — Fase 5 PENDIENTE DE PLANIFICACIÓN
+# Handoff de sesión — Fase 5A AUDITADA ✅ PENDIENTE COMMIT
 
 **Fecha:** 2026-08-03
 **Rama activa:** `feature/fase-5-admin-web`
@@ -9,83 +9,73 @@
 
 | Referencia | Hash | Descripción |
 |---|---|---|
-| `main` (local + origin) | `4cddf50` | feat: implementar busqueda directa por rut fase 4c-b |
-| `feature/fase-5-admin-web` | `4cddf50` | mismo commit — rama recién creada |
-| `tag v0.12.0-busqueda-directa` | `4cddf50` | Fase 4C-B etiquetada |
-| `tag v0.11.0-gestiones-offline` | `dec7b18` | Fase 4C-A |
-
-**Árbol:** limpio — sin cambios pendientes.
+| `main` | `09cc0b9` | docs: preparar contexto para siguiente fase |
+| `feature/fase-5-admin-web` | Sin commit nuevo | Cambios sin commit (pendiente aprobación) |
+| `tag v0.12.0-busqueda-directa` | `4cddf50` | Fase 4C-B |
 
 ---
 
-## Cierre de Fase 4C-B — COMPLETADO ✅
-
-### Resultado final de verificaciones
+## Resultados de verificación — Auditoría final
 
 | Suite | Resultado |
 |---|---|
-| API — `./mvnw clean verify` | ✅ **269 pruebas — 0 failures — BUILD SUCCESS** |
-| Android — `assembleDebug` | ✅ BUILD SUCCESSFUL |
-| Android — `lint` | ✅ BUILD SUCCESSFUL |
-| Android — `testDebugUnitTest` | ✅ **165 pruebas JVM — 0 failures** |
-| Android — `assembleDebugAndroidTest` | ✅ APK compilado |
-| Android — `connectedDebugAndroidTest` | ⏭ No ejecutado — sin emulador ni dispositivo |
-| Room schema v3 (`3.json`) | ✅ generado; 11 entidades |
-| Spring Modulith verify | ✅ PASS (incluido en `./mvnw verify`) |
-
-### Commit definitivo
-
-- **Hash:** `4cddf50`
-- **Mensaje:** `feat: implementar busqueda directa por rut fase 4c-b`
-- **Tag:** `v0.12.0-busqueda-directa`
-- **main local = origin/main = `4cddf50`**
-
-### 20 puntos de verificación — todos confirmados ✅
-
-1. `POST /api/v1/personas/busquedas` ✅
-2. RUT en body (no en URL) ✅
-3. `Cache-Control: no-store` ✅
-4. Rol `EJECUTIVO_TERRENO` ✅
-5. Respuesta versionada (`version: 1`) ✅
-6. Sin restricción de cartera o asignación ✅
-7. Spring Modulith — sin ciclos ✅
-8. Auditoría sin RUT completo ✅
-9. Room v3 ✅
-10. `MIGRATION_2_3` no destructiva ✅
-11. `3.json` generado y versionado ✅
-12. `gestion_local` preservada en migración ✅
-13. `PersonaDirectaEntity` con snapshot JSON ✅
-14. Navegación solo por `personaId` ✅
-15. `GestionForm.origenGestion` explícito ✅
-16. `BUSQUEDA_DIRECTA` exige `asignacionDiariaId = null` ✅
-17. `ASIGNACION_DIARIA` exige `asignacionDiariaId != null` ✅
-18. Reutilización de outbox, Worker, lease, GPS, logout ✅
-19. No archivos sensibles versionados ✅
-20. No `fallbackToDestructiveMigration` ✅
+| API — `./mvnw clean verify` | ✅ **288 pruebas — 0 failures — BUILD SUCCESS** |
+| Angular — `npm run build` | ✅ **BUILD SUCCESSFUL** — 326.93 kB main |
+| Angular — `npm run test:ci` | ✅ **30 tests — 0 failures** |
+| Angular — `npm run test:coverage` | ✅ core/auth 96.66%, core/http 88.88%, guards 100% stmts |
+| Angular — `npm run e2e` | ✅ **6 tests Playwright — 6 passed** |
+| `npm audit --audit-level=high` | ✅ Exit 0 (solo moderados en Angular CLI devDep) |
+| `git diff --check` | ✅ Sin whitespace errors |
 
 ---
 
-## Fase 5 — Estado
+## Items de auditoría resueltos en esta sesión
 
-**Estado:** PENDIENTE DE PLANIFICACIÓN
+| Item | Estado |
+|---|---|
+| 1. Git state | ✅ rama correcta, sin conflictos |
+| 2. V011 / Android compat | ✅ Android sessions siguen funcionando; tests JWT ANDROID/WEB |
+| 3. Origin/Referer validation | ✅ `WebOriginValidationFilter` + 5 tests nuevos |
+| 4. Token rotation / single-flight | ✅ verificado en tests |
+| 5. Angular RoleGuard | ✅ `role.guard.ts` + 4 tests |
+| 6. Coverage ≥80% core/auth, core/http, guards | ✅ |
+| 7. Playwright — 6 intercept-based | ✅ confirmado |
+| 8. Infra — compose + .env.example | ✅ WEB_ALLOWED_ORIGIN y WEB_COOKIE_SECURE en .env.example |
+| 9. /me contract en OpenAPI | ✅ RespuestaInfoUsuario corregido; web endpoints añadidos |
+| 10. Documentación | ✅ README.md, STATUS.md, CHANGELOG.md, TASK_CURRENT.md |
+| 11. Full verification run | ✅ todos los resultados arriba |
 
-**Alcance borrador (ROADMAP.md):**
-- Proyecto Angular con componentes standalone en `apps/admin-web/`
-- Módulos: usuarios, carteras, asignaciones, visualización de gestiones
-- Integración completa con la API
+---
 
-**La sesión siguiente debe:**
-1. Leer `docs/gestion/ROADMAP.md` para confirmar alcance de Fase 5.
-2. Leer `docs/arquitectura/ARQUITECTURA_GENERAL.md` y `docs/arquitectura/MODULOS.md`.
-3. Revisar el directorio `apps/admin-web/` para ver si existe estructura base.
-4. Proponer un plan de implementación al usuario.
-5. Esperar aprobación antes de implementar.
+## Archivos creados en esta sesión (auditoría)
+
+### Nuevos — API
+- `apps/api/src/main/java/cl/zzenner/cobranza/autenticacion/seguridad/WebOriginValidationFilter.java`
+
+### Nuevos — Angular
+- `apps/admin-web/src/app/core/guards/role.guard.ts`
+- `apps/admin-web/src/app/core/auth/session-bootstrap.service.spec.ts` (3 tests)
+- `apps/admin-web/src/app/core/http/auth.interceptor.spec.ts` (6 tests)
+- `apps/admin-web/src/app/core/guards/auth.guard.spec.ts` (2 tests)
+- `apps/admin-web/src/app/core/guards/login.guard.spec.ts` (2 tests)
+- `apps/admin-web/src/app/core/guards/role.guard.spec.ts` (4 tests)
+
+### Modificados
+- `apps/api/src/test/java/cl/zzenner/cobranza/autenticacion/AutenticacionWebIntegracionTest.java` — Origin header en helpers; 5 nuevos tests de origen
+- `apps/api/src/main/resources/application.yml` — `app.web.allowed-origin`
+- `apps/admin-web/src/app/core/auth/auth.service.spec.ts` — 2 tests más (logout best-effort, refresh reset)
+- `apps/admin-web/README.md` — contenido específico del proyecto
+- `contracts/openapi/cobranza-api.yaml` — RespuestaInfoUsuario, RespuestaLoginWeb, web auth paths
+- `.env.example` — WEB_ALLOWED_ORIGIN, WEB_COOKIE_SECURE
+- `docs/gestion/STATUS.md` — Fase 5A auditada con todos los items
+- `docs/gestion/CHANGELOG.md` — audit items documentados
 
 ---
 
 ## Siguiente acción exacta
 
-**Leer `docs/arquitectura/ARQUITECTURA_GENERAL.md` y la carpeta `apps/admin-web/`, luego proponer al usuario un plan acotado para Fase 5 antes de implementar nada.**
+1. El usuario debe revisar el código generado en la auditoría.
+2. Si aprueba: commit con mensaje `feat: implementar base admin web y autenticacion web fase 5a`, tag `v0.13.0-admin-web-auth`, merge a `main`, nueva rama `feature/fase-5b-listado-usuarios`.
 
 ---
 
@@ -93,6 +83,9 @@
 
 - Fase 4C-B completa (commit 4cddf50, tag v0.12.0-busqueda-directa)
 - Fase 4C-A completa (commit dec7b18, tag v0.11.0-gestiones-offline)
+- V011 ya diseñada — no modificar migración existente
+- WebOriginValidationFilter ya implementado — no reimplementar
+- RoleGuard ya implementado — no reimplementar
 - Lease/CAS/backoff (no modificar)
 - GPS (no modificar)
-- Logout (no modificar)
+- Logout Android (no modificar)

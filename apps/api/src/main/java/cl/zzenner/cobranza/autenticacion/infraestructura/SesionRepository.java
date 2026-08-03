@@ -17,4 +17,7 @@ public interface SesionRepository extends JpaRepository<SesionAutenticacion, UUI
 
     @Query("SELECT s FROM SesionAutenticacion s WHERE s.usuarioId = :usuarioId AND s.dispositivoId = :dispositivoId AND s.estado = 'ACTIVA'")
     Optional<SesionAutenticacion> findActivaByUsuarioIdAndDispositivoId(UUID usuarioId, UUID dispositivoId);
+
+    @Query("SELECT s FROM SesionAutenticacion s WHERE s.usuarioId = :usuarioId AND s.tipoCliente = 'WEB' AND s.estado = 'ACTIVA'")
+    Optional<SesionAutenticacion> findActivaWebByUsuarioId(UUID usuarioId);
 }

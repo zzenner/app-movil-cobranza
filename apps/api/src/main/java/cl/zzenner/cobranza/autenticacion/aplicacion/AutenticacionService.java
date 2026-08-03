@@ -169,10 +169,98 @@ public class AutenticacionService {
         sesionRepository.save(sesion);
     }
 
-    private RespuestaToken emitirTokens(CredencialesUsuario credenciales,
-                                         SesionAutenticacion sesion, Instant ahora) {
+    /**
+     * Autentica un usuario desde el panel web.
+     * No registra dispositivo; la sesión es de tipo WEB.
+     * El refresh token se devuelve como valor crudo para que el controller lo coloque en cookie HttpOnly.
+     */
+    @Transactional
+    public ResultadoAutenticacionWeb loginWeb(String nombreUsuario, String contrasenaCruda,
+                                               String ipOrigen, String userAgent) {
+        CredencialesUsuario credenciales = usuarioConsultaApi.buscarParaAutenticacion(nombreUsuario)
+                .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("credenciales incorrectas"));
+
+        Instant ahora = clock.instant();
+
+        if (!credenciales.isActivo() || credenciales.isBloqueado()
+                || (credenciales.getBloqueadoHasta() != null && ahora.isBefore(credenciales.getBloqueadoHasta()))) {
+            throw new BadCredentialsException("credenciales incorrectas");
+        }
+
+        if (!passwordEncoder.matches(contrasenaCruda, credenciales.getContrasenaHash())) {
+            int intentos = usuarioConsultaApi.registrarIntentoFallido(credenciales.getId());
+            if (intentos >= propiedades.maxIntentosFallidos()) {
+                usuarioConsultaApi.aplicarBloqueoTemporal(
+                        credenciales.getId(), ahora.plus(propiedades.duracionBloqueoTemporal()));
+            }
+            throw new BadCredentialsException("credenciales incorrectas");
+        }
+
+        usuarioConsultaApi.registrarAccesoExitoso(credenciales.getId());
+
+        sesionRepository.findActivaWebByUsuarioId(credenciales.getId())
+                .ifPresent(s -> {
+                    refreshTokenRepository.revocarActivosDeSesion(s.getId(), ahora);
+                    s.cerrar(SesionAutenticacion.MotivoCierre.LOGOUT);
+                    sesionRepository.saveAndFlush(s);
+                });
+
+        Instant vencimientoAbs = ahora.plus(propiedades.duracionSesionAbsoluta());
+        SesionAutenticacion sesion = new SesionAutenticacion(
+                credenciales.getId(), ipOrigen, userAgent, vencimientoAbs);
+        sesion = sesionRepository.save(sesion);
+
+        return emitirYGuardarTokens(credenciales, sesion, ahora);
+    }
+
+    /**
+     * Rota el refresh token de una sesión web.
+     * La lógica de reuse-detection y rotación atómica es idéntica a renovar().
+     */
+    @Transactional
+    public ResultadoAutenticacionWeb renovarWeb(String refreshTokenCrudo) {
+        String hash = gestorTokens.hashearRefreshToken(refreshTokenCrudo);
+        Instant ahora = clock.instant();
+
+        RefreshToken token = refreshTokenRepository.findByHashTokenWithLock(hash)
+                .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("token inválido"));
+
+        if (token.getEstado() == RefreshToken.Estado.CONSUMIDO) {
+            SesionAutenticacion sesion = sesionRepository.findByIdWithLock(token.getSesionId())
+                    .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("token inválido"));
+            sesion.comprometer();
+            sesionRepository.save(sesion);
+            refreshTokenRepository.revocarActivosDeSesion(sesion.getId(), ahora);
+            throw new BadCredentialsException("token inválido");
+        }
+
+        if (token.getEstado() != RefreshToken.Estado.ACTIVO || !token.estaVigente(ahora)) {
+            throw new BadCredentialsException("token inválido");
+        }
+
+        SesionAutenticacion sesion = sesionRepository.findByIdWithLock(token.getSesionId())
+                .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("token inválido"));
+
+        if (!sesion.estaVigente(ahora)) {
+            throw new BadCredentialsException("token inválido");
+        }
+
+        token.consumir(ahora);
+        refreshTokenRepository.saveAndFlush(token);
+        sesion.actualizarUltimoAcceso(ahora);
+        sesionRepository.save(sesion);
+
+        CredencialesUsuario credenciales = usuarioConsultaApi
+                .buscarCredencialesPorId(sesion.getUsuarioId())
+                .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("token inválido"));
+
+        return emitirYGuardarTokens(credenciales, sesion, ahora);
+    }
+
+    private ResultadoAutenticacionWeb emitirYGuardarTokens(CredencialesUsuario credenciales,
+                                                            SesionAutenticacion sesion, Instant ahora) {
         String accessToken = gestorTokens.emitirAccessToken(
-                credenciales, sesion.getId(), sesion.getDispositivoId());
+                credenciales, sesion.getId(), sesion.getDispositivoId(), sesion.getTipoCliente());
 
         String refreshCrudo = gestorTokens.generarRefreshTokenCrudo();
         String refreshHash = gestorTokens.hashearRefreshToken(refreshCrudo);
@@ -182,9 +270,18 @@ public class AutenticacionService {
         RefreshToken nuevoRefresh = new RefreshToken(sesion.getId(), refreshHash, vencimientoRefresh);
         refreshTokenRepository.save(nuevoRefresh);
 
-        return new RespuestaToken(
+        return new ResultadoAutenticacionWeb(
                 accessToken, refreshCrudo,
                 propiedades.duracionAccessToken().getSeconds(),
-                sesion.getFechaVencimientoAbs());
+                sesion.getFechaVencimientoAbs(),
+                vencimientoRefresh);
+    }
+
+    private RespuestaToken emitirTokens(CredencialesUsuario credenciales,
+                                         SesionAutenticacion sesion, Instant ahora) {
+        ResultadoAutenticacionWeb resultado = emitirYGuardarTokens(credenciales, sesion, ahora);
+        return new RespuestaToken(
+                resultado.accessToken(), resultado.refreshTokenCrudo(),
+                resultado.expiresInSeconds(), resultado.sessionExpiresAt());
     }
 }

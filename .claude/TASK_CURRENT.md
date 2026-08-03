@@ -2,45 +2,63 @@
 
 ## Identificación
 
-- **Fase:** 5 — Administración web (Angular)
-- **Estado:** PENDIENTE DE PLANIFICACIÓN
+- **Fase:** 5A — Base del administrador web y autenticación web
+- **Estado:** AUDITADA — PENDIENTE REVISIÓN Y COMMIT
 - **Rama activa:** `feature/fase-5-admin-web`
-- **Base (main):** `4cddf50 feat: implementar busqueda directa por rut fase 4c-b`
+- **Base funcional:** `4cddf50 feat: implementar busqueda directa por rut fase 4c-b`
 - **Tag de fase anterior:** `v0.12.0-busqueda-directa`
 
 ## Objetivo
 
-Crear la aplicación web Angular para la administración del sistema (usuarios, carteras, asignaciones, visualización de gestiones).
+Implementar la base técnica del panel administrativo web:
+proyecto Angular operativo, autenticación web separada de Android,
+access token en memoria, refresh token en cookie HttpOnly,
+layout administrativo, pantalla de login y pantalla Home con perfil real.
+
+## Alcance
+
+### API (cambios)
+
+- Migración V011: `tipo_cliente` en `sesiones_autenticacion`, `dispositivo_id` nullable para WEB
+- Endpoints web: `POST /api/v1/auth/web/login`, `POST /api/v1/auth/web/refresh`, `POST /api/v1/auth/web/logout`
+- `GET /api/v1/auth/me` compartido; contrato corregido y alineado con OpenAPI
+- Sin `identificadorInstalacion` en login web
+- Refresh token por cookie HttpOnly, no en JSON
+- Sin registro de dispositivo para navegadores
+
+### Angular
+
+- Angular 22.1.0, TypeScript 6.0.x, Angular Material 22.1.0
+- Vitest 4.1.10 (no Karma)
+- Playwright 1.62.1 (E2E)
+- Access token únicamente en memoria
+- Bootstrap de sesión al inicio de la app
+- Guards funcionales
+- Layout (sidenav + toolbar)
+- Login y Home con perfil real
+
+## No incluye
+
+- CRUD de usuarios
+- Carteras ni asignaciones
+- Tag ni commit (pendiente de aprobación)
 
 ## Estado de verificación
 
 | Suite | Resultado |
 |---|---|
-| API — `./mvnw clean verify` | N/A — sin cambios aún |
-| Android — `assembleDebug` | N/A — sin cambios aún |
+| API — `./mvnw clean verify` | ✅ **288 pruebas — 0 failures** |
+| Angular — `npm run build` | ✅ **BUILD SUCCESSFUL** |
+| Angular — `npm run test:ci` | ✅ **30 tests — 0 failures** |
+| Angular — `npm run test:coverage` | ✅ core/auth 96.66%, guards 100%, core/http 88.88% |
+| Angular — `npm run e2e` | ✅ **6 tests Playwright — 6 passed** |
+| `npm audit --audit-level=high` | ✅ Exit 0 |
 
-## Implementado
+## Fase 5B — Pendiente (próximo)
 
-_Nada aún — fase pendiente de planificación._
-
-## Contexto de la fase anterior (4C-B — CERRADA)
-
-- **Commit:** `4cddf50` — rama `feature/fase-4c-b-busqueda-directa`
-- **Tag:** `v0.12.0-busqueda-directa`
-- **API:** 269 pruebas — 0 failures
-- **Android JVM:** 165 pruebas — 0 failures
-- **Instrumentadas:** APK compilado, no ejecutado (sin emulador)
-
-## No incluye (alcance borrador de Fase 5)
-
-- Cambios en API ni Android hasta que se defina la integración
-- Fotografías (diferidas — ADR-0030)
-- Despliegue en VPS (Fase 6)
-
-## Constraints activos
-
-- No push al remoto sin autorización explícita
-- No commit sin autorización explícita
+Primera funcionalidad administrativa real: **listado de usuarios de solo lectura**.
+Requerirá un endpoint nuevo: `GET /api/v1/admin/usuarios`.
+No se implementa en 5A.
 
 ## Fases anteriores — CERRADAS ✅
 

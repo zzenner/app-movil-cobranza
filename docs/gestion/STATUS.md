@@ -23,7 +23,7 @@
 | **API — asignaciones mensuales y diarias (Fase 3B)**      | **Completado ✅**      |
 | **API — gestiones de cobranza (Fase 3C — validada)**      | **Completado ✅**      |
 | **API — REST asignaciones y gestiones (Fase 3D)**         | **Validada ✅ — Lista para cierre**      |
-| Admin Web (Angular)                                       | No iniciado           |
+| Admin Web (Angular) — Fase 5A base + autenticación        | **IMPLEMENTADA ✅ — pendiente commit** |
 | **App Android — Fase 4A (base auth + red + seguridad)**   | **Completado ✅**                   |
 | **App Android — Fase 4B (cartera offline Room + WorkManager)** | **Cerrada ✅**               |
 | **App Android — Fase 4C-A (gestiones ASIGNACION_DIARIA offline)**  | **Cerrada ✅**          |
@@ -433,9 +433,87 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 | ADR-0041 | Endpoint de búsqueda con POST por privacidad del RUT |
 | ADR-0042 | Snapshot en Room v3 para búsqueda directa |
 
+## Fase 5A — Base del administrador web y autenticación (2026-08-03) — VALIDADA ✅ PENDIENTE COMMIT
+
+### Auditoría final Fase 5A — resultados
+
+| Item | Resultado |
+|---|---|
+| **Git state** — rama `feature/fase-5-admin-web`, sin conflictos | ✅ |
+| **V011** — migración no destructiva; ANDROID existente no afectado | ✅ |
+| **JWT Android** — `did` presente, `tipo_cliente=ANDROID` | ✅ (tests existentes) |
+| **JWT WEB** — `did` ausente, `tipo_cliente=WEB` | ✅ (tests dedicados) |
+| **Origin/Referer validation** — `WebOriginValidationFilter`: refresh y logout rechazan origen incorrecto | ✅ |
+| **Tests de origen** — sin Origin→403, origen malo→403, Referer válido→200 | ✅ (5 tests nuevos) |
+| **`app.web.allowed-origin=${WEB_ALLOWED_ORIGIN:http://localhost:4200}`** | ✅ |
+| **`.env.example`** — `WEB_ALLOWED_ORIGIN` y `WEB_COOKIE_SECURE` documentados | ✅ |
+| **Angular — RoleGuard** — `roleGuard` funcional, redirige a /forbidden | ✅ |
+| **Angular — bootstrap tests** — éxito, fallo, sin error propagado | ✅ (3 tests nuevos) |
+| **Angular — interceptor tests** — add Bearer, no-intercept auth paths, retry-401, no-loop | ✅ (6 tests nuevos) |
+| **Angular — authGuard tests** — AUTENTICADA pasa, NO_AUTENTICADA→/login | ✅ (2 tests nuevos) |
+| **Angular — loginGuard tests** — NO_AUTENTICADA pasa, AUTENTICADA→/home | ✅ (2 tests nuevos) |
+| **Angular — roleGuard tests** — rol presente, rol ausente→/forbidden, sin rol, no autenticado→/login | ✅ (4 tests nuevos) |
+| **Angular — logout best-effort** — limpia estado en error HTTP | ✅ |
+| **Angular — single-flight reset** — segundo refresh genera nueva solicitud | ✅ |
+| **Cobertura core/auth** — 96.66% statements, 100% branches | ✅ |
+| **Cobertura core/http** — 88.88% statements, 100% branches | ✅ |
+| **Cobertura guards** — 100% statements, 85.71% branches | ✅ |
+| **OpenAPI YAML** — `RespuestaInfoUsuario` corregido (sesionId, dispositivoId nullable, tipoCliente, permisos) | ✅ |
+| **OpenAPI YAML** — `RespuestaLoginWeb` schema añadido | ✅ |
+| **OpenAPI YAML** — endpoints web/login, web/refresh, web/logout documentados | ✅ |
+| **admin-web/README.md** — contenido específico del proyecto (no boilerplate CLI) | ✅ |
+| **npm audit --audit-level=high** — 0 vulnerabilidades high/critical | ✅ |
+| **ng build** — BUILD SUCCESSFUL — 326.93 kB main | ✅ |
+| **Playwright E2E** — 6 tests intercept — 6 passed | ✅ |
+| **API — `./mvnw clean verify`** | ✅ **288 pruebas — 0 failures — BUILD SUCCESS** |
+| **Angular — `npm run test:ci`** | ✅ **30 tests — 0 failures** |
+| **git diff --check** | ✅ sin problemas de espaciado |
+
+### API — Autenticación web separada de Android
+
+| Item | Resultado |
+|---|---|
+| V011: `tipo_cliente` en `sesiones_autenticacion`, `dispositivo_id` nullable para WEB | ✅ |
+| CHECK: ANDROID requiere dispositivo, WEB no | ✅ |
+| Índices parciales independientes por tipo_cliente | ✅ |
+| `SesionAutenticacion` — constructor WEB, `esWeb()`, `getTipoCliente()` | ✅ |
+| `GestorTokens` — claim `did` condicional, claim `tipo_cliente` | ✅ |
+| `SesionRepository` — `findActivaWebByUsuarioId()` | ✅ |
+| `AutenticacionService` — `loginWeb()`, `renovarWeb()` | ✅ |
+| `AutenticacionWebController` — login, refresh, logout | ✅ |
+| Refresh token en cookie `rt_web` HttpOnly; SameSite=Strict | ✅ |
+| `WebOriginValidationFilter` — valida Origin/Referer en refresh y logout | ✅ |
+| `SeguridadConfig` — web endpoints en permitAll | ✅ |
+| `/me` corregido: `did` nullable, `tipo_cliente` en respuesta | ✅ |
+| 19 tests de integración web (14 funcionales + 5 origen) | ✅ |
+| **API — 288 pruebas — 0 failures — BUILD SUCCESS** | ✅ |
+| ADR-0043, ADR-0044, ADR-0045 | ✅ |
+
+### Angular 22.1.0 — Panel administrativo base
+
+| Item | Resultado |
+|---|---|
+| Proyecto creado: Angular 22.1.0, TypeScript 6.0.2, Angular Material 22.1.0 | ✅ |
+| Vitest 4.1.10 (integrado en `@angular/build`) — sin Karma | ✅ |
+| Playwright 1.62.1 | ✅ |
+| `TokenStorageService` — access token solo en memoria | ✅ |
+| `AuthService` — signals, single-flight refresh | ✅ |
+| `SessionBootstrapService` — `APP_INITIALIZER` | ✅ |
+| `authInterceptor` funcional — Bearer + retry 401 + protección bucle | ✅ |
+| `authGuard` / `loginGuard` / `roleGuard` funcionales — esperan INICIALIZANDO | ✅ |
+| `LayoutComponent` — sidenav + toolbar con logout | ✅ |
+| `LoginComponent` — formulario reactivo, error, loading | ✅ |
+| `HomeComponent` — perfil real desde `/me` | ✅ |
+| `app.routes.ts` — rutas con lazy loading | ✅ |
+| `proxy.conf.json` — `/api/**` → localhost:8080 | ✅ |
+| **30 tests unitarios Vitest — 0 failures** | ✅ |
+| **6 tests E2E Playwright — 6 passed** | ✅ |
+| `ng build` — BUILD SUCCESSFUL | ✅ |
+| CI: `.github/workflows/admin-web-ci.yml` | ✅ |
+
 ## Próximo paso recomendado
 
-Commit de Fases 4C-A y 4C-B (ambas en rama `feature/fase-4c-b-busqueda-directa`).
+Commit con `feat: implementar base admin web y autenticacion web fase 5a`, tag `v0.13.0-admin-web-auth`, merge a `main`, nueva rama `feature/fase-5b-listado-usuarios`.
 
 ## Historial de fases
 

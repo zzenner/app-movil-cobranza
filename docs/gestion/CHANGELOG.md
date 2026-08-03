@@ -5,6 +5,60 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-03 — Fase 5A: Base del administrador web y autenticación web — VALIDADA ✅
+
+### Añadido — API (`apps/api/`)
+
+**Autenticación web separada de Android**
+
+- `V011__autenticacion_web.sql` — columna `tipo_cliente VARCHAR(10) NOT NULL DEFAULT 'ANDROID'` en `sesiones_autenticacion`; `dispositivo_id` nullable; CHECKs `ck_sesiones_cliente_dispositivo` y `ck_sesiones_tipo_cliente`; índices parciales únicos `uq_sesiones_activa_android` y `uq_sesiones_activa_web`.
+- `SesionAutenticacion` — constructor WEB sin dispositivo, campo `tipoCliente`, métodos `esWeb()` y `getTipoCliente()`.
+- `GestorTokens.emitirAccessToken()` — claim `did` condicional (absent en WEB), claim `tipo_cliente` en todos los tokens.
+- `SesionRepository.findActivaWebByUsuarioId()` — búsqueda de sesión WEB activa.
+- `ResultadoAutenticacionWeb` — record de resultado interno con AT, RT crudo, expiración de sesión y expiración de RT.
+- `AutenticacionService.loginWeb()` — autenticación sin registro de dispositivo; crea sesión WEB; cierra sesión WEB previa.
+- `AutenticacionService.renovarWeb()` — rotación de refresh token para sesiones WEB; misma lógica de reuse-detection.
+- `SolicitudLoginWeb`, `RespuestaLoginWeb` — DTOs web (sin `identificadorInstalacion`, sin RT en body).
+- `AutenticacionWebController` — `POST /api/v1/auth/web/login`, `POST /api/v1/auth/web/refresh` (cookie), `POST /api/v1/auth/web/logout` (limpia cookie). Cookie `rt_web`: HttpOnly, SameSite=Strict, configurable `Secure`.
+- `WebOriginValidationFilter` — `OncePerRequestFilter` (Order=1); valida header `Origin` (fallback `Referer`) en `/api/v1/auth/web/refresh` y `/api/v1/auth/web/logout`; rechaza con 403 si el origen no coincide con `app.web.allowed-origin`.
+- `application.yml` — `app.web.allowed-origin=${WEB_ALLOWED_ORIGIN:http://localhost:4200}`.
+- `AutenticacionController./me` — corregido: claim `did` nullable, campo `tipoCliente` en respuesta.
+- `RespuestaInfoUsuario` — campo `sesionId`, `dispositivoId` nullable, `tipoCliente`, `permisos` agregados.
+- `SeguridadConfig` — `/api/v1/auth/web/login` y `/api/v1/auth/web/refresh` en permitAll.
+- `AutenticacionWebIntegracionTest` — 19 tests: login, cookie HttpOnly, sin RT en body, JWT sin did, JWT con tipo_cliente=WEB, refresh, reuse-detection, logout, segundo login cierra sesión anterior; + 5 tests de validación de Origin/Referer.
+- `.env.example` — variables `WEB_ALLOWED_ORIGIN` y `WEB_COOKIE_SECURE` documentadas.
+- **API: 288 pruebas — 0 failures — BUILD SUCCESS.**
+- ADR-0043 (Angular 22), ADR-0044 (auth web: memoria+cookie), ADR-0045 (proxy mismo origen).
+
+### Añadido — Angular (`apps/admin-web/`)
+
+**Panel administrativo — base técnica**
+
+- Proyecto inicializado: Angular 22.1.0, TypeScript 6.0.2, Angular Material 22.1.0, Vitest 4.1.10, Playwright 1.62.1.
+- `TokenStorageService` — access token únicamente en memoria de proceso.
+- `AuthService` — signals (`INICIALIZANDO/AUTENTICADA/NO_AUTENTICADA`), single-flight refresh con `shareReplay`.
+- `SessionBootstrapService` — `APP_INITIALIZER`; bootstrap refresh → loadProfile → estado AUTENTICADA; fallo → NO_AUTENTICADA.
+- `authInterceptor` funcional — adjunta Bearer, reintenta con refresh en 401, evita loop (no reintenta si no había token).
+- `authGuard` / `loginGuard` / `roleGuard` funcionales — esperan resolución de INICIALIZANDO antes de decidir.
+- `LayoutComponent` — sidenav Material con "Inicio", toolbar con usuario y logout.
+- `LoginComponent` — formulario reactivo con validación, loading, Enter submit, no doble submit, error visible.
+- `HomeComponent` — perfil real (roles, permisos, sesionId, tipoCliente).
+- `ForbiddenComponent`, `NotFoundComponent`.
+- `app.routes.ts` — lazy loading, rutas protegidas.
+- `proxy.conf.json` — `/api/**` → `localhost:8080`.
+- `README.md` — documentación específica del proyecto (stack, requisitos, dev local, seguridad, ADRs).
+- **30 tests unitarios Vitest** — 8 archivos spec: `TokenStorageService`, `AuthService` (8 tests), `SessionBootstrapService` (3), `authInterceptor` (6), `authGuard` (2), `loginGuard` (2), `roleGuard` (4), `App` (1). 0 failures.
+- **Cobertura:** `core/auth` 96.66%, `core/http` 88.88%, `guards` 100% statements.
+- 6 tests E2E Playwright — 6 passed (redirect sin sesión, login, credenciales malas, no doble submit, sesión existente, logout). Todos intercept-based.
+- `ng build` — BUILD SUCCESSFUL (326.93 kB main, lazy chunks).
+- `.github/workflows/admin-web-ci.yml` — CI con build, Vitest, Playwright.
+
+### Actualizado
+
+- `contracts/openapi/cobranza-api.yaml` — `RespuestaInfoUsuario` con `sesionId`, `dispositivoId` nullable, `tipoCliente`, `permisos`; schema `RespuestaLoginWeb`; paths `/api/v1/auth/web/login`, `/api/v1/auth/web/refresh`, `/api/v1/auth/web/logout`.
+
+---
+
 ## [Sin versión] — 2026-08-03 — Fase 4C-B: Búsqueda directa por RUT — IMPLEMENTADA ✅
 
 ### Añadido — API (`apps/api/`)

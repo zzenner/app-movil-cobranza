@@ -1,0 +1,50 @@
+name: Admin Web CI
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "apps/admin-web/**"
+      - ".github/workflows/admin-web-ci.yml"
+  pull_request:
+    branches: ["**"]
+    paths:
+      - "apps/admin-web/**"
+      - ".github/workflows/admin-web-ci.yml"
+
+jobs:
+  build-test:
+    name: Compilar, tests unitarios y E2E
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/admin-web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/admin-web/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Audit de seguridad (high+)
+        run: npm audit --audit-level=high
+
+      - name: Compilar
+        run: npm run build
+
+      - name: Tests unitarios (Vitest)
+        run: npm run test:ci
+
+      - name: Instalar Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Tests E2E (Playwright)
+        run: npm run e2e

@@ -211,14 +211,43 @@
 
 ---
 
-## Fase 5 — Administración web (PENDIENTE)
+## Fase 5A — Base del administrador web y autenticación ✅ IMPLEMENTADA
 
-**Objetivo:** Crear la aplicación web Angular para la administración del sistema.
+**Objetivo:** Establecer la base técnica del panel administrativo Angular y separar la autenticación web de Android.
+
+**Completado (2026-08-03):**
+- `V011__autenticacion_web.sql` — `tipo_cliente` en `sesiones_autenticacion`; `dispositivo_id` nullable para WEB; CHECKs; índices parciales `uq_sesiones_activa_android` / `uq_sesiones_activa_web`.
+- Endpoints web: `POST /api/v1/auth/web/login`, `/web/refresh` (cookie HttpOnly), `/web/logout`. Sin `identificadorInstalacion`.
+- Cookie `rt_web`: HttpOnly, SameSite=Strict, Path=/api/v1/auth/web/refresh. Access token solo en body.
+- `WebOriginValidationFilter` — valida `Origin`/`Referer` en `/web/refresh` y `/web/logout`; rechaza origen incorrecto con 403.
+- JWT: `did` ausente en WEB, claim `tipo_cliente` en todos los tokens. `/me` corregido con `dispositivoId` nullable.
+- Proyecto Angular 22.1.0: TypeScript 6.0.2 (`strict: true`), Angular Material 22.1.0, Vitest 4.1.10, Playwright 1.62.1.
+- Autenticación Angular: access token en memoria, bootstrap con `APP_INITIALIZER`, guards funcionales (`authGuard`, `loginGuard`, `roleGuard`), single-flight refresh.
+- Layout: sidenav Material, toolbar con logout. Login y Home con perfil real desde `/me`.
+- Proxy dev: `/api/**` → `localhost:8080`. CI: `.github/workflows/admin-web-ci.yml`.
+- 288 tests API (0 failures). 30 tests Vitest. 6 tests Playwright. Cobertura ≥80% en auth, http, guards.
+- ADR-0043, ADR-0044, ADR-0045.
+
+---
+
+## Fase 5B — Consulta de usuarios de solo lectura (PENDIENTE)
+
+**Objetivo:** Primera funcionalidad administrativa real: listar los usuarios del sistema.
 
 **Incluye (borrador):**
-- Proyecto Angular con componentes standalone en `apps/admin-web/`.
-- Módulos: usuarios, carteras, asignaciones, visualización de gestiones.
-- Integración completa con la API.
+- Endpoint API `GET /api/v1/admin/usuarios` — lectura de usuarios con roles. Rol requerido: `ADMIN` o `JEFE_SUPERVISORES`.
+- Pantalla Angular: tabla de usuarios con nombre, rol activo y estado. Solo lectura.
+- Sin creación, edición ni eliminación de usuarios en esta fase.
+
+---
+
+## Fase 5C–5N — Módulos administrativos (PENDIENTE)
+
+**Incluye (borrador):**
+- Gestión de carteras y asignaciones.
+- Visualización de gestiones registradas.
+- Gestión de dispositivos Android.
+- Dashboard de estado de sincronización.
 
 ---
 

@@ -20,8 +20,11 @@ public class SesionAutenticacion {
     @Column(name = "usuario_id", nullable = false, updatable = false)
     private UUID usuarioId;
 
-    @Column(name = "dispositivo_id", nullable = false, updatable = false)
+    @Column(name = "dispositivo_id", updatable = false)
     private UUID dispositivoId;
+
+    @Column(name = "tipo_cliente", nullable = false, updatable = false, length = 10)
+    private String tipoCliente;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false, length = 20)
@@ -58,6 +61,21 @@ public class SesionAutenticacion {
                                 String userAgent, Instant fechaVencimientoAbs) {
         this.usuarioId = usuarioId;
         this.dispositivoId = dispositivoId;
+        this.tipoCliente = "ANDROID";
+        this.ipOrigen = ipOrigen;
+        this.userAgent = userAgent;
+        this.fechaVencimientoAbs = fechaVencimientoAbs;
+        Instant ahora = Instant.now();
+        this.fechaCreacion = ahora;
+        this.fechaUltimoAcceso = ahora;
+        this.estado = Estado.ACTIVA;
+    }
+
+    public SesionAutenticacion(UUID usuarioId, String ipOrigen,
+                                String userAgent, Instant fechaVencimientoAbs) {
+        this.usuarioId = usuarioId;
+        this.dispositivoId = null;
+        this.tipoCliente = "WEB";
         this.ipOrigen = ipOrigen;
         this.userAgent = userAgent;
         this.fechaVencimientoAbs = fechaVencimientoAbs;
@@ -90,6 +108,8 @@ public class SesionAutenticacion {
     public UUID getId() { return id; }
     public UUID getUsuarioId() { return usuarioId; }
     public UUID getDispositivoId() { return dispositivoId; }
+    public String getTipoCliente() { return tipoCliente; }
+    public boolean esWeb() { return "WEB".equals(tipoCliente); }
     public Estado getEstado() { return estado; }
     public String getIpOrigen() { return ipOrigen; }
     public String getUserAgent() { return userAgent; }

@@ -30,11 +30,12 @@ public class GestorTokens {
         this.clock = clock;
     }
 
-    public String emitirAccessToken(CredencialesUsuario usuario, UUID sesionId, UUID dispositivoId) {
+    public String emitirAccessToken(CredencialesUsuario usuario, UUID sesionId,
+                                     UUID dispositivoId, String tipoCliente) {
         Instant ahora = clock.instant();
         Instant expira = ahora.plus(propiedades.duracionAccessToken());
 
-        JwtClaimsSet claims = JwtClaimsSet.builder()
+        JwtClaimsSet.Builder builder = JwtClaimsSet.builder()
                 .issuer(propiedades.issuer())
                 .audience(List.of(propiedades.audience()))
                 .subject(usuario.getId().toString())
@@ -42,13 +43,16 @@ public class GestorTokens {
                 .expiresAt(expira)
                 .id(UUID.randomUUID().toString())
                 .claim("sid", sesionId.toString())
-                .claim("did", dispositivoId.toString())
+                .claim("tipo_cliente", tipoCliente)
                 .claim("preferred_username", usuario.getNombreUsuario())
                 .claim("roles", usuario.getCodigosRoles())
-                .claim("permisos", usuario.getCodigosPermisos())
-                .build();
+                .claim("permisos", usuario.getCodigosPermisos());
 
-        return jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
+        if (dispositivoId != null) {
+            builder.claim("did", dispositivoId.toString());
+        }
+
+        return jwtEncoder.encode(JwtEncoderParameters.from(builder.build())).getTokenValue();
     }
 
     /** Genera un refresh token opaco de 256 bits, Base64URL sin padding. */

@@ -38,7 +38,7 @@ cl.zzenner.cobranza/
 └── compartido/        — utilidades transversales sin lógica de dominio (stub)
 ```
 
-## Migraciones Flyway (V001–V010)
+## Migraciones Flyway (V001–V011)
 
 | Migración | Contenido |
 |---|---|
@@ -52,6 +52,7 @@ cl.zzenner.cobranza/
 | V008 | Relación N:M `carteras_personas` con historial |
 | V009 | Asignaciones mensuales y diarias |
 | V010 | Gestiones de cobranza (append-only, idempotente) |
+| V011 | `tipo_cliente` en sesiones (ANDROID/WEB); `dispositivo_id` nullable; CHECKs; índices parciales |
 
 ## Comandos de desarrollo
 
@@ -74,14 +75,22 @@ cd apps/api && ./mvnw test -Dtest="ModularidadTest"
 
 ## Endpoints disponibles
 
-### Autenticación (públicos)
+### Autenticación Android (públicos)
 
 | Endpoint | Descripción |
 |---|---|
-| `POST /api/v1/auth/login` | Login con credenciales; retorna access token + refresh token |
-| `POST /api/v1/auth/refresh` | Renovar access token con refresh token |
-| `POST /api/v1/auth/logout` | Cerrar sesión (revoca refresh token) |
-| `GET /api/v1/auth/me` | Perfil del usuario autenticado |
+| `POST /api/v1/auth/login` | Login con credenciales + `identificadorInstalacion`; retorna access token + refresh token |
+| `POST /api/v1/auth/refresh` | Renovar access token con refresh token (body) |
+| `POST /api/v1/auth/logout` | Cerrar sesión Android (revoca refresh token) |
+| `GET /api/v1/auth/me` | Perfil del usuario autenticado (ANDROID y WEB) |
+
+### Autenticación Web — Panel administrativo (públicos excepto logout)
+
+| Endpoint | Requiere | Descripción |
+|---|---|---|
+| `POST /api/v1/auth/web/login` | — | Login sin `identificadorInstalacion`. Access token en body; refresh token en cookie HttpOnly `rt_web`. |
+| `POST /api/v1/auth/web/refresh` | Cookie `rt_web` + `Origin` | Rota el refresh token. Rechaza con 403 si Origin no coincide con `WEB_ALLOWED_ORIGIN`. |
+| `POST /api/v1/auth/web/logout` | Bearer JWT + `Origin` | Revoca sesión. Limpia cookie `rt_web` (Max-Age=0). Rechaza con 403 si Origin no coincide. |
 
 ### Sincronización Android (rol `EJECUTIVO_TERRENO`)
 
@@ -109,3 +118,5 @@ La API usa dos archivos de configuración:
 
 Variables de entorno necesarias (del archivo `.env`):
 - `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+- `WEB_ALLOWED_ORIGIN` — origen permitido para cookie web (default: `http://localhost:4200`)
+- `WEB_COOKIE_SECURE` — marcar cookie `rt_web` como Secure (default: `false`, activar en producción HTTPS)

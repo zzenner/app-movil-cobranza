@@ -57,6 +57,10 @@ security:
     strength: 12
 
 app:
+  web:
+    cookie:
+      secure: ${WEB_COOKIE_SECURE:false}
+    allowed-origin: ${WEB_ALLOWED_ORIGIN:http://localhost:4200}
   jwt:
     duracion-access-token: PT15M
     duracion-refresh-token: P30D

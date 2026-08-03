@@ -419,18 +419,47 @@ components:
       usuarioId:
         type: string
         format: uuid
+      sesionId:
+        type: string
+        format: uuid
+      dispositivoId:
+        type: string
+        format: uuid
+        nullable: true
+        description: UUID del dispositivo. Presente en sesiones ANDROID, null en sesiones WEB.
+      tipoCliente:
+        type: string
+        enum: [ANDROID, WEB]
+        description: Tipo de cliente que generó la sesión.
       nombreUsuario:
         type: string
-      nombre:
-        type: string
-      correo:
-        type: string
-        format: email
       roles:
         type: array
         items:
           type: string
-        example: ["EJECUTIVO_TERRENO"]
+        example: ["ADMIN"]
+      permisos:
+        type: array
+        items:
+          type: string
+        example: []
+
+  RespuestaLoginWeb:
+    type: object
+    description: Respuesta de login/refresh web. El refresh token se entrega en cookie HttpOnly, no en este body.
+    properties:
+      accessToken:
+        type: string
+        description: JWT RS256 de corta duración (15 min). Almacenar solo en memoria del navegador.
+      expiresInSeconds:
+        type: integer
+        description: Segundos de validez del access token.
+        example: 900
+      sessionExpiresAt:
+        type: string
+        format: date-time
+        description: Instante absoluto de expiración de la sesión completa (ISO-8601 UTC).
+        example: "2026-09-01T00:00:00Z"
 
 paths:
   /api/v1/auth/login:
@@ -551,7 +580,9 @@ paths:
       tags:
         - Autenticación
       summary: Información del usuario autenticado
-      description: Retorna el perfil del usuario autenticado según el JWT.
+      description: |
+        Retorna el perfil del usuario autenticado según el JWT.
+        Soportado por sesiones ANDROID y WEB. Para WEB, `dispositivoId` es null.
       security:
         - bearerAuth: []
       responses:
@@ -563,6 +594,128 @@ paths:
                 $ref: '#/components/schemas/RespuestaInfoUsuario'
         "401":
           description: Token JWT ausente o inválido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/auth/web/login:
+    post:
+      tags:
+        - AutenticacionWeb
+      summary: Iniciar sesión web (panel administrativo)
+      description: |
+        Autentica usuario sin requerir `identificadorInstalacion`.
+        El access token se entrega en el body. El refresh token se entrega en cookie HttpOnly
+        con `SameSite=Strict; Path=/api/v1/auth/web/refresh` — nunca en el body.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombreUsuario, clave]
+              properties:
+                nombreUsuario:
+                  type: string
+                clave:
+                  type: string
+                  format: password
+      responses:
+        "200":
+          description: Login exitoso. Refresh token en cookie `rt_web`.
+          headers:
+            Set-Cookie:
+              description: "rt_web=<token>; HttpOnly; SameSite=Strict; Path=/api/v1/auth/web/refresh"
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaLoginWeb'
+        "401":
+          description: Credenciales inválidas.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/auth/web/refresh:
+    post:
+      tags:
+        - AutenticacionWeb
+      summary: Renovar access token web
+      description: |
+        Rota el refresh token y emite un nuevo access token.
+        Requiere cookie HttpOnly `rt_web` y header `Origin` con el origen permitido.
+        Protegido contra reutilización de tokens consumidos.
+      security: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+          example: "http://localhost:4200"
+      responses:
+        "200":
+          description: Token renovado. Nueva cookie `rt_web` con el nuevo refresh token.
+          headers:
+            Set-Cookie:
+              description: "rt_web=<nuevo-token>; HttpOnly; SameSite=Strict; Path=/api/v1/auth/web/refresh"
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaLoginWeb'
+        "401":
+          description: Cookie ausente, token inválido o token ya consumido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: Origen no permitido (Origin/Referer no coincide con el origen configurado).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/auth/web/logout:
+    post:
+      tags:
+        - AutenticacionWeb
+      summary: Cerrar sesión web
+      description: |
+        Revoca la sesión activa. Elimina la cookie `rt_web` (Max-Age=0).
+        Requiere Bearer JWT válido y header `Origin` con el origen permitido.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+          example: "http://localhost:4200"
+      responses:
+        "204":
+          description: Sesión cerrada. Cookie rt_web limpiada.
+          headers:
+            Set-Cookie:
+              description: "rt_web=; HttpOnly; SameSite=Strict; Max-Age=0"
+              schema:
+                type: string
+        "401":
+          description: Token JWT ausente o inválido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: Origen no permitido.
           content:
             application/problem+json:
               schema:
