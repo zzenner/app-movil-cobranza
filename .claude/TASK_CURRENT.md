@@ -2,68 +2,51 @@
 
 ## Identificación
 
-- **Fase:** 5A — Base del administrador web y autenticación web
-- **Estado:** AUDITADA — PENDIENTE REVISIÓN Y COMMIT
-- **Rama activa:** `feature/fase-5-admin-web`
-- **Base funcional:** `4cddf50 feat: implementar busqueda directa por rut fase 4c-b`
-- **Tag de fase anterior:** `v0.12.0-busqueda-directa`
+- **Fase:** 5B — Listado de usuarios (solo lectura)
+- **Estado:** EN PREPARACIÓN
+- **Rama activa:** `feature/fase-5b-usuarios-admin`
+- **Base funcional:** `71d47b2 feat: implementar base admin web y autenticacion fase 5a`
+- **Tag de fase anterior:** `v0.13.0-admin-base`
 
 ## Objetivo
 
-Implementar la base técnica del panel administrativo web:
-proyecto Angular operativo, autenticación web separada de Android,
-access token en memoria, refresh token en cookie HttpOnly,
-layout administrativo, pantalla de login y pantalla Home con perfil real.
+Implementar la primera funcionalidad administrativa real del panel web:
+un listado de usuarios de **solo lectura** que consume el endpoint
+`GET /api/v1/admin/usuarios` (a crear en la API).
 
 ## Alcance
 
 ### API (cambios)
 
-- Migración V011: `tipo_cliente` en `sesiones_autenticacion`, `dispositivo_id` nullable para WEB
-- Endpoints web: `POST /api/v1/auth/web/login`, `POST /api/v1/auth/web/refresh`, `POST /api/v1/auth/web/logout`
-- `GET /api/v1/auth/me` compartido; contrato corregido y alineado con OpenAPI
-- Sin `identificadorInstalacion` en login web
-- Refresh token por cookie HttpOnly, no en JSON
-- Sin registro de dispositivo para navegadores
+- Endpoint: `GET /api/v1/admin/usuarios`
+  - Requiere rol `ADMINISTRADOR`
+  - Respuesta paginada: página, tamaño, total, items
+  - Campos por usuario: `id`, `nombre`, `correo`, `rol`, `estado`, `fechaCreacion`
+- Actualizar OpenAPI (`contracts/openapi/cobranza-api.yaml`)
+- Pruebas de integración para el endpoint (autenticado, sin rol, sin sesión)
 
 ### Angular
 
-- Angular 22.1.0, TypeScript 6.0.x, Angular Material 22.1.0
-- Vitest 4.1.10 (no Karma)
-- Playwright 1.62.1 (E2E)
-- Access token únicamente en memoria
-- Bootstrap de sesión al inicio de la app
-- Guards funcionales
-- Layout (sidenav + toolbar)
-- Login y Home con perfil real
+- Módulo `features/usuarios`
+  - Componente `UsuariosListadoComponent` (tabla Material con paginación)
+  - Servicio `UsuariosService` (solo lectura)
+  - Ruta `/usuarios` protegida con `authGuard` + `roleGuard(['ADMINISTRADOR'])`
+- Enlace en sidenav para navegar al listado
+- Pruebas unitarias del servicio y componente
 
 ## No incluye
 
-- CRUD de usuarios
-- Carteras ni asignaciones
-- Tag ni commit (pendiente de aprobación)
-
-## Estado de verificación
-
-| Suite | Resultado |
-|---|---|
-| API — `./mvnw clean verify` | ✅ **288 pruebas — 0 failures** |
-| Angular — `npm run build` | ✅ **BUILD SUCCESSFUL** |
-| Angular — `npm run test:ci` | ✅ **30 tests — 0 failures** |
-| Angular — `npm run test:coverage` | ✅ core/auth 96.66%, guards 100%, core/http 88.88% |
-| Angular — `npm run e2e` | ✅ **6 tests Playwright — 6 passed** |
-| `npm audit --audit-level=high` | ✅ Exit 0 |
-
-## Fase 5B — Pendiente (próximo)
-
-Primera funcionalidad administrativa real: **listado de usuarios de solo lectura**.
-Requerirá un endpoint nuevo: `GET /api/v1/admin/usuarios`.
-No se implementa en 5A.
+- Crear usuario
+- Editar usuario
+- Eliminar usuario
+- Cambiar contraseña
+- Carteras, asignaciones ni gestiones
 
 ## Fases anteriores — CERRADAS ✅
 
 | Fase | Tag | Commit |
 |---|---|---|
+| 5A Base admin web + auth web | `v0.13.0-admin-base` | `71d47b2` |
 | 4C-B Búsqueda directa | `v0.12.0-busqueda-directa` | `4cddf50` |
 | 4C-A Gestiones offline | `v0.11.0-gestiones-offline` | `dec7b18` |
 | 4B Cartera offline | `v0.10.0-descarga-offline` | (ver ROADMAP) |
