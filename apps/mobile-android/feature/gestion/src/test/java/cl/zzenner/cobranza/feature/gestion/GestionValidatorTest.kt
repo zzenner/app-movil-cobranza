@@ -3,6 +3,7 @@ package cl.zzenner.cobranza.feature.gestion
 import cl.zzenner.cobranza.feature.gestion.domain.ErrorValidacion
 import cl.zzenner.cobranza.feature.gestion.domain.GestionForm
 import cl.zzenner.cobranza.feature.gestion.domain.GestionValidator
+import cl.zzenner.cobranza.feature.gestion.domain.OrigenGestion
 import cl.zzenner.cobranza.feature.gestion.domain.TipoGestion
 import cl.zzenner.cobranza.feature.gestion.domain.UbicacionCapturada
 import org.junit.Assert.assertFalse
@@ -30,6 +31,7 @@ class GestionValidatorTest {
         personaRutNumero = "12345678",
         personaRutDv = "9",
         personaNombre = "Test",
+        origenGestion = OrigenGestion.ASIGNACION_DIARIA,
         asignacionDiariaId = "asig-1",
         tipoGestion = tipo,
         observacion = observacion,

@@ -25,7 +25,7 @@ data class GestionLocalEntity(
     val personaRutNumero: String,
     val personaRutDv: String,
     val personaNombre: String,
-    val asignacionDiariaId: String,
+    val asignacionDiariaId: String?,
     val origenGestion: String,
     val tipoGestion: String,
     val fechaGestionEpoch: Long,

@@ -143,10 +143,11 @@ Los datos descargados desde el servidor **reemplazan** los valores locales vigen
 - La futura integración con el sistema externo podrá usar estas observaciones para corregir datos; ese proceso queda fuera del MVP.
 
 ### RN-18 Búsqueda por RUT
-- Búsqueda local: en la asignación diaria descargada (sin conexión).
-- Búsqueda global: mediante la API cuando haya conexión.
-- La búsqueda global está disponible para el rol `EJECUTIVO_TERRENO`.
-- No se requiere auditoría funcional específica de cada búsqueda global; sí logging técnico de acceso a la API.
+- **Búsqueda local:** en la asignación diaria descargada (sin conexión). Filtro en `:feature:asignacion`.
+- **Búsqueda global:** `POST /api/v1/personas/busquedas` con el RUT en el body (no en la URL — ADR-0041). Rol requerido: `EJECUTIVO_TERRENO`.
+- El resultado de la búsqueda global se persiste localmente como snapshot JSON en la tabla `persona_directa` de Room, permitiendo registrar una gestión con `BUSQUEDA_DIRECTA` aunque se pierda la conexión después de la búsqueda (ADR-0042).
+- Auditoría: cada búsqueda genera un log estructurado `[BUSQUEDA_AUDITORIA]` con `ejecutivoId` y `personaId` (sin RUT en el log).
+- La respuesta de búsqueda incluye `Cache-Control: no-store` para prevenir caché de PII.
 
 ### RN-19 Importación inicial
 - Formato inicial: CSV.

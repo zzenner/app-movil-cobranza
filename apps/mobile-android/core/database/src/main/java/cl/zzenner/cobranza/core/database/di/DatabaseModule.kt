@@ -10,8 +10,10 @@ import cl.zzenner.cobranza.core.database.dao.GestionHistoricaDao
 import cl.zzenner.cobranza.core.database.dao.GestionLocalDao
 import cl.zzenner.cobranza.core.database.dao.OperacionDao
 import cl.zzenner.cobranza.core.database.dao.PersonaDao
+import cl.zzenner.cobranza.core.database.dao.PersonaDirectaDao
 import cl.zzenner.cobranza.core.database.dao.SyncMetadataDao
 import cl.zzenner.cobranza.core.database.migration.MIGRATION_1_2
+import cl.zzenner.cobranza.core.database.migration.MIGRATION_2_3
 import cl.zzenner.cobranza.core.database.transaction.BundleReplacementTransaction
 import dagger.Module
 import dagger.Provides
@@ -28,7 +30,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext ctx: Context): CobranzaDatabase =
         Room.databaseBuilder(ctx, CobranzaDatabase::class.java, "cobranza.db")
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     super.onOpen(db)
@@ -60,6 +62,10 @@ object DatabaseModule {
     @Provides
     fun provideSyncMetadataDao(db: CobranzaDatabase): SyncMetadataDao =
         db.syncMetadataDao()
+
+    @Provides
+    fun providePersonaDirectaDao(db: CobranzaDatabase): PersonaDirectaDao =
+        db.personaDirectaDao()
 
     @Provides
     @Singleton

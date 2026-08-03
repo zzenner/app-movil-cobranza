@@ -1,6 +1,6 @@
 # Roadmap
 
-## Fase actual: Fase 4C-A — Gestiones offline ASIGNACION_DIARIA — IMPLEMENTADA ✅ PENDIENTE COMMIT
+## Fase actual: Fase 4C-B — Búsqueda directa por RUT — IMPLEMENTADA ✅ PENDIENTE COMMIT
 
 ## Fase 0 — Inicialización del repositorio ✅
 
@@ -192,14 +192,22 @@
 - BUSQUEDA_DIRECTA (requiere endpoint API global por RUT — pendiente Fase 4C-B).
 - Fotografías (diferidas — ADR-0030).
 
-## Fase 4C-B — Búsqueda directa por RUT (PENDIENTE)
+## Fase 4C-B — Búsqueda directa por RUT ✅ IMPLEMENTADA
 
 **Objetivo:** Permitir gestionar personas fuera de la asignación diaria buscando por RUT.
 
-**Requiere:**
-- Endpoint API `GET /api/v1/personas/buscar?rut=...` con autenticación.
-- UI de búsqueda global en Android.
-- `origenGestion = BUSQUEDA_DIRECTA`.
+**Completado (2026-08-03):**
+- Endpoint API `POST /api/v1/personas/busquedas` — RUT en body por privacidad; `Cache-Control: no-store`. Rol: `EJECUTIVO_TERRENO`.
+- `RutValidacionApi` en `personas.api` — validación sin exponer tipo `Rut` interno entre módulos Spring Modulith.
+- `BusquedaPersonaService` en módulo `sincronizacion` — orquesta persona + operaciones + gestiones.
+- Room v3: `persona_directa` (snapshot JSON offline), `asignacionDiariaId` nullable en `gestion_local`.
+- `MIGRATION_2_3` no destructiva (25 columnas explícitas, recreación de tabla, sin `fallbackToDestructiveMigration`).
+- `:feature:busqueda` — `RutValidator` (Módulo 11), `BusquedaDirectaRepository`, `BusquedaDirectaViewModel`, `BusquedaDirectaScreen`.
+- `GestionForm.origenGestion` — campo explícito (no inferido); validator cross-valida origen ↔ asignacionDiariaId.
+- `HomeScreen` — botón "Buscar persona por RUT".
+- Navegación: solo `personaId` en rutas (sin PII en back stack).
+- 21 tests API nuevos; 22 tests Android nuevos.
+- ADR-0041, ADR-0042.
 
 ---
 

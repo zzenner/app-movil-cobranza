@@ -15,7 +15,7 @@ Paquete raíz: `cl.zzenner.cobranza`. Los módulos son sub-paquetes directos det
 | `personas`       | Copia operacional de personas, avales, direcciones y observaciones.      | Implementado (Fase 3A ✅)   |
 | `operaciones`    | Copia operacional de créditos y cuotas asociados a personas.             | Implementado (Fase 3A ✅)   |
 | `gestiones`      | Recepción idempotente, persistencia y consulta de gestiones de terreno.  | Implementado (Fase 3C ✅)   |
-| `sincronizacion` | Bundle de descarga completo para dispositivos Android (Fase 3D).         | Implementado (Fase 3D ✅)   |
+| `sincronizacion` | Bundle de descarga y búsqueda directa por RUT para dispositivos Android.  | Implementado (Fases 3D + 4C-B ✅) |
 | `auditoria`      | Trazabilidad de operaciones críticas. Escribe en esquema `auditoria`.    | Stub (pendiente)            |
 | `compartido`     | Utilidades transversales sin lógica de dominio. No depende de módulos.   | Stub (pendiente)            |
 
@@ -42,21 +42,23 @@ compartido    --> (sin dependencias de dominio)
 | `:app`                  | Actividad principal, Hilt, NavHost completo, LogoutUseCase, CobranzaApp.           | Implementado (4B ✅) |
 | `:core:network`         | Cliente HTTP público y autenticado, single-flight refresh, DTOs de sincronización. | Implementado (4B ✅) |
 | `:core:security`        | Keystore AES-256-GCM para refresh token, DataStore para sesión.                    | Implementado (4A ✅) |
-| `:core:database`        | Room 2.7.2 v2: 10 entidades (incluye `gestion_local`), 9 DAOs, BundleReplacementTransaction. `exportSchema=true`; esquemas en `schemas/.../1.json` y `2.json`. Migration 1→2 explícita. Sin `fallbackToDestructiveMigration`. | Implementado (4C-A ✅) |
+| `:core:database`        | Room v3: 11 entidades (incluye `gestion_local`, `persona_directa`), 10 DAOs, BundleReplacementTransaction. `exportSchema=true`; esquemas `1.json`, `2.json`, `3.json`. Migraciones 1→2, 2→3 explícitas. Sin `fallbackToDestructiveMigration`. | Implementado (4C-B ✅) |
 | `:feature:auth`         | LoginViewModel, pantallas Check/Login, SessionRepository (@Singleton), AuthModule. | Implementado (4B ✅) |
 | `:feature:asignacion`   | AsignacionRepository, DescargaAsignacionWorker, AsignacionViewModel, pantallas.    | Implementado (4B ✅) |
-| `:feature:gestion`      | GestionRepository (outbox + Mutex), EnvioGestionWorker (@HiltWorker), GestionSyncScheduler, LocationProvider (LocationManager), GestionFormScreen, GestionHistorialScreen. | Implementado (4C-A ✅) |
+| `:feature:gestion`      | GestionRepository (outbox + Mutex), EnvioGestionWorker (@HiltWorker), GestionSyncScheduler, LocationProvider (LocationManager), GestionFormScreen, GestionHistorialScreen. `GestionForm.origenGestion` explícito. | Implementado (4C-B ✅) |
+| `:feature:busqueda`     | RutValidator (Módulo 11), BusquedaDirectaRepository (snapshot en persona_directa), BusquedaDirectaViewModel, BusquedaDirectaScreen. Depende solo de `:core:database` y `:core:network`. | Implementado (4C-B ✅) |
 
 ### Grafo de dependencias Gradle
 
 ```
-:app --> :feature:auth, :feature:asignacion, :feature:gestion, :core:database, :core:network, :core:security
+:app --> :feature:auth, :feature:asignacion, :feature:gestion, :feature:busqueda, :core:database, :core:network, :core:security
 :feature:asignacion --> :core:database, :core:network
-:feature:gestion --> :core:database, :core:network
-:feature:auth --> :core:network, :core:security
-:core:database --> (solo Room, Hilt, Coroutines)
-:core:network --> (solo Retrofit, OkHttp, Hilt, kotlinx.serialization)
-:core:security --> (solo DataStore, Hilt, Coroutines)
+:feature:gestion    --> :core:database, :core:network
+:feature:busqueda   --> :core:database, :core:network
+:feature:auth       --> :core:network, :core:security
+:core:database      --> (solo Room, Hilt, Coroutines)
+:core:network       --> (solo Retrofit, OkHttp, Hilt, kotlinx.serialization)
+:core:security      --> (solo DataStore, Hilt, Coroutines)
 ```
 
 Los módulos `:feature:*` no dependen entre sí. `:app` es el único que conoce todos los features.

@@ -5,6 +5,7 @@ sealed class ErrorValidacion {
     data object FechaCompromisoRequerida : ErrorValidacion()
     data object FechaCompromisoInvalida : ErrorValidacion()
     data object UbicacionRequerida : ErrorValidacion()
+    data object OrigenIncoherente : ErrorValidacion()
     data class ObservacionDemasiadoLarga(val max: Int) : ErrorValidacion()
     data class ObservacionDireccionDemasiadoLarga(val max: Int) : ErrorValidacion()
 }
@@ -16,6 +17,13 @@ object GestionValidator {
 
     fun validar(form: GestionForm, fechaHoyIso: String): List<ErrorValidacion> {
         val errores = mutableListOf<ErrorValidacion>()
+
+        if (form.origenGestion == OrigenGestion.ASIGNACION_DIARIA && form.asignacionDiariaId == null) {
+            errores += ErrorValidacion.OrigenIncoherente
+        }
+        if (form.origenGestion == OrigenGestion.BUSQUEDA_DIRECTA && form.asignacionDiariaId != null) {
+            errores += ErrorValidacion.OrigenIncoherente
+        }
 
         if (form.observacion != null && form.observacion.length > MAX_OBSERVACION) {
             errores += ErrorValidacion.ObservacionDemasiadoLarga(MAX_OBSERVACION)

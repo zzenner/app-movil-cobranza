@@ -1,0 +1,959 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "35b42dc22c775aaf9f32ad1e05900dc3",
+    "entities": [
+      {
+        "tableName": "asignacion_diaria",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `ejecutivoId` TEXT NOT NULL, `fecha` TEXT NOT NULL, `estado` TEXT NOT NULL, `fechaPublicacion` TEXT, `fechaDescargaEpoch` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ejecutivoId",
+            "columnName": "ejecutivoId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fecha",
+            "columnName": "fecha",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estado",
+            "columnName": "estado",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaPublicacion",
+            "columnName": "fechaPublicacion",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fechaDescargaEpoch",
+            "columnName": "fechaDescargaEpoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "persona",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `rutNumero` TEXT NOT NULL, `rutDv` TEXT NOT NULL, `nombre` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rutNumero",
+            "columnName": "rutNumero",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rutDv",
+            "columnName": "rutDv",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_persona_rutNumero_rutDv",
+            "unique": false,
+            "columnNames": [
+              "rutNumero",
+              "rutDv"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_persona_rutNumero_rutDv` ON `${TABLE_NAME}` (`rutNumero`, `rutDv`)"
+          }
+        ]
+      },
+      {
+        "tableName": "asignacion_persona",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`asignacionId` TEXT NOT NULL, `personaId` TEXT NOT NULL, PRIMARY KEY(`asignacionId`, `personaId`), FOREIGN KEY(`asignacionId`) REFERENCES `asignacion_diaria`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`personaId`) REFERENCES `persona`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "asignacionId",
+            "columnName": "asignacionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "personaId",
+            "columnName": "personaId",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "asignacionId",
+            "personaId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_asignacion_persona_asignacionId",
+            "unique": false,
+            "columnNames": [
+              "asignacionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_asignacion_persona_asignacionId` ON `${TABLE_NAME}` (`asignacionId`)"
+          },
+          {
+            "name": "index_asignacion_persona_personaId",
+            "unique": false,
+            "columnNames": [
+              "personaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_asignacion_persona_personaId` ON `${TABLE_NAME}` (`personaId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "asignacion_diaria",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "asignacionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "persona",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "personaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "direccion",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `personaId` TEXT NOT NULL, `tipo` TEXT NOT NULL, `texto` TEXT NOT NULL, `comuna` TEXT, `ciudad` TEXT, `vigente` INTEGER NOT NULL, FOREIGN KEY(`personaId`) REFERENCES `persona`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "personaId",
+            "columnName": "personaId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipo",
+            "columnName": "tipo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "texto",
+            "columnName": "texto",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "comuna",
+            "columnName": "comuna",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ciudad",
+            "columnName": "ciudad",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "vigente",
+            "columnName": "vigente",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_direccion_personaId",
+            "unique": false,
+            "columnNames": [
+              "personaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_direccion_personaId` ON `${TABLE_NAME}` (`personaId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "persona",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "personaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "aval",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `personaIdTitular` TEXT NOT NULL, `rutNumero` TEXT NOT NULL, `rutDv` TEXT NOT NULL, `nombre` TEXT NOT NULL, FOREIGN KEY(`personaIdTitular`) REFERENCES `persona`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "personaIdTitular",
+            "columnName": "personaIdTitular",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rutNumero",
+            "columnName": "rutNumero",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rutDv",
+            "columnName": "rutDv",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_aval_personaIdTitular",
+            "unique": false,
+            "columnNames": [
+              "personaIdTitular"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_aval_personaIdTitular` ON `${TABLE_NAME}` (`personaIdTitular`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "persona",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "personaIdTitular"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "operacion",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `personaId` TEXT NOT NULL, `numeroOperacion` TEXT NOT NULL, `estado` TEXT NOT NULL, `capital` TEXT NOT NULL, `interesPenal` TEXT NOT NULL, `gastosCobranza` TEXT NOT NULL, `totalVigente` TEXT NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`personaId`) REFERENCES `persona`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "personaId",
+            "columnName": "personaId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "numeroOperacion",
+            "columnName": "numeroOperacion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estado",
+            "columnName": "estado",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "capital",
+            "columnName": "capital",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "interesPenal",
+            "columnName": "interesPenal",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gastosCobranza",
+            "columnName": "gastosCobranza",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalVigente",
+            "columnName": "totalVigente",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_operacion_personaId",
+            "unique": false,
+            "columnNames": [
+              "personaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_operacion_personaId` ON `${TABLE_NAME}` (`personaId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "persona",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "personaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "cuota",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `operacionId` TEXT NOT NULL, `numeroCuota` INTEGER NOT NULL, `estado` TEXT NOT NULL, `montoTotal` TEXT NOT NULL, `saldo` TEXT NOT NULL, `fechaVencimiento` TEXT NOT NULL, FOREIGN KEY(`operacionId`) REFERENCES `operacion`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operacionId",
+            "columnName": "operacionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "numeroCuota",
+            "columnName": "numeroCuota",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estado",
+            "columnName": "estado",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "montoTotal",
+            "columnName": "montoTotal",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "saldo",
+            "columnName": "saldo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaVencimiento",
+            "columnName": "fechaVencimiento",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_cuota_operacionId",
+            "unique": false,
+            "columnNames": [
+              "operacionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cuota_operacionId` ON `${TABLE_NAME}` (`operacionId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "operacion",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "operacionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "gestion_historica",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `personaId` TEXT NOT NULL, `asignacionDiariaId` TEXT, `ejecutivoId` TEXT NOT NULL, `origenGestion` TEXT NOT NULL, `tipoGestion` TEXT NOT NULL, `fechaGestion` INTEGER NOT NULL, `observacion` TEXT, `observacionDireccion` TEXT, `latitud` REAL NOT NULL, `longitud` REAL NOT NULL, `precisionMetros` REAL NOT NULL, `proveedorGps` TEXT, `ubicacionSimulada` INTEGER NOT NULL, `fechaCapturaGps` INTEGER NOT NULL, `fechaCompromiso` TEXT, `fechaCreacionServidor` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`personaId`) REFERENCES `persona`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "personaId",
+            "columnName": "personaId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "asignacionDiariaId",
+            "columnName": "asignacionDiariaId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ejecutivoId",
+            "columnName": "ejecutivoId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origenGestion",
+            "columnName": "origenGestion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipoGestion",
+            "columnName": "tipoGestion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaGestion",
+            "columnName": "fechaGestion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "observacion",
+            "columnName": "observacion",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "observacionDireccion",
+            "columnName": "observacionDireccion",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "latitud",
+            "columnName": "latitud",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longitud",
+            "columnName": "longitud",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "precisionMetros",
+            "columnName": "precisionMetros",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "proveedorGps",
+            "columnName": "proveedorGps",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ubicacionSimulada",
+            "columnName": "ubicacionSimulada",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaCapturaGps",
+            "columnName": "fechaCapturaGps",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaCompromiso",
+            "columnName": "fechaCompromiso",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fechaCreacionServidor",
+            "columnName": "fechaCreacionServidor",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_gestion_historica_personaId",
+            "unique": false,
+            "columnNames": [
+              "personaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_gestion_historica_personaId` ON `${TABLE_NAME}` (`personaId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "persona",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "personaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "gestion_local",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `personaId` TEXT NOT NULL, `personaRutNumero` TEXT NOT NULL, `personaRutDv` TEXT NOT NULL, `personaNombre` TEXT NOT NULL, `asignacionDiariaId` TEXT, `origenGestion` TEXT NOT NULL, `tipoGestion` TEXT NOT NULL, `fechaGestionEpoch` INTEGER NOT NULL, `fechaCapturaGpsEpoch` INTEGER NOT NULL, `observacion` TEXT, `observacionDireccion` TEXT, `latitud` REAL NOT NULL, `longitud` REAL NOT NULL, `precisionMetros` REAL NOT NULL, `ubicacionSimulada` INTEGER NOT NULL, `proveedorGps` TEXT, `fechaCompromiso` TEXT, `estadoSincronizacion` TEXT NOT NULL, `fechaCreacionLocalEpoch` INTEGER NOT NULL, `cantidadIntentos` INTEGER NOT NULL, `leaseHastaEpoch` INTEGER, `fechaProximoIntentoEpoch` INTEGER, `codigoErrorServidor` TEXT, `mensajeError` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "personaId",
+            "columnName": "personaId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "personaRutNumero",
+            "columnName": "personaRutNumero",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "personaRutDv",
+            "columnName": "personaRutDv",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "personaNombre",
+            "columnName": "personaNombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "asignacionDiariaId",
+            "columnName": "asignacionDiariaId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "origenGestion",
+            "columnName": "origenGestion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipoGestion",
+            "columnName": "tipoGestion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaGestionEpoch",
+            "columnName": "fechaGestionEpoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaCapturaGpsEpoch",
+            "columnName": "fechaCapturaGpsEpoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "observacion",
+            "columnName": "observacion",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "observacionDireccion",
+            "columnName": "observacionDireccion",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "latitud",
+            "columnName": "latitud",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longitud",
+            "columnName": "longitud",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "precisionMetros",
+            "columnName": "precisionMetros",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ubicacionSimulada",
+            "columnName": "ubicacionSimulada",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "proveedorGps",
+            "columnName": "proveedorGps",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fechaCompromiso",
+            "columnName": "fechaCompromiso",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "estadoSincronizacion",
+            "columnName": "estadoSincronizacion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaCreacionLocalEpoch",
+            "columnName": "fechaCreacionLocalEpoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cantidadIntentos",
+            "columnName": "cantidadIntentos",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "leaseHastaEpoch",
+            "columnName": "leaseHastaEpoch",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "fechaProximoIntentoEpoch",
+            "columnName": "fechaProximoIntentoEpoch",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "codigoErrorServidor",
+            "columnName": "codigoErrorServidor",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mensajeError",
+            "columnName": "mensajeError",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_gestion_local_personaId",
+            "unique": false,
+            "columnNames": [
+              "personaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_gestion_local_personaId` ON `${TABLE_NAME}` (`personaId`)"
+          },
+          {
+            "name": "index_gestion_local_estadoSincronizacion",
+            "unique": false,
+            "columnNames": [
+              "estadoSincronizacion"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_gestion_local_estadoSincronizacion` ON `${TABLE_NAME}` (`estadoSincronizacion`)"
+          },
+          {
+            "name": "index_gestion_local_fechaCreacionLocalEpoch",
+            "unique": false,
+            "columnNames": [
+              "fechaCreacionLocalEpoch"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_gestion_local_fechaCreacionLocalEpoch` ON `${TABLE_NAME}` (`fechaCreacionLocalEpoch`)"
+          },
+          {
+            "name": "index_gestion_local_estadoSincronizacion_fechaProximoIntentoEpoch",
+            "unique": false,
+            "columnNames": [
+              "estadoSincronizacion",
+              "fechaProximoIntentoEpoch"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_gestion_local_estadoSincronizacion_fechaProximoIntentoEpoch` ON `${TABLE_NAME}` (`estadoSincronizacion`, `fechaProximoIntentoEpoch`)"
+          }
+        ]
+      },
+      {
+        "tableName": "sync_metadata",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `estado` TEXT NOT NULL, `fechaConsultada` TEXT, `versionContrato` TEXT, `generadoEn` INTEGER, `ultimaDescargaExitosa` INTEGER, `ultimoIntento` INTEGER, `codigoUltimoError` TEXT, `mensajeSeguro` TEXT, `asignacionIdAlmacenada` TEXT, `fechaAsignacionAlmacenada` TEXT, `datosAnterioresDisponibles` INTEGER NOT NULL, `datosMarcadosComoDesactualizados` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estado",
+            "columnName": "estado",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaConsultada",
+            "columnName": "fechaConsultada",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "versionContrato",
+            "columnName": "versionContrato",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "generadoEn",
+            "columnName": "generadoEn",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "ultimaDescargaExitosa",
+            "columnName": "ultimaDescargaExitosa",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "ultimoIntento",
+            "columnName": "ultimoIntento",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "codigoUltimoError",
+            "columnName": "codigoUltimoError",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mensajeSeguro",
+            "columnName": "mensajeSeguro",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "asignacionIdAlmacenada",
+            "columnName": "asignacionIdAlmacenada",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fechaAsignacionAlmacenada",
+            "columnName": "fechaAsignacionAlmacenada",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "datosAnterioresDisponibles",
+            "columnName": "datosAnterioresDisponibles",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "datosMarcadosComoDesactualizados",
+            "columnName": "datosMarcadosComoDesactualizados",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "persona_directa",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `rutNumero` TEXT NOT NULL, `rutDv` TEXT NOT NULL, `nombre` TEXT NOT NULL, `versionContrato` INTEGER NOT NULL, `generadoEnEpoch` INTEGER NOT NULL, `fechaConsultaEpoch` INTEGER NOT NULL, `detalleJson` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rutNumero",
+            "columnName": "rutNumero",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rutDv",
+            "columnName": "rutDv",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "versionContrato",
+            "columnName": "versionContrato",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generadoEnEpoch",
+            "columnName": "generadoEnEpoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaConsultaEpoch",
+            "columnName": "fechaConsultaEpoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "detalleJson",
+            "columnName": "detalleJson",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_persona_directa_rutNumero_rutDv",
+            "unique": false,
+            "columnNames": [
+              "rutNumero",
+              "rutDv"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_persona_directa_rutNumero_rutDv` ON `${TABLE_NAME}` (`rutNumero`, `rutDv`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '35b42dc22c775aaf9f32ad1e05900dc3')"
+    ]
+  }
+}

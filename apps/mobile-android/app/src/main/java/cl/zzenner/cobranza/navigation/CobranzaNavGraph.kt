@@ -8,7 +8,10 @@ import androidx.navigation.compose.rememberNavController
 import cl.zzenner.cobranza.feature.asignacion.ui.RUTA_LISTA_ASIGNACION
 import cl.zzenner.cobranza.feature.asignacion.ui.asignacionNavGraph
 import cl.zzenner.cobranza.feature.auth.navigation.authNavGraph
+import cl.zzenner.cobranza.feature.busqueda.RUTA_BUSQUEDA_DIRECTA
+import cl.zzenner.cobranza.feature.busqueda.busquedaNavGraph
 import cl.zzenner.cobranza.feature.gestion.ui.RUTA_HISTORIAL_GESTION
+import cl.zzenner.cobranza.feature.gestion.ui.RUTA_FORM_GESTION_BUSQUEDA
 import cl.zzenner.cobranza.feature.gestion.ui.gestionNavGraph
 import cl.zzenner.cobranza.ui.HomeScreen
 
@@ -39,6 +42,9 @@ fun CobranzaNavGraph(
                 onIrAAsignacion = {
                     navController.navigate(RUTA_LISTA_ASIGNACION)
                 },
+                onIrABusqueda = {
+                    navController.navigate(RUTA_BUSQUEDA_DIRECTA)
+                },
                 onLogout = {
                     navController.navigate("auth") {
                         popUpTo(0) { inclusive = true }
@@ -61,6 +67,13 @@ fun CobranzaNavGraph(
         )
 
         gestionNavGraph(
+            onNavigateBack = { navController.popBackStack() },
+        )
+
+        busquedaNavGraph(
+            onRegistrarGestion = { personaId ->
+                navController.navigate("gestion/form/busqueda/$personaId")
+            },
             onNavigateBack = { navController.popBackStack() },
         )
     }

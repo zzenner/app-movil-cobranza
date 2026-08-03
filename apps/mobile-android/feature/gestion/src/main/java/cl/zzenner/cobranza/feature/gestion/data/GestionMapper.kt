@@ -20,7 +20,7 @@ object GestionMapper {
             personaRutDv = form.personaRutDv,
             personaNombre = form.personaNombre,
             asignacionDiariaId = form.asignacionDiariaId,
-            origenGestion = "ASIGNACION_DIARIA",
+            origenGestion = form.origenGestion.name,
             tipoGestion = form.tipoGestion.name,
             fechaGestionEpoch = ahora,
             fechaCapturaGpsEpoch = form.ubicacion.fechaCapturaEpoch,

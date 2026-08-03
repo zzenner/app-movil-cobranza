@@ -109,6 +109,24 @@ Estado: BORRADOR — pendiente de refinamiento y estimación.
 
 ---
 
+---
+
+### HU-010 — Buscar y gestionar persona fuera de la asignación diaria (Fase 4C-B ✅)
+**Como** cobrador, **quiero** buscar una persona por RUT aunque no esté en mi asignación diaria, **para** registrar una gestión cuando me encuentro con un deudor de forma no planificada.
+
+**Criterios de aceptación:**
+- Puedo acceder a la pantalla de búsqueda desde el menú principal.
+- Ingresan el número de RUT y el dígito verificador por separado.
+- Si el RUT es válido y la persona existe, veo sus datos y puedo registrar una gestión.
+- La gestión se registra con `origenGestion = BUSQUEDA_DIRECTA` (sin `asignacionDiariaId`).
+- Puedo registrar la gestión aunque pierda conexión después de la búsqueda (los datos de la persona quedan guardados localmente).
+- Si el RUT no existe en el sistema, recibo un mensaje claro de "no encontrado".
+- Si el RUT tiene un dígito verificador incorrecto, recibo un mensaje de validación antes de consultar la API.
+
+**Implementado en:** `:feature:busqueda`, `POST /api/v1/personas/busquedas`, Room `persona_directa`. Ver ADR-0041, ADR-0042.
+
+---
+
 ## PENDIENTE
 
 - HU pendientes de identificar: reportes, corrección de gestiones, reasignación de carteras.

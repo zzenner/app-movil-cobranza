@@ -52,6 +52,7 @@ dependencies {
     implementation(project(":feature:auth"))
     implementation(project(":feature:asignacion"))
     implementation(project(":feature:gestion"))
+    implementation(project(":feature:busqueda"))
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

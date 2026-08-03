@@ -28,12 +28,12 @@ cl.zzenner.cobranza/
 ├── asignaciones/      — asignaciones mensuales y diarias con estados (Fase 3B ✅)
 │   └── api/           — AsignacionConsultaApi (@NamedInterface)
 ├── personas/          — copia operacional: personas, avales, direcciones (Fase 3A ✅)
-│   └── api/           — PersonaConsultaApi (@NamedInterface)
+│   └── api/           — PersonaConsultaApi, RutValidacionApi (@NamedInterface)
 ├── operaciones/       — copia operacional: créditos y cuotas por persona (Fase 3A ✅)
 │   └── api/           — OperacionConsultaApi (@NamedInterface)
 ├── gestiones/         — recepción idempotente de gestiones de terreno (Fase 3C ✅)
 │   └── api/           — GestionConsultaApi, ResultadoRecepcion (@NamedInterface)
-├── sincronizacion/    — bundle descarga: personas + ops + gestiones (Fase 3D ✅)
+├── sincronizacion/    — bundle descarga + búsqueda directa por RUT (Fases 3D + 4C-B ✅)
 ├── auditoria/         — trazabilidad de operaciones críticas (stub)
 └── compartido/        — utilidades transversales sin lógica de dominio (stub)
 ```
@@ -89,6 +89,7 @@ cd apps/api && ./mvnw test -Dtest="ModularidadTest"
 |---|---|---|
 | `GET /api/v1/asignaciones/diaria/activa` | 200 / 204 | Descarga bundle completo de la asignación diaria activa. Parámetro `?fecha` opcional (ISO-8601). 204 si no hay asignación PUBLICADA. |
 | `POST /api/v1/gestiones` | 201 / 200 / 409 | Recepción idempotente de gestión. 201 = nueva, 200 = idempotente, 409 = conflicto UUID. El ejecutivo se extrae del JWT (`sub`). |
+| `POST /api/v1/personas/busquedas` | 200 / 400 / 404 | Búsqueda directa por RUT. RUT en body por privacidad (ADR-0041). 400 = RUT inválido, 404 = no existe. Respuesta `{ version, generadoEn, persona }`. |
 
 ### Infraestructura (públicos)
 

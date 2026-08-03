@@ -4,10 +4,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cl.zzenner.cobranza.core.database.dao.PersonaDao
+import cl.zzenner.cobranza.core.database.dao.PersonaDirectaDao
 import cl.zzenner.cobranza.feature.gestion.data.GestionRepository
 import cl.zzenner.cobranza.feature.gestion.domain.ErrorValidacion
 import cl.zzenner.cobranza.feature.gestion.domain.GestionForm
 import cl.zzenner.cobranza.feature.gestion.domain.GestionValidator
+import cl.zzenner.cobranza.feature.gestion.domain.OrigenGestion
 import cl.zzenner.cobranza.feature.gestion.domain.TipoGestion
 import cl.zzenner.cobranza.feature.gestion.domain.UbicacionCapturada
 import cl.zzenner.cobranza.feature.gestion.location.LocationProvider
@@ -46,13 +48,14 @@ sealed class GpsState {
 class GestionFormViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val personaDao: PersonaDao,
+    private val personaDirectaDao: PersonaDirectaDao,
     private val repository: GestionRepository,
     private val locationProvider: LocationProvider,
     private val scheduler: GestionSyncScheduler,
 ) : ViewModel() {
 
     val personaId: String = checkNotNull(savedStateHandle["personaId"])
-    val asignacionDiariaId: String = checkNotNull(savedStateHandle["asignacionDiariaId"])
+    val asignacionDiariaId: String? = savedStateHandle["asignacionDiariaId"]
 
     private val _state = MutableStateFlow(GestionFormState())
     val state: StateFlow<GestionFormState> = _state.asStateFlow()
@@ -63,11 +66,20 @@ class GestionFormViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            personaDao.getPersonaConDetalle(personaId).collect { pcd ->
-                if (pcd != null) {
-                    personaRutNumero = pcd.persona.rutNumero
-                    personaRutDv = pcd.persona.rutDv
-                    personaNombre = pcd.persona.nombre
+            if (asignacionDiariaId != null) {
+                personaDao.getPersonaConDetalle(personaId).collect { pcd ->
+                    if (pcd != null) {
+                        personaRutNumero = pcd.persona.rutNumero
+                        personaRutDv = pcd.persona.rutDv
+                        personaNombre = pcd.persona.nombre
+                    }
+                }
+            } else {
+                val pd = personaDirectaDao.findById(personaId)
+                if (pd != null) {
+                    personaRutNumero = pd.rutNumero
+                    personaRutDv = pd.rutDv
+                    personaNombre = pd.nombre
                 }
             }
         }
@@ -136,11 +148,14 @@ class GestionFormViewModel @Inject constructor(
             return
         }
 
+        val origenGestion = if (asignacionDiariaId != null) OrigenGestion.ASIGNACION_DIARIA else OrigenGestion.BUSQUEDA_DIRECTA
+
         val form = GestionForm(
             personaId = personaId,
             personaRutNumero = personaRutNumero,
             personaRutDv = personaRutDv,
             personaNombre = personaNombre,
+            origenGestion = origenGestion,
             asignacionDiariaId = asignacionDiariaId,
             tipoGestion = tipo,
             observacion = s.observacion.trim().ifBlank { null },

@@ -7,6 +7,7 @@ import cl.zzenner.cobranza.core.database.dao.GestionHistoricaDao
 import cl.zzenner.cobranza.core.database.dao.GestionLocalDao
 import cl.zzenner.cobranza.core.database.dao.OperacionDao
 import cl.zzenner.cobranza.core.database.dao.PersonaDao
+import cl.zzenner.cobranza.core.database.dao.PersonaDirectaDao
 import cl.zzenner.cobranza.core.database.dao.SyncMetadataDao
 import cl.zzenner.cobranza.core.database.entity.AsignacionDiariaEntity
 import cl.zzenner.cobranza.core.database.entity.AsignacionPersonaCrossRef
@@ -16,6 +17,7 @@ import cl.zzenner.cobranza.core.database.entity.DireccionEntity
 import cl.zzenner.cobranza.core.database.entity.GestionHistoricaEntity
 import cl.zzenner.cobranza.core.database.entity.GestionLocalEntity
 import cl.zzenner.cobranza.core.database.entity.OperacionEntity
+import cl.zzenner.cobranza.core.database.entity.PersonaDirectaEntity
 import cl.zzenner.cobranza.core.database.entity.PersonaEntity
 import cl.zzenner.cobranza.core.database.entity.SyncMetadataEntity
 
@@ -31,8 +33,9 @@ import cl.zzenner.cobranza.core.database.entity.SyncMetadataEntity
         GestionHistoricaEntity::class,
         GestionLocalEntity::class,
         SyncMetadataEntity::class,
+        PersonaDirectaEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class CobranzaDatabase : RoomDatabase() {
@@ -42,4 +45,5 @@ abstract class CobranzaDatabase : RoomDatabase() {
     abstract fun gestionHistoricaDao(): GestionHistoricaDao
     abstract fun gestionLocalDao(): GestionLocalDao
     abstract fun syncMetadataDao(): SyncMetadataDao
+    abstract fun personaDirectaDao(): PersonaDirectaDao
 }

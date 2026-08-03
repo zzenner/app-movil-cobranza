@@ -8,7 +8,7 @@
 - **Gestiones: unidireccional** — van del dispositivo a la API, nunca al revés.
 - **Asignación y datos: bidireccional** — se descargan desde la API hacia el dispositivo.
 
-## Endpoints implementados (Fase 3D + 4C-A)
+## Endpoints implementados (Fase 3D + 4C-A + 4C-B)
 
 Contrato completo en `contracts/openapi/cobranza-api.yaml`.
 
@@ -43,6 +43,23 @@ Response 201 INSERTADA: gestión nueva persistida.
 Response 200 IDEMPOTENTE: mismo UUID + mismo contenido (reenvío seguro).
 Response 409 CONFLICTO: mismo UUID + contenido diferente (no recuperable).
 ```
+
+### Búsqueda directa por RUT (Fase 4C-B)
+```
+POST /api/v1/personas/busquedas
+Authorization: Bearer <token>
+Content-Type: application/json
+Cache-Control: no-store  (en la respuesta)
+
+Body: { "rutNumero": "15000001", "rutDv": "7" }
+
+Response 200: { "version": 1, "generadoEn": "...", "persona": { /* DatosPersonaDescarga */ } }
+Response 400: RUT inválido (code: RUT_INVALIDO)
+Response 404: Persona no encontrada
+```
+
+**RUT en body:** el RUT es PII; colocarlo en query string lo expone en logs de acceso y proxies. Ver ADR-0041.
+**Snapshot local:** la respuesta se persiste en Room (`persona_directa`) para acceso offline posterior. Ver ADR-0042.
 
 ### Subida de fotografías
 ```

@@ -113,4 +113,11 @@ object NetworkModule {
     @Singleton
     fun provideGestionApi(@Named("authenticated") retrofit: Retrofit): GestionApi =
         retrofit.create(GestionApi::class.java)
+
+    @Provides
+    @Singleton
+    fun providePersonaBusquedaApi(
+        @Named("authenticated") retrofit: Retrofit,
+    ): cl.zzenner.cobranza.core.network.api.PersonaBusquedaApi =
+        retrofit.create(cl.zzenner.cobranza.core.network.api.PersonaBusquedaApi::class.java)
 }

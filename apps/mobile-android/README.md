@@ -26,13 +26,14 @@ App Android del sistema de cobranza en terreno — offline-first.
 apps/mobile-android/
 ├── app/                    — Actividad principal, CobranzaApp, LogoutUseCase, grafo de navegación
 ├── core/
-│   ├── database/           — Room v2: 10 entidades, 9 DAOs, BundleReplacementTransaction, migraciones
-│   ├── network/            — Cliente HTTP (público + autenticado), SingleFlightAuthenticator, GestionApi
+│   ├── database/           — Room v3: 11 entidades, 10 DAOs, BundleReplacementTransaction, migraciones 1→2→3
+│   ├── network/            — Cliente HTTP (público + autenticado), SingleFlightAuthenticator, PersonaBusquedaApi
 │   └── security/           — InstallationIdStore (DataStore), SecureTokenStore (Keystore AES-GCM)
 └── feature/
     ├── auth/               — LoginViewModel, SessionRepository, pantallas Check/Login/Home
     ├── asignacion/         — AsignacionRepository, DescargaAsignacionWorker, AsignacionViewModel, pantallas lista/detalle
-    └── gestion/            — GestionRepository (outbox), EnvioGestionWorker, AndroidLocationProvider, pantallas formulario/historial
+    ├── gestion/            — GestionRepository (outbox), EnvioGestionWorker, AndroidLocationProvider, pantallas formulario/historial
+    └── busqueda/           — RutValidator, BusquedaDirectaRepository, BusquedaDirectaViewModel, BusquedaDirectaScreen
 ```
 
 ## Fases implementadas
@@ -70,9 +71,20 @@ apps/mobile-android/
 | `GestionHistorialScreen` | Historial unificado local+histórico; dedup por UUID; badge por estado |
 | `HomeViewModel.EstadoLogout` | Bloqueo de logout si hay gestiones no-SINCRONIZADA; sin "salir igualmente" |
 
+### Fase 4C-B — Búsqueda directa por RUT
+
+| Componente | Descripción |
+|---|---|
+| `CobranzaDatabase` v3 | `persona_directa` (snapshot JSON offline); `gestion_local.asignacionDiariaId` nullable; `MIGRATION_2_3` no destructiva |
+| `RutValidator` | Validación Módulo 11 local (sin conexión) |
+| `BusquedaDirectaRepository` | `POST /api/v1/personas/busquedas`; upsert de snapshot en `persona_directa` |
+| `BusquedaDirectaViewModel` | Estado de búsqueda; filtros de campo (dígitos, máx. 8 + DV máx. 1) |
+| `BusquedaDirectaScreen` | Pantalla de búsqueda con validación y navegación al formulario |
+| `GestionForm.origenGestion` | Campo explícito (no inferido); validator cross-valida origen ↔ asignacionDiariaId |
+
 ### Pruebas JVM (sin dispositivo)
 
-**143 tests — 0 failures** (Fase 4C-A). Ejecutar con:
+**165 tests — 0 failures** (Fase 4C-B). Ejecutar con:
 
 ```bash
 cd apps/mobile-android
@@ -102,10 +114,11 @@ cd apps/mobile-android
 
 ## Base de datos Room
 
-- **Versión:** 2
+- **Versión:** 3
 - **Schemas exportados:** `core/database/schemas/cl.zzenner.cobranza.core.database.CobranzaDatabase/`
   - `1.json` — Fase 4B (9 entidades)
   - `2.json` — Fase 4C-A (agrega `gestion_local`)
+  - `3.json` — Fase 4C-B (agrega `persona_directa`; `gestion_local.asignacionDiariaId` nullable)
 - **Sin `fallbackToDestructiveMigration`** — toda migración es explícita
 
 ## Seguridad
@@ -126,3 +139,5 @@ cd apps/mobile-android
 - [ADR-0038](../../docs/adr/0038-estados-lease-workmanager.md) — Estados, lease CAS y WorkManager
 - [ADR-0039](../../docs/adr/0039-gps-location-manager.md) — GPS vía LocationManager
 - [ADR-0040](../../docs/adr/0040-logout-gestiones-no-resueltas.md) — Política de logout
+- [ADR-0041](../../docs/adr/0041-endpoint-busqueda-privacidad-rut.md) — POST para búsqueda (privacidad del RUT)
+- [ADR-0042](../../docs/adr/0042-persistencia-snapshot-directo-room-v3.md) — Snapshot en Room v3 para búsqueda directa

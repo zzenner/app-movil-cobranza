@@ -29,6 +29,7 @@ import cl.zzenner.cobranza.feature.auth.domain.AuthState
 @Composable
 fun HomeScreen(
     onIrAAsignacion: () -> Unit,
+    onIrABusqueda: () -> Unit,
     onLogout: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -148,6 +149,13 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Mi asignación diaria")
+            }
+
+            Button(
+                onClick = onIrABusqueda,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Buscar persona por RUT")
             }
         }
     }

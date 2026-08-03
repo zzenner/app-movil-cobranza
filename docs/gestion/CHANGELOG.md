@@ -5,6 +5,84 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-03 — Fase 4C-B: Búsqueda directa por RUT — IMPLEMENTADA ✅
+
+### Añadido — API (`apps/api/`)
+
+**Módulo `sincronizacion` — Endpoint POST /api/v1/personas/busquedas**
+
+- `RutValidacionApi` — interfaz en `personas.api` (`@NamedInterface("api")`); expone `esValido(rutNumero, rutDv): boolean` sin revelar el tipo de dominio interno `Rut` entre módulos.
+- `RutValidacionServicio` — implementación en `personas.aplicacion`; delega a `Rut.of()` con captura de `RutInvalidoException`.
+- `RutInvalidoEnBusquedaException` — excepción de aplicación con código estable `RUT_INVALIDO`.
+- `SolicitudBusquedaPersona` — record `{ @NotBlank rutNumero, @NotBlank rutDv }`. RUT en body por privacidad (ADR-0041).
+- `RespuestaBusquedaPersona` — record `{ version: 1, generadoEn: Instant, persona: DatosPersonaDescarga }`.
+- `BusquedaPersonaService` — valida RUT vía `RutValidacionApi`; busca persona, direcciones, avales, operaciones, últimas 10 gestiones; emite log estructurado `[BUSQUEDA_AUDITORIA]` con `ejecutivoId` y `personaId` (sin RUT).
+- `BusquedaPersonaController` — `@PostMapping("/busquedas")`, `@PreAuthorize("hasRole('EJECUTIVO_TERRENO')")`, `Cache-Control: no-store` en la respuesta. `@ExceptionHandler(RutInvalidoEnBusquedaException)` local retorna ProblemDetail `code=RUT_INVALIDO`.
+- `BusquedaPersonaRestTest` — 21 tests de integración: 401/403, RUT inválido (DV incorrecto, campos en blanco), 404, 200, envelope (`version`, `generadoEn`, `persona`), `Cache-Control: no-store`, PII no filtrado en errores.
+- `contracts/openapi/cobranza-api.yaml` — v1.0.0; schemas `SolicitudBusquedaPersona`, `RespuestaBusquedaPersona`; path `/api/v1/personas/busquedas`.
+- **API: 269 pruebas — 0 failures.**
+
+### Añadido — Android `:core:database` (Room v3)
+
+- `PersonaDirectaEntity` — tabla `persona_directa`; `@PrimaryKey id: String`, `rutNumero`, `rutDv`, `nombre`, `versionContrato`, `generadoEnEpoch`, `fechaConsultaEpoch`, `detalleJson: String` (JSON completo de `DatosPersonaDescarga`). Índice en `(rutNumero, rutDv)`.
+- `PersonaDirectaDao` — `upsert`, `findById`, `findByRut`, `deleteAll`.
+- `MIGRATION_2_3` — recreación de `gestion_local` con `asignacionDiariaId TEXT` (nullable); INSERT explícito de 25 columnas; recreación de 4 índices; creación de `persona_directa`. Sin `fallbackToDestructiveMigration`.
+- `GestionLocalEntity.asignacionDiariaId: String?` (era `String` NOT NULL).
+- `CobranzaDatabase` v3 — añadida `PersonaDirectaEntity`; `personaDirectaDao()`.
+- `DatabaseModule` — `MIGRATION_2_3` añadida a `addMigrations`; `providePersonaDirectaDao`.
+- `BundleReplacementTransaction.limpiarTodo()` — añadido `personaDirectaDao.deleteAll()`.
+- Esquema exportado: `schemas/.../3.json` — 11 entidades.
+
+### Añadido — Android `:core:network`
+
+- `BusquedaDtos.kt` — `SolicitudBusquedaDto`, `RespuestaBusquedaDto` (`@Serializable`).
+- `PersonaBusquedaApi.kt` — `@POST("api/v1/personas/busquedas") suspend fun buscarPersona(@Body): Response<RespuestaBusquedaDto>`.
+- `NetworkModule` — `providePersonaBusquedaApi`.
+
+### Añadido — Android `:feature:busqueda` (módulo nuevo)
+
+- `RutValidator.kt` — `object RutValidator { fun esValido(numero, dv): Boolean; fun calcularDv(numero): String }` — algoritmo Módulo 11 estándar.
+- `BusquedaDirectaRepository.kt` — `sealed class ResultadoBusqueda { Encontrada(personaId), NoEncontrada, RutInvalido, SinConexion, Error }`. Valida localmente antes de llamar a la API; serializa `body.persona` a JSON; hace upsert en `PersonaDirectaDao`.
+- `BusquedaDirectaViewModel.kt` — `@HiltViewModel`; estado `BusquedaState`; `onRutNumeroChanged` filtra dígitos (máx. 8); `onRutDvChanged` uppercase (máx. 1).
+- `BusquedaDirectaScreen.kt` — dos `OutlinedTextField`, botón buscar, indicador de carga, `LaunchedEffect` para navegar al encontrar persona.
+- `BusquedaNavigation.kt` — `RUTA_BUSQUEDA_DIRECTA = "busqueda/directa"`.
+- `RutValidatorTest.kt` — 13 tests (RUTs válidos, DV incorrecto, K mayúscula/minúscula, formato).
+- `BusquedaDirectaViewModelTest.kt` — 9 tests (flujo exitoso, no encontrada, RUT inválido, sin conexión, filtros de campo).
+
+### Modificado — Android `:feature:gestion`
+
+- `GestionForm` — campo `origenGestion: OrigenGestion` añadido antes de `asignacionDiariaId: String?`.
+- `GestionValidator` — nuevo `OrigenIncoherente`; cross-validación `ASIGNACION_DIARIA + null asignacionDiariaId → OrigenIncoherente`; `BUSQUEDA_DIRECTA + non-null → OrigenIncoherente`.
+- `GestionMapper` — `origenGestion = form.origenGestion.name` (era hardcodeado a `"ASIGNACION_DIARIA"`).
+- `GestionFormViewModel` — dos ramas en `init`: si `asignacionDiariaId != null` → carga desde `PersonaDao`; si null → carga desde `PersonaDirectaDao`. Deriva `origenGestion` de `asignacionDiariaId != null`.
+- `GestionNavigation` — nueva ruta `gestion/form/busqueda/{personaId}` para gestiones BUSQUEDA_DIRECTA.
+- Tests `GestionMapperTest`, `GestionValidatorTest` — añadido `origenGestion = OrigenGestion.ASIGNACION_DIARIA` en constructores de `GestionForm`.
+
+### Modificado — Android `:app`
+
+- `CobranzaNavGraph` — añadido `onIrABusqueda` en `HomeScreen`; registrada `busquedaNavGraph` con `onRegistrarGestion { personaId -> navigate("gestion/form/busqueda/$personaId") }`.
+- `HomeScreen` — botón "Buscar persona por RUT" (segundo botón en `HomeScreen`).
+- `app/build.gradle.kts` — `implementation(project(":feature:busqueda"))`.
+- `settings.gradle.kts` — `include(":feature:busqueda")`.
+
+### Añadido — ADRs
+
+- `ADR-0041` — Endpoint de búsqueda con POST por privacidad del RUT.
+- `ADR-0042` — Snapshot en Room v3 para búsqueda directa.
+
+### Resultados de verificación
+
+| Suite | Resultado |
+|---|---|
+| API — `./mvnw clean verify` | ✅ **269 pruebas — 0 failures — BUILD SUCCESS** |
+| Android — `assembleDebug` | ✅ BUILD SUCCESSFUL |
+| Android — `lint` | ✅ BUILD SUCCESSFUL |
+| Android — `testDebugUnitTest` | ✅ **165 pruebas JVM — 0 failures** |
+| Android — `assembleDebugAndroidTest` | ✅ APK compilado |
+| Android — `connectedDebugAndroidTest` | ⏭️ No ejecutado — sin emulador en WSL2 |
+
+---
+
 ## [Sin versión] — 2026-08-02 — Fase 4C-A: Gestiones offline ASIGNACION_DIARIA — IMPLEMENTADA ✅
 
 ### Añadido — `:core:database` (Room v2)

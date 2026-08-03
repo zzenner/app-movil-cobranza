@@ -21,7 +21,7 @@ info:
     - `code` — código estable de máquina (ej. `PERSONA_NO_ENCONTRADA`)
     - `timestamp` — instante ISO-8601 en UTC
     - `path` — ruta solicitada
-  version: "0.9.0"
+  version: "1.0.0"
   contact:
     name: Equipo de desarrollo
     email: tecnologia@oriencoop.cl
@@ -316,6 +316,36 @@ components:
           format: date
           nullable: true
           description: Obligatorio cuando tipoGestion = COMPROMISO_PAGO. No puede ser anterior a fechaGestion.
+
+    SolicitudBusquedaPersona:
+      type: object
+      required:
+        - rutNumero
+        - rutDv
+      properties:
+        rutNumero:
+          type: string
+          description: Parte numérica del RUT chileno (sin puntos ni guión).
+          example: "15000001"
+        rutDv:
+          type: string
+          description: Dígito verificador del RUT (dígito o letra K, sin guión).
+          example: "7"
+
+    RespuestaBusquedaPersona:
+      type: object
+      properties:
+        version:
+          type: integer
+          description: Versión del contrato de respuesta. Actualmente siempre 1.
+          example: 1
+        generadoEn:
+          type: string
+          format: date-time
+          description: Instante en que el servidor generó la respuesta (ISO-8601 UTC).
+          example: "2026-08-03T12:00:00Z"
+        persona:
+          $ref: '#/components/schemas/DatosPersonaDescarga'
 
     RespuestaCrearGestion:
       type: object
@@ -666,3 +696,76 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/personas/busquedas:
+    post:
+      tags:
+        - Búsqueda directa
+      summary: Buscar persona por RUT
+      description: |
+        Busca una persona en el sistema por su RUT. El RUT se envía en el body por privacidad
+        (evita que aparezca en logs de acceso, caché de proxies y URL history).
+
+        **Rol requerido:** `EJECUTIVO_TERRENO`.
+        **Auditoría:** cada búsqueda genera un log estructurado `[BUSQUEDA_AUDITORIA]` en el servidor.
+        **Cache-Control:** la respuesta incluye `Cache-Control: no-store` para evitar caché de PII.
+
+        La respuesta incluye el mismo formato de bundle que la descarga de asignación diaria
+        (`DatosPersonaDescarga`): datos de identidad, direcciones vigentes, avales,
+        operaciones activas con cuotas, y últimas 10 gestiones.
+
+        La persona encontrada **no necesita estar** en la asignación diaria del ejecutivo.
+        El ejecutivo puede registrar una gestión con `origenGestion = BUSQUEDA_DIRECTA`.
+
+        La validación del RUT sigue el algoritmo Módulo 11 estándar chileno.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SolicitudBusquedaPersona'
+      responses:
+        "200":
+          description: Persona encontrada.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: "no-store"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaBusquedaPersona'
+        "400":
+          description: RUT inválido (dígito verificador incorrecto o formato incorrecto).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                status: 400
+                code: "RUT_INVALIDO"
+                detail: "El dígito verificador proporcionado no corresponde al RUT indicado"
+        "401":
+          description: Token JWT ausente o inválido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: El usuario no tiene el rol EJECUTIVO_TERRENO.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "404":
+          description: No existe ninguna persona con el RUT indicado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                status: 404
+                code: "PERSONA_NO_ENCONTRADA"

@@ -1,8 +1,8 @@
 # Estado del proyecto
 
-**Última actualización:** 2026-08-02
-**Fase actual:** Fase 4C-A — Gestiones offline desde ASIGNACION_DIARIA — IMPLEMENTADA ✅ PENDIENTE COMMIT
-**Fase anterior:** Fase 4B — Cartera offline (Room + WorkManager + descarga asignación) ✅ CERRADA
+**Última actualización:** 2026-08-03
+**Fase actual:** Fase 4C-B — Búsqueda directa global por RUT — IMPLEMENTADA ✅ PENDIENTE COMMIT
+**Fase anterior:** Fase 4C-A — Gestiones offline desde ASIGNACION_DIARIA ✅ CERRADA
 
 ## Resumen
 
@@ -26,8 +26,9 @@
 | Admin Web (Angular)                                       | No iniciado           |
 | **App Android — Fase 4A (base auth + red + seguridad)**   | **Completado ✅**                   |
 | **App Android — Fase 4B (cartera offline Room + WorkManager)** | **Cerrada ✅**               |
-| **App Android — Fase 4C-A (gestiones ASIGNACION_DIARIA offline)**  | **Implementada ✅ — pendiente commit**  |
-| Despliegue en VPS                                         | No iniciado           |
+| **App Android — Fase 4C-A (gestiones ASIGNACION_DIARIA offline)**  | **Cerrada ✅**          |
+| **App Android + API — Fase 4C-B (búsqueda directa por RUT)**       | **Implementada ✅ — pendiente commit** |
+| Despliegue en VPS                                                  | No iniciado           |
 
 ## Resultado de auditoría Fase 1A (2026-07-26)
 
@@ -387,9 +388,54 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 - BUSQUEDA_DIRECTA global por RUT (requiere endpoint API inexistente)
 - Fotografías
 
+## Fase 4C-B — Búsqueda directa por RUT (2026-08-03) — IMPLEMENTADA ✅
+
+### API — Nuevo endpoint POST /api/v1/personas/busquedas
+
+| Item | Resultado |
+|---|---|
+| `RutValidacionApi` — interfaz en `personas.api` (no expone tipo `Rut` interno) | ✅ |
+| `RutValidacionServicio` — implementación interna en `personas.aplicacion` | ✅ |
+| `BusquedaPersonaService` — en módulo `sincronizacion`; orquesta persona + ops + gestiones | ✅ |
+| `SolicitudBusquedaPersona` — record con `rutNumero` + `rutDv` (RUT en body por privacidad) | ✅ |
+| `RespuestaBusquedaPersona` — envoltura `{ version, generadoEn, persona }` | ✅ |
+| `RutInvalidoEnBusquedaException` con código estable `RUT_INVALIDO` | ✅ |
+| `BusquedaPersonaController` — `@PostMapping`, `@PreAuthorize`, `Cache-Control: no-store` | ✅ |
+| Auditoría vía log estructurado `[BUSQUEDA_AUDITORIA]` (sin tabla adicional) | ✅ |
+| 21 tests de integración (seguridad, validación RUT, 404, 200, envelope, Cache-Control) | ✅ |
+| **API — 269 pruebas — 0 failures** | ✅ |
+
+### Android — Room v3, feature:busqueda, integración
+
+| Item | Resultado |
+|---|---|
+| `CobranzaDatabase` v3: `PersonaDirectaEntity` añadida; `asignacionDiariaId` nullable | ✅ |
+| `MIGRATION_2_3` — tabla `gestion_local` recreada (25 columnas explícitas) + `persona_directa` | ✅ |
+| `PersonaDirectaDao` — upsert, findById, findByRut, deleteAll | ✅ |
+| Schema exportado `3.json` — entidades: 11 (incluye `persona_directa`) | ✅ |
+| `GestionLocalEntity.asignacionDiariaId: String?` (era NOT NULL) | ✅ |
+| `BundleReplacementTransaction.limpiarTodo()` — añadido `personaDirectaDao.deleteAll()` | ✅ |
+| `GestionForm.origenGestion: OrigenGestion` — campo explícito | ✅ |
+| `GestionValidator` — cross-validación origen ↔ asignacionDiariaId (nuevo `OrigenIncoherente`) | ✅ |
+| `GestionMapper` — usa `form.origenGestion.name` (no hardcodeado) | ✅ |
+| `GestionFormViewModel` — dos ramas init: asignación vs. persona_directa | ✅ |
+| `:feature:busqueda` (módulo nuevo) — RutValidator, BusquedaDirectaRepository, BusquedaDirectaViewModel, BusquedaDirectaScreen, BusquedaNavigation | ✅ |
+| `BusquedaDtos.kt` + `PersonaBusquedaApi` + `NetworkModule.providePersonaBusquedaApi` | ✅ |
+| `HomeScreen` — botón "Buscar persona por RUT" | ✅ |
+| `CobranzaNavGraph` — rutas `busqueda/directa` y `gestion/form/busqueda/{personaId}` | ✅ |
+| 22 tests nuevos (RutValidatorTest × 13, BusquedaDirectaViewModelTest × 9) | ✅ |
+| **Android — 165 pruebas JVM — 0 failures** | ✅ |
+
+### ADRs creados
+
+| ADR | Título |
+|---|---|
+| ADR-0041 | Endpoint de búsqueda con POST por privacidad del RUT |
+| ADR-0042 | Snapshot en Room v3 para búsqueda directa |
+
 ## Próximo paso recomendado
 
-Commit de Fase 4C-A y planificación de Fase 4C-B (BUSQUEDA_DIRECTA, endpoint API global por RUT).
+Commit de Fases 4C-A y 4C-B (ambas en rama `feature/fase-4c-b-busqueda-directa`).
 
 ## Historial de fases
 
@@ -406,4 +452,5 @@ Commit de Fase 4C-A y planificación de Fase 4C-B (BUSQUEDA_DIRECTA, endpoint AP
 | Fase 3D | API REST de asignaciones y gestiones (endpoints Android)   | Completado | 2026-08-01 |
 | Fase 4A | Base Android: red, seguridad, auth (sin Room ni WorkManager) | Completado ✅ | 2026-08-02 |
 | Fase 4B | Cartera offline: Room, WorkManager, descarga asignación diaria | Cerrado ✅ — tag v0.10.0-descarga-offline | 2026-08-02 |
-| Fase 4C-A | Gestiones ASIGNACION_DIARIA offline (outbox, GPS, outbox, sync) | Implementada ✅ pendiente commit | 2026-08-02 |
+| Fase 4C-A | Gestiones ASIGNACION_DIARIA offline (outbox, GPS, sync) | Cerrada ✅ — tag v0.11.0-gestiones-offline | 2026-08-02 |
+| Fase 4C-B | Búsqueda directa por RUT (API + Android) | Implementada ✅ — pendiente commit | 2026-08-03 |

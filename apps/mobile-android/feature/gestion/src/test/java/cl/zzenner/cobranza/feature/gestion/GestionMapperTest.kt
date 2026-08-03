@@ -4,6 +4,7 @@ import cl.zzenner.cobranza.core.database.entity.GestionHistoricaEntity
 import cl.zzenner.cobranza.feature.gestion.data.GestionMapper
 import cl.zzenner.cobranza.feature.gestion.domain.EstadoSincronizacion
 import cl.zzenner.cobranza.feature.gestion.domain.GestionForm
+import cl.zzenner.cobranza.feature.gestion.domain.OrigenGestion
 import cl.zzenner.cobranza.feature.gestion.domain.TipoGestion
 import cl.zzenner.cobranza.feature.gestion.domain.UbicacionCapturada
 import org.junit.Assert.assertEquals
@@ -29,6 +30,7 @@ class GestionMapperTest {
         personaRutNumero = "27000001",
         personaRutDv = "0",
         personaNombre = "Juan Pérez",
+        origenGestion = OrigenGestion.ASIGNACION_DIARIA,
         asignacionDiariaId = "asig-uuid",
         tipoGestion = TipoGestion.SIN_CONTACTO,
         observacion = "Nadie en casa",

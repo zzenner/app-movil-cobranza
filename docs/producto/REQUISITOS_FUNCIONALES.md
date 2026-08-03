@@ -39,7 +39,7 @@
 | ID     | Descripción                                                                                         |
 |--------|-----------------------------------------------------------------------------------------------------|
 | RF-04a | El ejecutivo puede buscar personas en su asignación diaria local por RUT (sin conexión).            |
-| RF-04b | El ejecutivo puede buscar personas globalmente por RUT mediante la API cuando hay conexión.         |
+| RF-04b | **El ejecutivo puede buscar personas globalmente por RUT (Fase 4C-B ✅):** `POST /api/v1/personas/busquedas` con RUT en body por privacidad. La respuesta se persiste como snapshot en Room (`persona_directa`), permitiendo registrar la gestión sin conexión adicional. Ver ADR-0041, ADR-0042. |
 | RF-04c | El ejecutivo puede ver las operaciones activas de una persona con sus cuotas: todas las vencidas vigentes y todas las futuras vigentes. No se descargan operaciones anuladas, cerradas sin saldo ni completamente pagadas. |
 | RF-04d | El ejecutivo puede ver los avales de una persona (solo `rut_numero`, `rut_dv`, `nombre`).           |
 | RF-04e | El ejecutivo puede ver las últimas 10 gestiones de cada RUT (pueden ser de otros ejecutivos).       |
@@ -86,5 +86,5 @@
 
 - Definir si la exportación a Excel forma parte de la Fase 1.
 - Confirmar versión mínima de Android definitiva según inventario de dispositivos corporativos (provisional: API 29 / Android 10).
-- Confirmar si el ejecutivo puede registrar gestiones sobre personas fuera de su asignación diaria activa.
+- ~~Confirmar si el ejecutivo puede registrar gestiones sobre personas fuera de su asignación diaria activa.~~ **Resuelto:** dos orígenes (ADR-0026, Fase 4C-B ✅).
 - Confirmar si los ejecutivos ven gestiones de otros ejecutivos sobre la misma persona.

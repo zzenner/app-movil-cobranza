@@ -26,6 +26,7 @@ La app descarga exclusivamente la **asignación diaria vigente** y sus datos rel
 
 - Asignación diaria activa: personas, **todas las operaciones activas**, **todas las cuotas vencidas y futuras vigentes**, gestiones históricas (últimas 10 por RUT), direcciones, avales.
 - Gestiones registradas localmente (pendientes de sincronizar y ya sincronizadas).
+- **Snapshots de búsquedas directas** (`persona_directa`): JSON completo del resultado de la API para cada persona consultada por búsqueda global. Permite registrar gestiones offline tras una búsqueda sin requerir conexión adicional. Ver ADR-0042.
 - Tokens de autenticación (en almacenamiento seguro del SO, no en Room).
 - Estado técnico de sincronización de cada gestión.
 - No se descargan: operaciones anuladas, cerradas sin saldo, o completamente pagadas.
@@ -139,3 +140,9 @@ Se consideran pendientes: gestiones no enviadas, fotografías no enviadas, ubica
 - **Backoff:** `min(30_000ms × 2ⁿ, 24h)` por registro. Sin límite de intentos. Ver ADR-0038.
 - **Número máximo de reintentos antes de ERROR_PERMANENTE:** ninguno. ERROR_REINTENTABLE reintenta indefinidamente hasta respuesta definitiva o logout. Ver ADR-0038.
 - **Retención de datos de persona:** implementación real = reemplazo total en cada descarga. Ver ADR-0037.
+
+## Decisiones resueltas en Fase 4C-B (2026-08-03)
+
+- **Búsqueda directa offline:** se resuelve con snapshot JSON en `persona_directa`. El ejecutivo puede buscar con conexión y registrar la gestión sin conexión. Ver ADR-0042.
+- **Snapshots de búsqueda no se tocan en reemplazo de bundle:** `BundleReplacementTransaction.reemplazar()` no toca `persona_directa`. Solo `limpiarTodo()` (logout) la vacía.
+- **RUT en body:** `POST /api/v1/personas/busquedas` — no en query string. Ver ADR-0041.
