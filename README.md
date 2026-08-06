@@ -4,7 +4,7 @@ Plataforma modular para la gestión de cobranza en terreno. Permite a cobradores
 
 ## Estado actual
 
-**Fase 0 — Inicialización del repositorio.** No existe código de negocio funcional todavía.
+**Fase 5B-1 completada.** Panel administrativo Angular con consulta de usuarios (solo lectura). Entorno Docker local disponible para pruebas manuales.
 
 Ver [`docs/gestion/STATUS.md`](docs/gestion/STATUS.md) y [`docs/gestion/ROADMAP.md`](docs/gestion/ROADMAP.md) para el estado detallado.
 
@@ -17,29 +17,33 @@ Ver [`docs/gestion/STATUS.md`](docs/gestion/STATUS.md) y [`docs/gestion/ROADMAP.
 | App Android       | `apps/mobile-android/` | Kotlin + Jetpack Compose + Room        |
 | Base de datos     | Docker Compose         | PostgreSQL + PostGIS                   |
 
-## Inicio rápido (entorno local)
+## Inicio rápido — Entorno Docker completo
 
-**Requisitos previos:** Docker Desktop con WSL2.
+**Requisitos previos:** Docker Engine 25+ o Docker Desktop con WSL2, `openssl`.
 
 ```bash
-# Copiar variables de entorno
+# 1. Configurar entorno
 cp .env.example .env
-# Ajustar .env con valores locales si es necesario
+# Editar .env: ajustar POSTGRES_PASSWORD y DEV_ADMIN_PASSWORD
 
-# Iniciar base de datos
-./scripts/start.sh
+# 2. Generar claves RSA (solo la primera vez)
+./scripts/generar-claves.sh
 
-# Ver estado
-./scripts/status.sh
+# 3. Levantar todo (PostgreSQL + API + Admin Web)
+./scripts/levantar-entorno.sh
 
-# Ver logs
-./scripts/logs.sh
-
-# Detener
-./scripts/stop.sh
+# 4. Verificar que funciona
+./scripts/smoke-test.sh
 ```
 
-Ver [`docs/operacion/DESARROLLO_LOCAL.md`](docs/operacion/DESARROLLO_LOCAL.md) para instrucciones completas.
+| URL | Descripción |
+|-----|-------------|
+| `http://localhost:8080` | Admin Web (login) |
+| `http://localhost:8081/swagger-ui` | API Swagger UI |
+| `http://localhost:8081/actuator/health` | API Actuator |
+
+Ver [`docs/operacion/DOCKER_LOCAL.md`](docs/operacion/DOCKER_LOCAL.md) para documentación completa.
+Ver [`docs/operacion/DESARROLLO_LOCAL.md`](docs/operacion/DESARROLLO_LOCAL.md) para el modo de desarrollo sin Docker.
 
 ## Documentación
 

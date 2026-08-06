@@ -1,0 +1,10 @@
+target/
+.git/
+.gitignore
+*.md
+src/test/
+.env
+*.env
+*.pem
+*.key
+.mvn/wrapper/maven-wrapper.jar

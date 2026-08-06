@@ -230,6 +230,20 @@
 
 ---
 
+## Entorno Docker local completo ✅ IMPLEMENTADO (previa a 5B-2)
+
+**Objetivo:** Levantar la plataforma completa en Docker para pruebas manuales locales.
+
+**Entregado:**
+- `compose.yaml` actualizado: servicios `api` y `admin-web`. PostgreSQL + PostGIS + API Spring Boot + Nginx/Angular en un único `docker compose up --build -d`.
+- Dockerfiles multi-stage: API (eclipse-temurin:21-jre-alpine + su-exec), Admin Web (Node 24 + Nginx 1.27).
+- Nginx: SPA fallback, proxy `/api → api:8080`, `Origin` conservado, headers de seguridad.
+- `DevSeedRunner` + `UsuarioSeedApi` + `UsuarioSeedService` — seed idempotente respetando Spring Modulith.
+- Scripts: `generar-claves.sh`, `levantar-entorno.sh`, `smoke-test.sh` (24 pruebas).
+- `.env.example` actualizado, `infrastructure/dev-keys/` gitignored.
+- Documentación: `docs/operacion/DOCKER_LOCAL.md`.
+- **329 tests API — 0 failures. 50 tests Angular — 0 failures. 24/24 smoke tests.**
+
 ## Fase 5B-1 — Consulta administrativa de usuarios (solo lectura) ✅ IMPLEMENTADA
 
 **Objetivo:** Primera funcionalidad administrativa real: consultar usuarios del sistema desde el panel web.

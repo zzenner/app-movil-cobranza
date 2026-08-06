@@ -3,7 +3,7 @@
 ## Identificación
 
 - **Fase:** 5B-2 — Gestión administrativa de usuarios (escritura)
-- **Estado:** PENDIENTE
+- **Estado:** PENDIENTE — En progreso: entorno Docker local (tarea previa)
 - **Rama activa:** `feature/fase-5b-2-usuarios-escritura`
 - **Base funcional:** `d82d95d feat: implementar consulta administrativa de usuarios fase 5b-1`
 - **Tag de fase anterior:** `v0.14.0-usuarios-admin-readonly`

@@ -57,21 +57,32 @@ cl.zzenner.cobranza/
 ## Comandos de desarrollo
 
 ```bash
-# Iniciar PostgreSQL
-./scripts/start.sh
+# ── Entorno Docker local completo (recomendado para pruebas manuales) ────────
+# Desde la raíz del proyecto:
+./scripts/levantar-entorno.sh     # PostgreSQL + API + Admin Web en Docker
+./scripts/smoke-test.sh           # 24 pruebas automatizadas
 
-# Iniciar la API (carga .env automáticamente)
-./scripts/api-run.sh
+# ── Desarrollo sin Docker (API en proceso, BD en contenedor) ─────────────────
+cd apps/api
+./mvnw spring-boot:run            # requiere PostgreSQL corriendo
 
-# Ejecutar solo prueba de estructura modular (rápido, sin Docker)
-cd apps/api && ./mvnw test -Dtest="ModularidadTest"
+# ── Pruebas ──────────────────────────────────────────────────────────────────
+# Módulos Spring Modulith (rápido, sin Docker):
+./mvnw test -Dtest="ModularidadTest"
 
-# Ejecutar todas las pruebas (incluye Testcontainers, requiere Docker)
-./scripts/api-test.sh
-
-# Verificar compilación y módulos (rápido)
-./scripts/api-check.sh
+# Suite completa (Testcontainers + PostGIS, requiere Docker):
+./mvnw --batch-mode clean verify
 ```
+
+### Perfil Docker
+
+La API usa el perfil `docker` (`SPRING_PROFILES_ACTIVE=docker`) cuando corre en contenedor.
+Variables de entorno requeridas: ver `compose.yaml` y `.env.example`.
+
+### DevSeedRunner
+
+Al iniciar con `DEV_SEED_ENABLED=true` (perfil `docker`), crea idempotentemente el usuario definido en `DEV_ADMIN_*`.
+Usa `UsuarioSeedApi` (interfaz pública del módulo `usuarios`) para respetar los límites de Spring Modulith.
 
 ## Endpoints disponibles
 

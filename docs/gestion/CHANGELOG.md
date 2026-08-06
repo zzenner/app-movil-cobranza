@@ -5,6 +5,41 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-05 — Entorno Docker local completo (previa a Fase 5B-2)
+
+### Añadido
+
+- `apps/api/Dockerfile` — multi-stage: deps → build (`eclipse-temurin:21-jdk-alpine`) → runtime (`eclipse-temurin:21-jre-alpine`). UID/GID 1000 para compatibilidad con claves RSA en volumen.
+- `apps/api/src/main/resources/application-docker.yml` — perfil `docker`: datasource con variables de entorno, Flyway habilitado, Actuator probes (liveness/readiness).
+- `apps/api/src/main/java/.../DevSeedRunner.java` — seed idempotente perfil `docker` con `@ConditionalOnProperty(dev.seed.enabled)`. Crea usuario de prueba al iniciar.
+- `apps/api/src/main/java/.../usuarios/api/UsuarioSeedApi.java` — puerto público del módulo usuarios para seed. Respeta boundaries de Spring Modulith.
+- `apps/api/src/main/java/.../usuarios/aplicacion/UsuarioSeedService.java` — implementación interna de `UsuarioSeedApi`. Encapsula check + create + asignarRol + race condition.
+- `apps/admin-web/Dockerfile` — multi-stage: Node 24 Alpine → Nginx 1.27 Alpine. Healthcheck con `127.0.0.1` (Alpine IPv6 quirk).
+- `apps/admin-web/nginx.conf` — SPA fallback (`try_files`), proxy `/api → api:8080`, `proxy_set_header Origin $http_origin` (crítico para WebOriginValidationFilter), `/nginx-health`.
+- `compose.yaml` — actualizado con servicios `api` y `admin-web`. Adminer movido a perfil `tools`. ADMINER_PORT default 8082.
+- `scripts/generar-claves.sh` — genera par RSA 2048 PKCS8 en `infrastructure/dev-keys/` (idempotente).
+- `scripts/levantar-entorno.sh` — verifica `.env` y claves RSA, levanta con `docker compose up --build -d`, espera healthchecks.
+- `scripts/smoke-test.sh` — 15 pruebas automatizadas: infra (5), API pública (2), SPA (3), proxy (1), flujo de auth completo (4).
+- `docs/operacion/DOCKER_LOCAL.md` — documentación operacional: arquitectura, puertos, claves RSA, DevSeed, comandos, smoke tests, checklist manual, troubleshooting.
+- `.env.example` — nuevas variables: `ADMIN_WEB_PORT`, `API_PORT`, `WEB_ALLOWED_ORIGIN`, `WEB_COOKIE_SECURE`, `DEV_SEED_ENABLED`, `DEV_ADMIN_*`.
+- `.gitignore` — excluye `infrastructure/dev-keys/`.
+
+### Corregido
+
+- Spring Modulith: `DevSeedRunner` accedía directamente a `UsuarioService` y `UsuarioRepository` (tipos no expuestos del módulo). Corregido creando `UsuarioSeedApi` como puerto público y `UsuarioSeedService` como implementación interna.
+- Nginx `log_format` no puede estar en bloque `server` — removido (solo aplica en contexto `http`).
+- Healthcheck Alpine: `localhost` resuelve a `::1` pero Nginx escucha en IPv4; cambiado a `127.0.0.1` en `compose.yaml`.
+- `DevSeedRunnerTest` — actualizado para mockear `UsuarioSeedApi` (no `UsuarioService`/`UsuarioRepository`).
+
+### Validado
+
+- `./mvnw clean verify` — **329 tests — 0 failures — BUILD SUCCESS**
+- `npm run test:ci` — **50 tests — 0 failures**
+- `docker compose up -d` — 3 servicios healthy (postgres, api, admin-web)
+- `./scripts/smoke-test.sh` — **15/15 OK**
+
+---
+
 ## [Sin versión] — 2026-08-05 — Fase 5B-1: Consulta administrativa de usuarios (solo lectura) — IMPLEMENTADA ✅
 
 ### Añadido — API (`apps/api/`)

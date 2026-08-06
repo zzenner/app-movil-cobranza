@@ -50,8 +50,16 @@ El sistema sigue un estilo de **monolito modular con cliente móvil offline-firs
 - Migraciones versionadas con Flyway (solo en la API).
 
 ### Infraestructura local y producción
-- Docker Compose para entorno local (solo PostgreSQL en Fase 0).
-- Producción futura: VPS Ubuntu, Docker Compose, Nginx como proxy inverso.
+
+**Entorno Docker local (`compose.yaml`):**
+- Tres servicios: `postgres` (PostGIS 16-3.4), `api` (eclipse-temurin:21-jre-alpine), `admin-web` (nginx:1.27-alpine).
+- Nginx actúa como proxy inverso interno: sirve el SPA Angular y redirige `/api/*` → `api:8080`.
+- Claves RSA montadas como volumen read-only en `infrastructure/dev-keys/`. El entrypoint las copia con `su-exec` al proceso Java (no root).
+- DevSeedRunner crea un usuario de prueba idempotentemente (perfil `docker` + `DEV_SEED_ENABLED=true`).
+- Comando único: `./scripts/levantar-entorno.sh`
+
+**Producción futura:** VPS Ubuntu, Docker Compose, Nginx con TLS, gestión externa de secretos.
+
 - Almacenamiento de archivos: diseñado para ser compatible con S3, no implementado en Fase 1.
 
 ## Comunicación entre componentes

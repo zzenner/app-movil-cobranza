@@ -1,5 +1,7 @@
 # Desarrollo local
 
+> **Nota:** Este documento describe el modo de desarrollo con la API y los tests corriendo directamente en el host (sin Docker para los servicios de aplicación). Para levantar la plataforma completa en Docker (PostgreSQL + API + Admin Web), consultar [DOCKER_LOCAL.md](DOCKER_LOCAL.md).
+
 ## Requisitos previos
 
 - Docker Desktop con soporte WSL2 (Windows) o Docker Engine (Linux/macOS).
@@ -97,15 +99,36 @@ La API inicia en `http://localhost:8080`. Endpoints disponibles:
 
 **App Android (`apps/mobile-android/`):** PENDIENTE — instrucciones se agregarán al iniciar la Fase 3.
 
-**Admin Web (`apps/admin-web/`):** PENDIENTE — instrucciones se agregarán al iniciar la Fase 4.
+**Admin Web (`apps/admin-web/`):**
+
+```bash
+cd apps/admin-web
+
+# Instalar dependencias
+npm ci
+
+# Servidor de desarrollo con proxy a la API (puerto 4200)
+npm start
+
+# Ejecutar tests unitarios (Vitest)
+npm test
+
+# Ejecutar tests e2e (Playwright, requiere API corriendo)
+npm run e2e
+```
+
+El servidor de desarrollo usa el proxy configurado en `angular.json` para redirigir `/api` al backend. Para pruebas manuales del stack completo en Docker, ver [DOCKER_LOCAL.md](DOCKER_LOCAL.md).
 
 ## Puertos por defecto
 
-| Servicio   | Puerto local | Variable de entorno |
-|------------|-------------|---------------------|
-| PostgreSQL | 5432        | `POSTGRES_PORT`     |
-| API        | 8080        | — (fijo en Fase 1B) |
-| Adminer    | 8081        | `ADMINER_PORT`      |
+| Servicio       | Puerto local | Variable de entorno |
+|----------------|-------------|---------------------|
+| PostgreSQL     | 5432        | `POSTGRES_PORT`     |
+| API (proceso)  | 8080        | — (fijo en dev)     |
+| Admin Web dev  | 4200        | — (Angular CLI)     |
+| Adminer        | 8082        | `ADMINER_PORT`      |
+
+En el modo Docker completo los puertos cambian; ver [DOCKER_LOCAL.md](DOCKER_LOCAL.md).
 
 ## Resolución de problemas comunes
 

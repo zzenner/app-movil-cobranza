@@ -14,16 +14,78 @@ Aplicación Angular 22 para supervisores y administradores del sistema de cobran
 
 ## Requisitos
 
-- Node.js 22+
+- Node.js 22+ (solo para desarrollo con hot reload fuera de Docker)
 - API ejecutándose en `http://localhost:8080` (ver `apps/api/`)
 
-## Desarrollo local
+## Entorno Docker local (recomendado para pruebas manuales)
+
+El panel se sirve desde Nginx dentro del entorno Docker junto con la API y PostgreSQL.
+**No requiere Node.js instalado localmente.**
+
+```bash
+# Desde la raíz del repositorio
+cp .env.example .env           # Solo la primera vez — ajustar passwords
+./scripts/generar-claves.sh    # Solo la primera vez — genera RSA en infrastructure/dev-keys/
+./scripts/levantar-entorno.sh  # Levanta PostgreSQL + API + Admin Web
+./scripts/smoke-test.sh        # Verifica 24 puntos de control
+```
+
+| URL | Descripción |
+|-----|-------------|
+| `http://localhost:8080` | Admin Web (Nginx sirve el SPA) |
+| `http://localhost:8080/api/v1/...` | Proxy Nginx → API (mismo origen) |
+| `http://localhost:8081/actuator/health` | API health check directo |
+
+### Variables de entorno relevantes (`.env`)
+
+| Variable | Descripción |
+|----------|-------------|
+| `ADMIN_WEB_PORT` | Puerto de Nginx (default: `8080`) |
+| `WEB_ALLOWED_ORIGIN` | Origen permitido para cookies web (default: `http://localhost:8080`) |
+| `WEB_COOKIE_SECURE` | `false` en HTTP local, `true` en producción HTTPS |
+| `DEV_ADMIN_USERNAME` | Usuario de prueba creado automáticamente al levantar |
+| `DEV_ADMIN_PASSWORD` | Contraseña del usuario de prueba |
+
+### Nginx en Docker
+
+- Imagen: `nginx:1.27-alpine`
+- Sirve el build Angular desde `/usr/share/nginx/html`
+- SPA fallback: todas las rutas devuelven `index.html` (`try_files`)
+- Proxy `/api/*` → `api:8080` (preserva la ruta completa, incluye `proxy_set_header Origin`)
+- Health check interno: `GET /nginx-health` → 200
+- Configuración: `apps/admin-web/nginx.conf`
+
+### Operación habitual
+
+```bash
+# Reiniciar solo el panel web (rebuild de Angular + Nginx)
+docker compose up --build -d admin-web
+
+# Ver logs
+docker compose logs admin-web --tail=50 --follow
+
+# Detener todo (conserva volumen PostgreSQL)
+docker compose down
+
+# Limpieza completa (elimina BD + volúmenes)
+docker compose down -v
+```
+
+## Desarrollo local con hot reload (sin Docker)
+
+Requiere que la API esté corriendo localmente (con perfil `local`) o en Docker.
 
 ```bash
 cd apps/admin-web
 npm ci
 npm start          # http://localhost:4200, proxy a localhost:8080
 ```
+
+El proxy de desarrollo (`proxy.conf.json`) redirige `/api/**` → `http://localhost:8080`.
+Si la API está en Docker (puerto `:8081`), ajustar `proxy.conf.json` a `http://localhost:8081`
+o levantar la API directamente con `./mvnw spring-boot:run`.
+
+**Android** no forma parte del Compose local — conecta a la API directamente por su propia red.
 
 ## Pruebas
 
@@ -67,6 +129,33 @@ npm run build          # dist/admin-web/
 
 `proxy.conf.json` redirige `/api/**` a `http://localhost:8080` para evitar problemas de CORS en desarrollo.
 En producción, el proxy/reverse proxy del servidor sirve el mismo origen.
+
+## Resolución de problemas en Docker
+
+| Síntoma | Causa habitual | Solución |
+|---------|----------------|----------|
+| Pantalla en blanco / 502 | API no lista aún | Esperar — el health check de Nginx depende de la API |
+| Error CORS en consola | `WEB_ALLOWED_ORIGIN` no coincide con el origen real | Verificar variable en `.env` y reiniciar |
+| Login falla (403) | Origin en la petición no coincide con `WEB_ALLOWED_ORIGIN` | Acceder desde el puerto correcto (`ADMIN_WEB_PORT`) |
+| `<app-root>` no aparece | Build Angular no incluido en imagen | Ejecutar `docker compose up --build -d admin-web` |
+| Cambios JS/HTML no se ven | Caché del navegador | Ctrl+Shift+R o reconstruir imagen |
+
+```bash
+# Diagnóstico rápido
+docker compose ps
+docker compose logs admin-web --tail=50
+docker compose logs api --tail=50
+```
+
+## Próximas funcionalidades (Fase 5B-2)
+
+Las siguientes funcionalidades **no están implementadas** — están pendientes para Fase 5B-2:
+
+- Crear usuario
+- Editar usuario (nombre, email)
+- Activar / Desactivar usuario
+- Bloquear / Desbloquear usuario
+- Cambiar contraseña de usuario
 
 ## ADRs relacionados
 

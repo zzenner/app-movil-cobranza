@@ -1,8 +1,8 @@
 # Estado del proyecto
 
 **Última actualización:** 2026-08-05
-**Fase actual:** Fase 5B-1 — Consulta administrativa de usuarios (solo lectura) — IMPLEMENTADA ✅ PENDIENTE COMMIT
-**Fase anterior:** Fase 4C-A — Gestiones offline desde ASIGNACION_DIARIA ✅ CERRADA
+**Fase actual:** Entorno Docker local (previa a Fase 5B-2) — IMPLEMENTADA ✅ PENDIENTE COMMIT
+**Fase anterior:** Fase 5B-1 — Consulta administrativa de usuarios (solo lectura) ✅ CERRADA (tag v0.14.0)
 
 ## Resumen
 
@@ -24,7 +24,8 @@
 | **API — gestiones de cobranza (Fase 3C — validada)**      | **Completado ✅**      |
 | **API — REST asignaciones y gestiones (Fase 3D)**         | **Validada ✅ — Lista para cierre**      |
 | Admin Web (Angular) — Fase 5A base + autenticación        | **Completado ✅** |
-| **Admin Web (Angular) — Fase 5B-1 consulta usuarios**     | **IMPLEMENTADA ✅ — pendiente commit** |
+| **Admin Web (Angular) — Fase 5B-1 consulta usuarios**     | **CERRADA ✅ — tag v0.14.0** |
+| **Entorno Docker local (PostgreSQL + API + Admin Web)**    | **IMPLEMENTADA ✅ — pendiente commit** |
 | **App Android — Fase 4A (base auth + red + seguridad)**   | **Completado ✅**                   |
 | **App Android — Fase 4B (cartera offline Room + WorkManager)** | **Cerrada ✅**               |
 | **App Android — Fase 4C-A (gestiones ASIGNACION_DIARIA offline)**  | **Cerrada ✅**          |
@@ -550,9 +551,53 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 | **npm audit --audit-level=high** — 0 vulnerabilidades high/critical | ✅ |
 | **ng build** — BUILD SUCCESSFUL | ✅ |
 
+## Entorno Docker local — Implementado (2026-08-05)
+
+### Servicios
+
+| Servicio     | Imagen                      | Puerto host | Estado |
+|--------------|-----------------------------|-------------|--------|
+| PostgreSQL   | postgis/postgis:16-3.4      | 5432        | ✅ |
+| API          | eclipse-temurin:21-jre-alpine | 8081      | ✅ |
+| Admin Web    | nginx:1.27-alpine           | 8080        | ✅ |
+
+### Archivos creados
+
+| Archivo | Descripción |
+|---------|-------------|
+| `apps/api/Dockerfile` | Multi-stage: deps → build → runtime JRE alpine, UID 1000 |
+| `apps/api/.dockerignore` | Excluye target/, test/, .env, *.pem |
+| `apps/api/src/main/resources/application-docker.yml` | Perfil docker: datasource, Flyway, Actuator probes |
+| `apps/api/src/main/java/.../DevSeedRunner.java` | Seed idempotente perfil docker (vía UsuarioSeedApi) |
+| `apps/api/src/main/java/.../usuarios/api/UsuarioSeedApi.java` | Puerto público para seed |
+| `apps/api/src/main/java/.../usuarios/aplicacion/UsuarioSeedService.java` | Implementación del seed |
+| `apps/admin-web/Dockerfile` | Multi-stage: Node 24 → Nginx 1.27 |
+| `apps/admin-web/.dockerignore` | Excluye node_modules, dist, e2e |
+| `apps/admin-web/nginx.conf` | SPA fallback + proxy /api → api:8080 + nginx-health |
+| `compose.yaml` | Actualizado: api + admin-web + adminer con perfil tools |
+| `scripts/generar-claves.sh` | Genera par RSA 2048 en infrastructure/dev-keys/ |
+| `scripts/levantar-entorno.sh` | Verifica .env + claves + levanta + espera healthy |
+| `scripts/smoke-test.sh` | 15 pruebas automatizadas (infra, SPA, proxy, auth) |
+| `docs/operacion/DOCKER_LOCAL.md` | Documentación operacional completa |
+| `.env.example` | Variables Docker: puertos, seed, claves |
+| `.gitignore` | Excluye infrastructure/dev-keys/ |
+
+### Validación
+
+| Item | Resultado |
+|------|-----------|
+| Spring Modulith — DevSeedRunner vía UsuarioSeedApi | ✅ |
+| API — `./mvnw clean verify` | ✅ **329 tests — 0 failures** |
+| Angular — `npm run test:ci` | ✅ **50 tests — 0 failures** |
+| `docker compose config` | ✅ |
+| `docker compose build` (api + admin-web) | ✅ |
+| `docker compose up -d` — 3 servicios healthy | ✅ |
+| DevSeedRunner — usuario admin.local creado | ✅ |
+| Smoke tests automatizados | ✅ **15/15 OK** |
+
 ## Próximo paso recomendado
 
-Commit de Fase 5B-1 (requiere autorización explícita), luego Fase 5B-2 — gestión de usuarios (escritura).
+Commit del entorno Docker local (requiere autorización explícita), luego Fase 5B-2 — gestión de usuarios (escritura).
 
 ## Historial de fases
 

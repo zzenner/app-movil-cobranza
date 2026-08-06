@@ -57,6 +57,9 @@ yarn-error.log*
 .docker/
 docker-compose.override.yml
 
+# Claves RSA de desarrollo local (generadas con scripts/generar-claves.sh)
+infrastructure/dev-keys/
+
 # Temporales
 *.tmp
 *.temp

@@ -1,6 +1,7 @@
 name: ${COMPOSE_PROJECT_NAME:-cobranza}
 
 services:
+  # ─── Base de datos ────────────────────────────────────────────────────────
   postgres:
     image: postgis/postgis:16-3.4
     container_name: cobranza_postgres
@@ -23,12 +24,74 @@ services:
       retries: 5
       start_period: 20s
 
+  # ─── API Spring Boot ─────────────────────────────────────────────────────
+  api:
+    build:
+      context: apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-cobranza_db}
+      POSTGRES_USER: ${POSTGRES_USER:-cobranza_dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      WEB_ALLOWED_ORIGIN: ${WEB_ALLOWED_ORIGIN:-http://localhost:8080}
+      WEB_COOKIE_SECURE: ${WEB_COOKIE_SECURE:-false}
+      JWT_RSA_PRIVADA_PATH: /keys/private.pem
+      JWT_RSA_PUBLICA_PATH: /keys/public.pem
+      JWT_ISSUER: ${JWT_ISSUER:-cobranza-api-dev}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-cobranza-api}
+      JWT_KID: ${JWT_KID:-cobranza-rsa-2026-01}
+      DEV_SEED_ENABLED: ${DEV_SEED_ENABLED:-false}
+      DEV_ADMIN_USERNAME: ${DEV_ADMIN_USERNAME:-}
+      DEV_ADMIN_PASSWORD: ${DEV_ADMIN_PASSWORD:-}
+      DEV_ADMIN_EMAIL: ${DEV_ADMIN_EMAIL:-}
+      DEV_ADMIN_ROL: ${DEV_ADMIN_ROL:-TECNOLOGIA}
+    volumes:
+      - ./infrastructure/dev-keys:/keys:ro
+    ports:
+      - "${API_PORT:-8081}:8080"
+    networks:
+      - cobranza_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 90s
+
+  # ─── Panel web Angular + Nginx ───────────────────────────────────────────
+  admin-web:
+    build:
+      context: apps/admin-web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_WEB_PORT:-8080}:80"
+    networks:
+      - cobranza_net
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/nginx-health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ─── Adminer (opcional — activar con --profile tools) ────────────────────
   adminer:
     image: adminer:4
     container_name: cobranza_adminer
     restart: unless-stopped
     ports:
-      - "${ADMINER_PORT:-8080}:8080"
+      - "${ADMINER_PORT:-8082}:8080"
     networks:
       - cobranza_net
     depends_on:
