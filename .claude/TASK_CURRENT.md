@@ -3,10 +3,10 @@
 ## Identificación
 
 - **Fase:** 5B-2 — Gestión administrativa de usuarios (escritura)
-- **Estado:** PENDIENTE — En progreso: entorno Docker local (tarea previa)
+- **Estado:** PENDIENTE — planificación
 - **Rama activa:** `feature/fase-5b-2-usuarios-escritura`
-- **Base funcional:** `d82d95d feat: implementar consulta administrativa de usuarios fase 5b-1`
-- **Tag de fase anterior:** `v0.14.0-usuarios-admin-readonly`
+- **Base funcional:** `1a22c8a feat(infra): implementar entorno docker local integrado`
+- **Tag de fase anterior:** `v0.15.0-entorno-docker-local`
 
 ## Objetivo
 
@@ -52,7 +52,7 @@ Angular protegerá formularios y botones por permiso `USUARIOS_ADMINISTRAR`.
 
 ## Siguiente acción exacta
 
-"Revisar las reglas de creación, actualización, estado y contraseña de usuarios para planificar Fase 5B-2".
+"Revisar `UsuarioService`, `Usuario`, reglas de estado y contraseña para planificar Fase 5B-2".
 
 Ver:
 - `docs/dominio/REGLAS_NEGOCIO.md` — RN-06 (roles), RN-28 (estado calculado)
@@ -63,8 +63,8 @@ Ver:
 
 | Fase | Tag | Commit |
 |---|---|---|
+| Entorno Docker local | `v0.15.0-entorno-docker-local` | `1a22c8a` |
 | 5B-1 Consulta admin usuarios (solo lectura) | `v0.14.0-usuarios-admin-readonly` | `d82d95d` |
 | 5A Base admin web + auth web | `v0.13.0-admin-base` | `71d47b2` |
 | 4C-B Búsqueda directa | `v0.12.0-busqueda-directa` | `4cddf50` |
 | 4C-A Gestiones offline | `v0.11.0-gestiones-offline` | `dec7b18` |
-| 4B Cartera offline | `v0.10.0-descarga-offline` | (ver ROADMAP) |
