@@ -5,6 +5,42 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-05 — Fase 5B-1: Consulta administrativa de usuarios (solo lectura) — IMPLEMENTADA ✅
+
+### Añadido — API (`apps/api/`)
+
+- `EstadoUsuario` — enum: ACTIVO, BLOQUEADO_TEMPORAL, BLOQUEADO, INACTIVO. Calculado desde `activo`, `bloqueado`, `bloqueadoHasta` y `Clock`.
+- `UsuarioAdminService` — listado paginado (`listar`), detalle (`obtenerDetalle`), batch queries sin N+1: 1 page query + roles + supervisión + nombres supervisor.
+- `especificacionEstado()` — JPA Specification con expresión switch; `especificacionRol()` — EXISTS subquery via Criteria API (previene duplicados en paginación).
+- `UsuarioAdminController` — `GET /api/v1/admin/usuarios` (paginado, filtros: nombreUsuario, estado, rol) y `GET /api/v1/admin/usuarios/{id}`. Validación manual → 400.
+- `@PreAuthorize("hasAuthority('PERM_USUARIOS_VER')")` a nivel de clase — JEFE_SUPERVISORES y TECNOLOGIA autorizados; SUPERVISOR y EJECUTIVO_TERRENO devuelven 403.
+- `UsuarioRepository` — añadido `findAllByIdIn`.
+- `UsuarioRolRepository` — añadido `findAllByUsuarioIdInAndActivoTrue`.
+- `SupervisionRepository` — añadido `findAllByEjecutivoIdInAndActivoTrue`.
+- `RolPermisoRepository` — añadido `findAllByIdRolIdIn`.
+- `EstadoUsuarioTest` — 7 tests unitarios con `Clock.fixed()`.
+- `UsuarioAdminRestTest` — 28 tests de integración (autorización, filtros, paginación, detalle, ausencia de campos sensibles).
+- **API: 323 pruebas — 0 failures — BUILD SUCCESS.**
+- ADR-0046 — política de acceso a consultas administrativas de usuarios.
+- `contracts/openapi/cobranza-api.yaml` — schemas `EstadoUsuario`, `RolVigenteAdmin`, `ItemListadoUsuarioAdmin`, `RespuestaListadoUsuarios`, `DetalleUsuarioAdmin`; endpoints documentados.
+
+### Añadido — Angular (`apps/admin-web/`)
+
+- `permission.guard.ts` — guard funcional `CanActivateFn` basado en `permisos[]` del perfil (no roles). Espera INICIALIZANDO. Redirige a /forbidden o /login.
+- `usuario.models.ts` — tipos: `EstadoUsuario`, `RolVigente`, `ItemListadoUsuario`, `RespuestaListadoUsuarios`, `DetalleUsuario`, `FiltrosListado`.
+- `usuarios.service.ts` — `listar(pagina, tamanio, filtros)` con HttpParams condicionales; `obtenerDetalle(id)`.
+- `UsuariosListComponent` — standalone, signals, tabla Material, filtros reactivos con debounce 400ms en nombreUsuario, paginación, sincronización con query params.
+- `UsuarioDetailComponent` — standalone, signals, manejo de 403→/forbidden, 404 y 500 con templates específicos, queryParams preservados en botón Volver.
+- `usuarios.routes.ts` — rutas lazy con `canActivate: [authGuard, permissionGuard]`, `data: { permission: 'USUARIOS_VER' }`.
+- `app.routes.ts` — añadido `/usuarios` con loadChildren.
+- `layout.component.ts` — enlace "Usuarios" visible solo con `USUARIOS_VER`.
+- `e2e/usuarios.spec.ts` — 8 tests Playwright interceptados (menú visible/oculto, forbidden, listado, filtros, detalle, volver, paginación).
+- **Angular: 50 tests Vitest — 0 failures.**
+- **Playwright: 14 tests — 14 passed (6 auth + 8 usuarios).**
+- **npm audit --audit-level=high — 0 vulnerabilidades high/critical.**
+
+---
+
 ## [Sin versión] — 2026-08-03 — Fase 5A: Base del administrador web y autenticación web — VALIDADA ✅
 
 ### Añadido — API (`apps/api/`)

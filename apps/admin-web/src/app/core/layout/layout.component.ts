@@ -1,5 +1,5 @@
-import { Component, inject } from '@angular/core';
-import { Router, RouterOutlet } from '@angular/router';
+import { Component, inject, computed } from '@angular/core';
+import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatListModule } from '@angular/material/list';
@@ -12,6 +12,7 @@ import { AuthService } from '../auth/auth.service';
   standalone: true,
   imports: [
     RouterOutlet,
+    RouterLink,
     MatToolbarModule,
     MatSidenavModule,
     MatListModule,
@@ -26,6 +27,12 @@ import { AuthService } from '../auth/auth.service';
             <mat-icon matListItemIcon>home</mat-icon>
             <span matListItemTitle>Inicio</span>
           </a>
+          @if (tienePermissoUsuariosVer()) {
+            <a mat-list-item routerLink="/usuarios" data-testid="menu-usuarios">
+              <mat-icon matListItemIcon>people</mat-icon>
+              <span matListItemTitle>Usuarios</span>
+            </a>
+          }
         </mat-nav-list>
       </mat-sidenav>
 
@@ -61,6 +68,9 @@ export class LayoutComponent {
   private readonly router = inject(Router);
 
   readonly profile = this.authService.profile;
+  readonly tienePermissoUsuariosVer = computed(() =>
+    this.authService.profile()?.permisos?.includes('USUARIOS_VER') ?? false,
+  );
 
   logout(): void {
     this.authService.logout().subscribe({

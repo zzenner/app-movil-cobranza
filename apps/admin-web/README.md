@@ -39,13 +39,23 @@ npm run e2e            # Playwright (requiere servidor en :4200)
 npm run build          # dist/admin-web/
 ```
 
+## Funcionalidades implementadas
+
+| Ruta | Permiso | Descripción |
+|---|---|---|
+| `/login` | — | Formulario de acceso. |
+| `/home` | autenticado | Pantalla de inicio con perfil real. |
+| `/usuarios` | `USUARIOS_VER` | Listado paginado de usuarios con filtros (nombreUsuario, estado, rol). |
+| `/usuarios/:id` | `USUARIOS_VER` | Detalle de usuario: roles, permisos efectivos, supervisor, estado calculado. |
+| `/forbidden` | — | Página 403. |
+
 ## Autenticación
 
 - Login web en `POST /api/v1/auth/web/login` — no requiere `identificadorInstalacion`
 - Access token: en memoria únicamente (nunca en localStorage/sessionStorage)
 - Refresh token: cookie HttpOnly `rt_web`, SameSite=Strict, Path=/api/v1/auth/web/refresh
 - Bootstrap: al iniciar la app, intenta renovar la sesión; si falla, redirige a /login
-- Guards funcionales: `authGuard` (autenticación), `roleGuard` (roles), `loginGuard` (redirect si ya autenticado)
+- Guards funcionales: `authGuard` (autenticación), `permissionGuard` (permisos — Fase 5B-1), `loginGuard` (redirect si ya autenticado)
 
 ## Seguridad
 

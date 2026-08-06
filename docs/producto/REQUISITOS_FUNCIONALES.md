@@ -76,6 +76,7 @@
 
 | ID     | Descripción                                                                                         |
 |--------|-----------------------------------------------------------------------------------------------------|
+| RF-07f | **El administrador puede consultar el listado y detalle de usuarios del sistema (Fase 5B-1 ✅):** `GET /api/v1/admin/usuarios` (listado paginado con filtros: nombreUsuario, estado, rol) y `GET /api/v1/admin/usuarios/{id}` (detalle con roles, permisos efectivos, supervisor y estado calculado). Permiso requerido: `USUARIOS_VER`. Solo JEFE_SUPERVISORES y TECNOLOGIA tienen acceso. Solo lectura — sin escritura. Ver ADR-0046. |
 | RF-07a | El supervisor y roles superiores pueden ver las gestiones registradas por sus ejecutivos.           |
 | RF-07b | El supervisor puede ver el estado de dispositivos de sus ejecutivos (última sync, versión, errores).|
 | RF-07c | El administrador puede revocar un dispositivo; la revocación es efectiva al recuperar conectividad. |

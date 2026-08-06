@@ -361,6 +361,141 @@ components:
             `INSERTADA`: gestión nueva registrada (HTTP 201).
             `IDEMPOTENTE`: ya existía con el mismo contenido (HTTP 200).
 
+    EstadoUsuario:
+      type: string
+      enum: [ACTIVO, BLOQUEADO_TEMPORAL, BLOQUEADO, INACTIVO]
+      description: |
+        Estado calculado del usuario con precedencia:
+        1. activo == false → INACTIVO
+        2. bloqueado == true → BLOQUEADO
+        3. bloqueadoHasta > ahora → BLOQUEADO_TEMPORAL
+        4. en cualquier otro caso → ACTIVO
+
+    RolVigenteAdmin:
+      type: object
+      properties:
+        codigo:
+          type: string
+          example: "SUPERVISOR"
+        fechaAsignacion:
+          type: string
+          format: date-time
+
+    ItemListadoUsuarioAdmin:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nombreUsuario:
+          type: string
+          example: "sup.prueba"
+        nombres:
+          type: string
+        apellidoPaterno:
+          type: string
+        apellidoMaterno:
+          type: string
+          nullable: true
+        correo:
+          type: string
+          nullable: true
+        estadoCalculado:
+          $ref: '#/components/schemas/EstadoUsuario'
+        bloqueadoHasta:
+          type: string
+          format: date-time
+          nullable: true
+        roles:
+          type: array
+          items:
+            type: string
+        supervisorId:
+          type: string
+          format: uuid
+          nullable: true
+        supervisorNombreUsuario:
+          type: string
+          nullable: true
+        fechaCreacion:
+          type: string
+          format: date-time
+
+    RespuestaListadoUsuarios:
+      type: object
+      properties:
+        contenido:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemListadoUsuarioAdmin'
+        pagina:
+          type: integer
+          example: 0
+        tamanio:
+          type: integer
+          example: 20
+        totalElementos:
+          type: integer
+          format: int64
+        totalPaginas:
+          type: integer
+
+    DetalleUsuarioAdmin:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nombreUsuario:
+          type: string
+        nombres:
+          type: string
+        apellidoPaterno:
+          type: string
+        apellidoMaterno:
+          type: string
+          nullable: true
+        correo:
+          type: string
+          nullable: true
+        estadoCalculado:
+          $ref: '#/components/schemas/EstadoUsuario'
+        activo:
+          type: boolean
+        bloqueado:
+          type: boolean
+        bloqueadoHasta:
+          type: string
+          format: date-time
+          nullable: true
+        intentosFallidos:
+          type: integer
+        fechaUltimoAcceso:
+          type: string
+          format: date-time
+          nullable: true
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/RolVigenteAdmin'
+        permisosEfectivos:
+          type: array
+          items:
+            type: string
+        supervisorId:
+          type: string
+          format: uuid
+          nullable: true
+        supervisorNombreUsuario:
+          type: string
+          nullable: true
+        fechaCreacion:
+          type: string
+          format: date-time
+        fechaActualizacion:
+          type: string
+          format: date-time
+
   SolicitudLogin:
     type: object
     required:
@@ -922,3 +1057,124 @@ paths:
               example:
                 status: 404
                 code: "PERSONA_NO_ENCONTRADA"
+
+  /api/v1/admin/usuarios:
+    get:
+      tags:
+        - Admin — Usuarios
+      summary: Listar usuarios (solo lectura)
+      description: |
+        Listado paginado de usuarios con filtros opcionales.
+        **Permiso requerido:** `USUARIOS_VER`.
+        Roles con acceso: JEFE_SUPERVISORES, TECNOLOGIA.
+        SUPERVISOR y EJECUTIVO_TERRENO reciben 403.
+        Orden fijo: nombreUsuario ASC, id ASC.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: pagina
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: tamanio
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: nombreUsuario
+          in: query
+          schema:
+            type: string
+            maxLength: 50
+          description: Búsqueda parcial insensible a mayúsculas.
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVO, BLOQUEADO_TEMPORAL, BLOQUEADO, INACTIVO]
+        - name: rol
+          in: query
+          schema:
+            type: string
+          description: Código de rol. Si no existe devuelve 400.
+      responses:
+        "200":
+          description: Listado paginado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaListadoUsuarios'
+        "400":
+          description: Parámetro inválido (estado o rol inexistente, pagina < 0, tamanio > 50).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "401":
+          description: No autenticado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: Sin permiso USUARIOS_VER.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/admin/usuarios/{id}:
+    get:
+      tags:
+        - Admin — Usuarios
+      summary: Detalle de usuario (solo lectura)
+      description: |
+        Retorna el detalle completo de un usuario: roles vigentes, permisos efectivos y supervisor.
+        **Permiso requerido:** `USUARIOS_VER`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Detalle del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetalleUsuarioAdmin'
+        "400":
+          description: UUID con formato inválido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "401":
+          description: No autenticado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: Sin permiso USUARIOS_VER.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "404":
+          description: Usuario no encontrado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                status: 404
+                code: "USUARIO_NO_ENCONTRADO"

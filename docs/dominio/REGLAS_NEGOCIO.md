@@ -226,6 +226,18 @@ Se consideran pendientes: gestiones no enviadas, fotografías no enviadas, ubica
 - Solo se exponen: `rut_numero`, `rut_dv`, `nombre`.
 - No generan ninguna acción en el sistema.
 
+### RN-28 Estado calculado de usuario
+
+El estado de un usuario para la vista administrativa se calcula en el momento de la consulta con la siguiente precedencia (de mayor a menor):
+
+1. **INACTIVO** — `activo = false`. El usuario no puede iniciar sesión.
+2. **BLOQUEADO** — `activo = true` y `bloqueado = true`. Bloqueo permanente hasta desbloqueo explícito.
+3. **BLOQUEADO_TEMPORAL** — `activo = true`, `bloqueado = false`, y `bloqueado_hasta > ahora`. Bloqueo automático con expiración.
+4. **ACTIVO** — ninguna condición anterior aplica.
+
+El campo `bloqueado_hasta` no afecta el estado si el usuario está `INACTIVO` o `BLOQUEADO`.
+El estado calculado no se persiste en la base de datos; se deriva de los campos base en cada consulta.
+
 ### RN-27 Versión mínima Android (provisional)
 - `minSdk`: API 29 — Android 10.
 - Esta decisión es **provisional** y depende del inventario real de teléfonos corporativos.

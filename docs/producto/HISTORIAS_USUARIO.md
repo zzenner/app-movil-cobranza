@@ -82,7 +82,14 @@ Estado: BORRADOR — pendiente de refinamiento y estimación.
 ### HU-007 — Gestión de usuarios (administrador)
 **Como** administrador, **quiero** crear y gestionar usuarios del sistema, **para** dar acceso a cobradores y administradores.
 
-**Criterios de aceptación:**
+**Criterios de aceptación — Fase 5B-1 ✅ ENTREGADA (solo lectura):**
+- Puedo ver el listado de usuarios con sus roles, estado calculado y supervisor.
+- Puedo filtrar por nombre de usuario, estado y rol.
+- Puedo ver el detalle completo de un usuario: roles vigentes, permisos efectivos, historial de bloqueo y supervisor asignado.
+- El acceso está restringido al permiso `USUARIOS_VER` (JEFE_SUPERVISORES, TECNOLOGIA).
+- No se exponen contraseñas, tokens de sesión ni identificadores de dispositivo.
+
+**Criterios de aceptación — Fase 5B-2 (PENDIENTE):**
 - Puedo crear un usuario con nombre, correo, rol y contraseña inicial.
 - Puedo desactivar un usuario sin eliminarlo.
 - Los usuarios desactivados no pueden iniciar sesión.

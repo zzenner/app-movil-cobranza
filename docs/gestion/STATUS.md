@@ -1,7 +1,7 @@
 # Estado del proyecto
 
-**Última actualización:** 2026-08-03
-**Fase actual:** Fase 4C-B — Búsqueda directa global por RUT — IMPLEMENTADA ✅ PENDIENTE COMMIT
+**Última actualización:** 2026-08-05
+**Fase actual:** Fase 5B-1 — Consulta administrativa de usuarios (solo lectura) — IMPLEMENTADA ✅ PENDIENTE COMMIT
 **Fase anterior:** Fase 4C-A — Gestiones offline desde ASIGNACION_DIARIA ✅ CERRADA
 
 ## Resumen
@@ -23,7 +23,8 @@
 | **API — asignaciones mensuales y diarias (Fase 3B)**      | **Completado ✅**      |
 | **API — gestiones de cobranza (Fase 3C — validada)**      | **Completado ✅**      |
 | **API — REST asignaciones y gestiones (Fase 3D)**         | **Validada ✅ — Lista para cierre**      |
-| Admin Web (Angular) — Fase 5A base + autenticación        | **IMPLEMENTADA ✅ — pendiente commit** |
+| Admin Web (Angular) — Fase 5A base + autenticación        | **Completado ✅** |
+| **Admin Web (Angular) — Fase 5B-1 consulta usuarios**     | **IMPLEMENTADA ✅ — pendiente commit** |
 | **App Android — Fase 4A (base auth + red + seguridad)**   | **Completado ✅**                   |
 | **App Android — Fase 4B (cartera offline Room + WorkManager)** | **Cerrada ✅**               |
 | **App Android — Fase 4C-A (gestiones ASIGNACION_DIARIA offline)**  | **Cerrada ✅**          |
@@ -511,9 +512,47 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 | `ng build` — BUILD SUCCESSFUL | ✅ |
 | CI: `.github/workflows/admin-web-ci.yml` | ✅ |
 
+## Fase 5B-1 — Consulta administrativa de usuarios (2026-08-05) — IMPLEMENTADA ✅
+
+### API — Endpoint de consulta de usuarios (solo lectura)
+
+| Item | Resultado |
+|---|---|
+| `EstadoUsuario` enum — ACTIVO, BLOQUEADO_TEMPORAL, BLOQUEADO, INACTIVO | ✅ |
+| `UsuarioAdminService` — listado paginado, detalle, calcularEstado con Clock | ✅ |
+| Batch queries — 1 page query + roles + supervisión + nombres (sin N+1) | ✅ |
+| JPA Specification con EXISTS subquery para filtro por rol | ✅ |
+| `UsuarioAdminController` — `GET /api/v1/admin/usuarios` + `GET /api/v1/admin/usuarios/{id}` | ✅ |
+| `@PreAuthorize("hasAuthority('PERM_USUARIOS_VER')")` en clase — JEFE_SUPERVISORES, TECNOLOGIA | ✅ |
+| SUPERVISOR y EJECUTIVO_TERRENO → 403 (no tienen USUARIOS_VER) | ✅ |
+| Estado calculado: precedencia INACTIVO → BLOQUEADO → BLOQUEADO_TEMPORAL → ACTIVO | ✅ |
+| Validación manual pagina/tamanio → 400 (no 422) | ✅ |
+| Sin exposición de contrasenaHash, version, tokens, sesiones, dispositivos | ✅ |
+| `EstadoUsuarioTest` — 7 tests unitarios | ✅ |
+| `UsuarioAdminRestTest` — 28 tests de integración | ✅ |
+| **API: 323 pruebas — 0 failures — BUILD SUCCESS** | ✅ |
+| ADR-0046 — política de acceso a consultas administrativas de usuarios | ✅ |
+
+### Angular — Pantallas de consulta de usuarios
+
+| Item | Resultado |
+|---|---|
+| `permission.guard.ts` — guard funcional basado en permiso (no rol) | ✅ |
+| `usuario.models.ts` — tipos TypeScript completos | ✅ |
+| `usuarios.service.ts` — HttpClient, HttpParams condicionales | ✅ |
+| `UsuariosListComponent` — tabla Material, filtros, paginación, query params | ✅ |
+| `UsuarioDetailComponent` — detalle, roles vigentes, permisos efectivos, supervisor | ✅ |
+| Rutas lazy con `authGuard + permissionGuard`, `data: { permission: 'USUARIOS_VER' }` | ✅ |
+| `LayoutComponent` — enlace Usuarios visible solo con USUARIOS_VER | ✅ |
+| OpenAPI actualizado — schemas y endpoints documentados | ✅ |
+| **Angular: 50 tests Vitest — 0 failures** | ✅ |
+| **Playwright: 14 tests — 14 passed** | ✅ |
+| **npm audit --audit-level=high** — 0 vulnerabilidades high/critical | ✅ |
+| **ng build** — BUILD SUCCESSFUL | ✅ |
+
 ## Próximo paso recomendado
 
-Commit con `feat: implementar base admin web y autenticacion web fase 5a`, tag `v0.13.0-admin-web-auth`, merge a `main`, nueva rama `feature/fase-5b-listado-usuarios`.
+Commit de Fase 5B-1 (requiere autorización explícita), luego Fase 5B-2 — gestión de usuarios (escritura).
 
 ## Historial de fases
 

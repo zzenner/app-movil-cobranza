@@ -21,6 +21,11 @@ export const routes: Routes = [
           import('./features/home/home.component').then((m) => m.HomeComponent),
       },
       {
+        path: 'usuarios',
+        loadChildren: () =>
+          import('./features/usuarios/usuarios.routes').then((m) => m.usuariosRoutes),
+      },
+      {
         path: 'forbidden',
         loadComponent: () =>
           import('./features/forbidden/forbidden.component').then((m) => m.ForbiddenComponent),

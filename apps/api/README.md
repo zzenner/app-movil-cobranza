@@ -100,6 +100,15 @@ cd apps/api && ./mvnw test -Dtest="ModularidadTest"
 | `POST /api/v1/gestiones` | 201 / 200 / 409 | Recepción idempotente de gestión. 201 = nueva, 200 = idempotente, 409 = conflicto UUID. El ejecutivo se extrae del JWT (`sub`). |
 | `POST /api/v1/personas/busquedas` | 200 / 400 / 404 | Búsqueda directa por RUT. RUT en body por privacidad (ADR-0041). 400 = RUT inválido, 404 = no existe. Respuesta `{ version, generadoEn, persona }`. |
 
+### Administración de usuarios — Panel web (permiso `USUARIOS_VER`)
+
+| Endpoint | Respuestas | Descripción |
+|---|---|---|
+| `GET /api/v1/admin/usuarios` | 200 / 400 / 401 / 403 | Listado paginado de usuarios. Filtros: `nombreUsuario` (parcial, insensible), `estado` (ACTIVO/BLOQUEADO_TEMPORAL/BLOQUEADO/INACTIVO), `rol`. Paginación: `pagina` (≥0), `tamanio` (1–50, default 20). Orden: nombreUsuario ASC. Solo lectura. |
+| `GET /api/v1/admin/usuarios/{id}` | 200 / 400 / 401 / 403 / 404 | Detalle completo: roles vigentes, permisos efectivos, estado calculado, supervisor. No expone `contrasenaHash`. |
+
+Acceso: `JEFE_SUPERVISORES` y `TECNOLOGIA`. `SUPERVISOR` y `EJECUTIVO_TERRENO` reciben 403. Ver ADR-0046.
+
 ### Infraestructura (públicos)
 
 | Endpoint | Descripción |

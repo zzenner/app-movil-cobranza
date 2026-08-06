@@ -230,14 +230,25 @@
 
 ---
 
-## Fase 5B — Consulta de usuarios de solo lectura (PENDIENTE)
+## Fase 5B-1 — Consulta administrativa de usuarios (solo lectura) ✅ IMPLEMENTADA
 
-**Objetivo:** Primera funcionalidad administrativa real: listar los usuarios del sistema.
+**Objetivo:** Primera funcionalidad administrativa real: consultar usuarios del sistema desde el panel web.
+
+**Entregado:**
+- API `GET /api/v1/admin/usuarios` — listado paginado con filtros (nombreUsuario, estado, rol). Orden: nombreUsuario ASC.
+- API `GET /api/v1/admin/usuarios/{id}` — detalle completo (roles vigentes, permisos efectivos, supervisor, estado calculado).
+- Estado calculado con precedencia: `INACTIVO → BLOQUEADO → BLOQUEADO_TEMPORAL → ACTIVO`. Clock inyectable.
+- Batch queries (sin N+1): 4 consultas fijas por página, independiente del tamaño.
+- Permiso `PERM_USUARIOS_VER`: acceso para JEFE_SUPERVISORES y TECNOLOGIA. SUPERVISOR y EJECUTIVO_TERRENO reciben 403.
+- Angular: `features/usuarios` lazy-loaded, `permissionGuard` basado en `permisos[]`, listado con filtros y paginación, detalle con rol/supervisor.
+- ADR-0046. OpenAPI actualizado. 323 tests API, 50 tests Vitest, 14 tests Playwright.
+
+## Fase 5B-2 — Gestión de usuarios (escritura) (PENDIENTE)
 
 **Incluye (borrador):**
-- Endpoint API `GET /api/v1/admin/usuarios` — lectura de usuarios con roles. Rol requerido: `ADMIN` o `JEFE_SUPERVISORES`.
-- Pantalla Angular: tabla de usuarios con nombre, rol activo y estado. Solo lectura.
-- Sin creación, edición ni eliminación de usuarios en esta fase.
+- Crear usuario, editar usuario, activar/desactivar, cambiar contraseña.
+- Permiso requerido: `USUARIOS_ADMINISTRAR`.
+- Sin creación, edición ni eliminación de usuarios hasta esta fase.
 
 ---
 
