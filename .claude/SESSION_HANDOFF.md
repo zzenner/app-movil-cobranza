@@ -1,24 +1,114 @@
-# Handoff de sesión — Fase 5B-2 VALIDADA ✅ LISTA PARA CIERRE
+# Handoff de sesión — Fase 5C EN PREPARACIÓN
 
 **Fecha:** 2026-08-06
-**Rama activa:** `feature/fase-5b-2-usuarios-escritura`
+**Rama activa:** `feature/fase-5c-importacion-mensual`
 
 ---
 
-## Estado de Git
+## Estado de Git — Fase 5B-2 CERRADA
 
 | Referencia | Hash | Descripción |
 |---|---|---|
-| `main` (local + origin) | `1a22c8a` | feat(infra): implementar entorno docker local integrado |
+| `main` (local + origin) | `b3c4c8a` | feat: implementar gestion administrativa de usuarios fase 5b-2 |
+| `v0.16.0-usuarios-admin-write` | `b3c4c8a` | Tag Fase 5B-2 — publicado ✅ |
+| `feature/fase-5c-importacion-mensual` | `b3c4c8a` | Rama 5C — solo añade contexto |
 | `v0.15.0-entorno-docker-local` | `1a22c8a` | Tag Docker — publicado ✅ |
-| `feature/fase-5b-2-usuarios-escritura` | HEAD | Fase 5B-2 implementada y validada — sin commit aún |
 | `v0.14.0-usuarios-admin-readonly` | `d82d95d` | Tag Fase 5B-1 — publicado ✅ |
 
 ---
 
-## Resultados de auditoría — PASADA ✅
+## Cierre de Fase 5B-2 — COMPLETADO
 
-### API — Spring Boot
+| Acción | Resultado |
+|---|---|
+| Commit en `feature/fase-5b-2-usuarios-escritura` | ✅ `b3c4c8a` — 56 archivos |
+| Push branch → origin | ✅ |
+| Merge fast-forward a `main` | ✅ `1a22c8a..b3c4c8a` |
+| Push `main` → origin | ✅ |
+| Tag `v0.16.0-usuarios-admin-write` | ✅ publicado |
+| Rama `feature/fase-5c-importacion-mensual` | ✅ en origin |
+
+---
+
+## Pruebas al cierre de 5B-2
+
+| Suite | Resultado |
+|---|---|
+| API `./mvnw clean verify` | ✅ **371 tests — 0 failures** |
+| Angular `npm run test:ci` | ✅ **94 tests — 0 failures** |
+| Angular coverage | ✅ 84.1% Stmts, 81.35% Branch |
+| Playwright `npm run e2e` | ✅ **26 tests — 0 failures** |
+| Docker + smoke tests | ✅ **47 OK — 0 FALLIDO** |
+
+---
+
+## Fase 5C — IMPORTACIÓN MENSUAL ADMINISTRATIVA DE DATOS
+
+### Objetivo
+
+Cargar mensualmente la información de cobranza desde el sistema corporativo:
+personas deudoras, operaciones, cuotas y asignaciones de carteras.
+
+### Alcance preliminar
+
+- CSV con personas, operaciones, cuotas, asignaciones
+- Identificadores externos: `persona_ext_id`, `operacion_ext_id`, `cuota_ext_id`
+- Validación previa con errores por fila antes de persistir
+- Procesamiento transaccional y controlado
+- Resumen post-carga (creadas, actualizadas, rechazadas)
+- Prevención de duplicados
+- Trazabilidad (quién, cuándo, cuántos registros)
+- Interfaz en admin-web para subir el CSV y ver resultados
+
+### Fuera de alcance inicial
+
+- XLSX (salvo decisión posterior)
+- Integración automática con API corporativa externa
+- Jobs programados
+- Importación Android
+- Importación de usuarios (cubierta en 5B-2)
+
+### Preguntas abiertas
+
+- Formato CSV definitivo (columnas, separador, encoding, cabecera)
+- Comportamiento ante existentes: reemplazar vs. ignorar vs. rechazar
+- Atomicidad: lote completo vs. fila a fila
+- Tamaño esperado de archivos CSV corporativos
+- Carga mensual vs. carga inicial histórica — ¿mismo flujo?
+- Significado exacto de `persona_ext_id`, `operacion_ext_id`, `cuota_ext_id`
+- Relación RUT ↔ operación ↔ cuota en el sistema corporativo
+
+---
+
+## Siguiente acción exacta
+
+"Analizar el modelo de datos y los documentos existentes para diseñar el contrato CSV
+y el flujo de importación mensual de Fase 5C".
+
+Leer en este orden:
+1. `docs/dominio/REGLAS_NEGOCIO.md` — RN-01 a RN-15
+2. `docs/dominio/DIAGRAMA_ENTIDAD_RELACION.md`
+3. `docs/dominio/DICCIONARIO_DATOS_PRELIMINAR.md`
+4. Migraciones Flyway V006–V009 en `apps/api/src/main/resources/db/migration/`
+5. Entidades JPA: `Persona`, `Operacion`, `Cuota`, `Cartera`, `AsignacionMensual`
+6. `docs/producto/REQUISITOS_FUNCIONALES.md` — RF-03 a RF-04
+7. `docs/producto/HISTORIAS_USUARIO.md` — HU-008
+8. ADR relacionados con carga inicial si existen
+
+---
+
+## No repetir (herencia de fases anteriores)
+
+- `GlobalExceptionHandler` raíz NO puede importar tipos de módulos internos
+- Exponer operaciones entre módulos solo via interfaces en `*.api` (@NamedInterface)
+- No agregar tablas de auditoría persistente — logs estructurados únicamente
+- En Alpine, `localhost` puede resolver a IPv6 — usar `127.0.0.1`
+- `Map.of()` lanza NPE con claves null — usar `HashMap`
+- No hacer push sin autorización explícita
+
+---
+
+## Historial de pruebas — serie anterior
 
 | Suite | Resultado |
 |---|---|
