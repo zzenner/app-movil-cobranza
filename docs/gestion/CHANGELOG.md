@@ -5,6 +5,67 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-06 — Fase 5B-2: Gestión administrativa de usuarios (escritura)
+
+### Añadido — API (`apps/api/`)
+
+- `UsuarioAdminEscrituraService` — operaciones de escritura: crear, actualizar datos básicos, activar, desactivar, bloquear, desbloquear, restablecer contraseña.
+- `UsuarioAdminEscrituraController` — 8 endpoints `POST /api/v1/admin/usuarios`, `PUT /api/v1/admin/usuarios/{id}/datos-basicos`, `POST /api/v1/admin/usuarios/{id}/{activar|desactivar|bloquear|desbloquear|restablecer-contrasena}`. Requieren `PERM_USUARIOS_ADMINISTRAR`.
+- `RolAdminController` — `GET /api/v1/admin/roles` — catálogo de roles para formulario de creación.
+- `SeguridadUsuarioModificadaEvent` — evento cross-módulo en `usuarios.api`; listener en `autenticacion.aplicacion` con `@TransactionalEventListener(BEFORE_COMMIT)` revoca refresh tokens y cierra sesiones activas del usuario con motivo `REVOCACION_ADMIN`.
+- `AutoLockoutException` — impide que un administrador se desactive o bloquee a sí mismo (409).
+- `SinAdministradorActivoException` — último administrador protegido: no se puede desactivar/bloquear/desactivar el último usuario con `USUARIOS_ADMINISTRAR` activo (409).
+- `REVOCACION_ADMIN` — nuevo `MotivoCierre` en `SesionAutenticacion`.
+- `contarAdministradoresActivosExcluyendo(UUID)` — query JPQL en `UsuarioRolRepository`.
+- `cerrarActivasPorUsuario(UUID, Instant)` — nueva query en `SesionRepository`.
+- `UsuarioAdminEscrituraRestTest` — 36 tests de integración (12 nuevos en auditoría: validación actor desactivado/bloqueado, contraseña >72 bytes UTF-8, correo opcional, nombre duplicado case-insensitive, activar no desbloquea, editar propia cuenta, último admin, locking optimista concurrente real, revocación de refresh tokens).
+- ADR-0047 (revocación de sesiones en operaciones admin), ADR-0048 (activo y bloqueado ortogonales).
+- `DetalleUsuarioAdmin` — añadido campo `version` (long) para locking optimista.
+- `SolicitudCrearUsuario`, `SolicitudActualizarDatosBasicosUsuario`, `SolicitudRestablecerContrasena`, `RespuestaCrearUsuario`, `ItemRolAdmin` — nuevos DTOs.
+
+### Añadido — Angular (`apps/admin-web/`)
+
+- `UsuarioCreateComponent` — formulario de creación: nombreUsuario, contraseña (mín 8 chars), nombres, apellidos, correo (opcional), checkboxes de roles cargados desde API.
+- `UsuarioEditComponent` — formulario de edición de datos básicos con locking optimista (versión capturada del GET, enviada en PUT).
+- `ConfirmActionDialogComponent` — diálogo reutilizable de confirmación con `MatDialog`.
+- `ResetPasswordDialogComponent` — diálogo de restablecimiento de contraseña con validación y toggle de visibilidad.
+- `usuario-detail.component.ts` — añadidas acciones administrativas: activar/desactivar, bloquear/desbloquear, restablecer contraseña, con restricción `esPropiasCuenta()` e indicador de carga.
+- `usuarios-list.component.ts` — botón "Nuevo usuario" visible solo con permiso `USUARIOS_ADMINISTRAR`.
+- `usuarios.routes.ts` — rutas `nuevo` y `:id/editar` protegidas por `permissionGuard('USUARIOS_ADMINISTRAR')`.
+- `UsuariosService` — 8 nuevos métodos: `listarRoles`, `crear`, `actualizarDatosBasicos`, `activar`, `desactivar`, `bloquear`, `desbloquear`, `restablecerContrasena`.
+- `usuarios.service.spec.ts` — 8 nuevos tests.
+- `confirm-action-dialog.component.spec.ts` — 4 tests (nuevo).
+- `reset-password-dialog.component.spec.ts` — 8 tests (nuevo).
+- `usuario-create.component.spec.ts` — 7 tests (nuevo).
+- `usuario-edit.component.spec.ts` — 7 tests (nuevo).
+- `usuario-detail.component.spec.ts` — +10 tests de acciones admin (actualizado). **94 tests Vitest — 0 failures.**
+- `e2e/usuarios.spec.ts` — +12 tests [INTERCEPTADO] (nuevo/editar, confirmación, errores 409). **26 tests Playwright — 0 failures.**
+
+### Corregido
+
+- `Usuario.desbloquear()` — bug: no limpiaba `bloqueadoHasta`. Ahora limpia `bloqueado=false`, `bloqueadoHasta=null`, `intentosFallidos=0`.
+- `AutenticacionService.renovar()` y `renovarWeb()` — gap de seguridad: usuarios desactivados o bloqueados podían renovar tokens. Ahora verifica estado antes de emitir nuevos tokens.
+- Spring Modulith — `GlobalExceptionHandler` (paquete raíz) no puede referenciar tipos no expuestos de módulos. Handlers de dominio movidos a `UsuarioAdminEscrituraController`.
+
+### Añadido — Auditoría (2026-08-06)
+
+- `AutenticacionIntegracionTest` — +3 tests renovar con usuario desactivado/bloqueado/bloqueo temporal (29→32).
+- `AutenticacionWebIntegracionTest` — +3 tests renovarWeb con usuario desactivado/bloqueado/bloqueo temporal (19→22).
+- `scripts/smoke-test.sh` — sección 7 con 23 escenarios de escritura (crear, editar, activar, desactivar, bloquear, desbloquear, restablecer-contrasena, verificación de acceso por estado, limpieza).
+
+### Validado
+
+- `./mvnw --batch-mode clean verify` — **371 tests — 0 failures — BUILD SUCCESS** (ejecutado 2 veces)
+- `npm run test:ci` — **94 tests — 0 failures** (16 archivos spec)
+- `npm run test:coverage` — All files 84.1% Stmts, 81.35% Branch, 86.52% Lines (todos los componentes nuevos ≥80%)
+- `npm run build` — **éxito**
+- `npm audit` — 0 high/critical (3 moderate — igual que línea base)
+- `npm run e2e` (Playwright) — **26 tests — 0 failures**
+- `docker compose ps` — 3 servicios healthy (postgres, api, admin-web) — imágenes reconstruidas con código 5B-2
+- `bash scripts/smoke-test.sh` — **47 OK, 0 FALLIDO**
+
+---
+
 ## [Sin versión] — 2026-08-05 — Entorno Docker local completo (previa a Fase 5B-2)
 
 ### Añadido

@@ -139,7 +139,8 @@ public class UsuarioAdminService {
                 supervisorId,
                 supervisorNombreUsuario,
                 u.getFechaCreacion(),
-                u.getFechaActualizacion()
+                u.getFechaActualizacion(),
+                u.getVersion()
         );
     }
 

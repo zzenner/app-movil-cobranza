@@ -1,6 +1,6 @@
 # Roadmap
 
-## Fase actual: Fase 4C-B — Búsqueda directa por RUT — IMPLEMENTADA ✅ PENDIENTE COMMIT
+## Fase actual: Fase 5B-2 — Gestión administrativa de usuarios (escritura) — VALIDADA ✅ LISTA PARA CIERRE
 
 ## Fase 0 — Inicialización del repositorio ✅
 
@@ -257,16 +257,48 @@
 - Angular: `features/usuarios` lazy-loaded, `permissionGuard` basado en `permisos[]`, listado con filtros y paginación, detalle con rol/supervisor.
 - ADR-0046. OpenAPI actualizado. 323 tests API, 50 tests Vitest, 14 tests Playwright.
 
-## Fase 5B-2 — Gestión de usuarios (escritura) (PENDIENTE)
+## Fase 5B-2 — Gestión administrativa de usuarios (escritura) ✅ IMPLEMENTADA
 
-**Incluye (borrador):**
-- Crear usuario, editar usuario, activar/desactivar, cambiar contraseña.
-- Permiso requerido: `USUARIOS_ADMINISTRAR`.
-- Sin creación, edición ni eliminación de usuarios hasta esta fase.
+**Completado (2026-08-06):**
+- API: `POST /api/v1/admin/usuarios`, `PUT /api/v1/admin/usuarios/{id}/datos-basicos`, y 5 endpoints de estado (activar, desactivar, bloquear, desbloquear, restablecer-contrasena). Permiso: `USUARIOS_ADMINISTRAR`.
+- `GET /api/v1/admin/roles` — catálogo de roles para formulario de creación.
+- Creación con roles iniciales (sin asignación posterior — reservado a 5B-3/5C si aplica).
+- Protección "último administrador activo" (409 si la operación dejaría el sistema sin ningún admin).
+- Restricción de auto-bloqueo/desactivación (409 si el actor opera sobre sí mismo).
+- Revocación atómica de sesiones y refresh tokens al desactivar, bloquear o restablecer contraseña (`SeguridadUsuarioModificadaEvent` cross-módulo).
+- Locking optimista: campo `version` en detalle; PUT verifica versión, 409 si conflicto.
+- Angular: formularios crear/editar, diálogos confirmar/resetPassword, acciones en detalle, botón "Nuevo usuario" en listado.
+- Bug fix: `Usuario.desbloquear()` ahora limpia `bloqueadoHasta`.
+- Security fix: `AutenticacionService.renovar()` y `renovarWeb()` verifican estado del usuario antes de emitir tokens.
+- ADR-0047, ADR-0048. 371 tests API (0 failures). Specs Angular nuevos: confirm-action-dialog, reset-password-dialog, usuario-create, usuario-edit, usuario-detail (acciones admin).
+
+**No incluye:**
+- Importación mensual de datos de cobranza (personas, operaciones, cuotas, asignaciones) — corresponde a Fase 5C.
+- Asignación/remoción de roles post-creación.
+- Asignación de supervisor.
+- Eliminación física de usuarios.
+- Tablas de auditoría persistente (auditoría via logs estructurados).
 
 ---
 
-## Fase 5C–5N — Módulos administrativos (PENDIENTE)
+## Fase 5C — Importación mensual administrativa de datos (PENDIENTE)
+
+**Objetivo:** Cargar mensualmente los datos de cobranza desde el sistema corporativo al sistema de cobranza móvil.
+
+**Incluye (borrador):**
+- Importación de personas (deudores y avales).
+- Importación de operaciones y cuotas.
+- Importación de asignaciones (supervisor → ejecutivo → cartera).
+- Carga mediante CSV generado por el sistema corporativo.
+- Validación previa de la carga con reporte de errores antes de confirmar.
+- Trazabilidad de la importación: quién importó, cuándo, cuántos registros afectados.
+- Reversión por lote si la validación detecta inconsistencias críticas.
+
+**No corresponde a:** importación de usuarios (los usuarios se crean manualmente via Fase 5B-2).
+
+---
+
+## Fase 5D–5N — Módulos administrativos adicionales (PENDIENTE)
 
 **Incluye (borrador):**
 - Gestión de carteras y asignaciones.

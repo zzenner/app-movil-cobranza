@@ -132,6 +132,23 @@ docker compose build admin-web
 docker compose --profile tools up -d
 ```
 
+### Reconstruir imágenes tras cambios de código
+
+Si modificaste el código fuente (API Java o Angular) y el entorno ya está levantado, reconstruye solo la imagen afectada:
+
+```bash
+# Solo API
+docker compose build api && docker compose up -d api
+
+# Solo admin-web
+docker compose build admin-web && docker compose up -d admin-web
+
+# Ambas (con espera de healthcheck)
+docker compose build api admin-web && docker compose up -d
+```
+
+Los contenedores `api` y `admin-web` se recrean automáticamente manteniendo PostgreSQL activo.
+
 ## Smoke tests automatizados
 
 ```bash

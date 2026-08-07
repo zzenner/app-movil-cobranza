@@ -18,4 +18,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID>, JpaSpec
     boolean existsByCorreo(String correo);
 
     List<Usuario> findAllByIdIn(Collection<UUID> ids);
+
+    boolean existsByNombreUsuarioAndIdNot(String nombreUsuario, UUID id);
+
+    boolean existsByCorreoAndIdNot(String correo, UUID id);
 }

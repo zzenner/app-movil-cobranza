@@ -155,6 +155,11 @@ public class AutenticacionService {
                 .buscarCredencialesPorId(sesion.getUsuarioId())
                 .orElseThrow(() -> new BadCredentialsException("token inválido"));
 
+        if (!credenciales.isActivo() || credenciales.isBloqueado()
+                || (credenciales.getBloqueadoHasta() != null && ahora.isBefore(credenciales.getBloqueadoHasta()))) {
+            throw new BadCredentialsException("token inválido");
+        }
+
         return emitirTokens(credenciales, sesion, ahora);
     }
 
@@ -253,6 +258,11 @@ public class AutenticacionService {
         CredencialesUsuario credenciales = usuarioConsultaApi
                 .buscarCredencialesPorId(sesion.getUsuarioId())
                 .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("token inválido"));
+
+        if (!credenciales.isActivo() || credenciales.isBloqueado()
+                || (credenciales.getBloqueadoHasta() != null && ahora.isBefore(credenciales.getBloqueadoHasta()))) {
+            throw new BadCredentialsException("token inválido");
+        }
 
         return emitirYGuardarTokens(credenciales, sesion, ahora);
     }

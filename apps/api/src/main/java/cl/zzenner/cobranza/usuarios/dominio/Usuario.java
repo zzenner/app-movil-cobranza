@@ -96,6 +96,7 @@ public class Usuario {
     public void desbloquear() {
         this.bloqueado = false;
         this.intentosFallidos = 0;
+        this.bloqueadoHasta = null;
     }
 
     public void registrarIntentoFallido() {

@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ProblemDetail;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -107,6 +108,18 @@ class GlobalExceptionHandler {
                         e -> e.getDefaultMessage() != null ? e.getDefaultMessage() : "inválido",
                         (a, b) -> a));
         problem.setProperty("campos", campos);
+        return problem;
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    ProblemDetail handleOptimisticLock(ObjectOptimisticLockingFailureException ex, HttpServletRequest req) {
+        ProblemDetail problem = ProblemDetail.forStatus(409);
+        problem.setType(URI.create("https://cobranza.zzenner.cl/errores/conflicto-version"));
+        problem.setTitle("Conflicto de versión");
+        problem.setDetail("El recurso fue modificado por otra operación. Vuelva a cargar y reintente.");
+        problem.setProperty("code", "CONFLICTO_VERSION");
+        problem.setProperty("timestamp", Instant.now().toString());
+        problem.setProperty("path", req.getRequestURI());
         return problem;
     }
 

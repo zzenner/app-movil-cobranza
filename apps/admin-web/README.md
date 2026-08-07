@@ -147,15 +147,17 @@ docker compose logs admin-web --tail=50
 docker compose logs api --tail=50
 ```
 
-## Próximas funcionalidades (Fase 5B-2)
+## Funcionalidades implementadas (Fase 5B-2) ✅
 
-Las siguientes funcionalidades **no están implementadas** — están pendientes para Fase 5B-2:
+Gestión administrativa de usuarios con permiso `USUARIOS_ADMINISTRAR`:
 
-- Crear usuario
-- Editar usuario (nombre, email)
-- Activar / Desactivar usuario
-- Bloquear / Desbloquear usuario
-- Cambiar contraseña de usuario
+- **Crear usuario** — formulario con nombre de usuario, nombres, correo (opcional), contraseña y roles iniciales.
+- **Editar usuario** — editar nombres y correo con protección de versión concurrente.
+- **Activar / Desactivar usuario** — con diálogo de confirmación.
+- **Bloquear / Desbloquear usuario** — con diálogo de confirmación.
+- **Restablecer contraseña** — diálogo que solicita la nueva contraseña.
+- Botón "Nuevo usuario" en el listado (visible solo con `USUARIOS_ADMINISTRAR`).
+- Protección de propia cuenta: los botones desactivar/bloquear se ocultan cuando el usuario viendo el detalle es el propio actor.
 
 ## ADRs relacionados
 

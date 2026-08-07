@@ -89,10 +89,16 @@ Estado: BORRADOR — pendiente de refinamiento y estimación.
 - El acceso está restringido al permiso `USUARIOS_VER` (JEFE_SUPERVISORES, TECNOLOGIA).
 - No se exponen contraseñas, tokens de sesión ni identificadores de dispositivo.
 
-**Criterios de aceptación — Fase 5B-2 (PENDIENTE):**
-- Puedo crear un usuario con nombre, correo, rol y contraseña inicial.
-- Puedo desactivar un usuario sin eliminarlo.
-- Los usuarios desactivados no pueden iniciar sesión.
+**Criterios de aceptación — Fase 5B-2 ✅ COMPLETADA:**
+- ✅ Puedo crear un usuario con nombre, correo, rol y contraseña inicial.
+- ✅ Puedo editar los datos básicos de un usuario existente (con protección de concurrencia por campo `version`).
+- ✅ Puedo activar o desactivar un usuario sin eliminarlo.
+- ✅ Los usuarios desactivados no pueden iniciar sesión.
+- ✅ Puedo bloquear y desbloquear un usuario de forma independiente al estado activo/inactivo.
+- ✅ Puedo restablecer la contraseña de un usuario.
+- ✅ El sistema impide dejar el sistema sin administrador activo (último administrador protegido).
+- ✅ No puedo desactivarme ni bloquearme a mí mismo.
+- ✅ Las operaciones de seguridad (desactivar, bloquear, restablecer-contraseña) revocan las sesiones activas del usuario afectado.
 
 ---
 

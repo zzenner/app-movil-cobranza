@@ -47,10 +47,43 @@ export interface DetalleUsuario {
   supervisorNombreUsuario: string | null;
   fechaCreacion: string;
   fechaActualizacion: string;
+  version: number;
 }
 
 export interface FiltrosListado {
   nombreUsuario?: string;
   estado?: string;
   rol?: string;
+}
+
+export interface ItemRol {
+  id: string;
+  codigo: string;
+  nombre: string;
+}
+
+export interface SolicitudCrearUsuario {
+  nombreUsuario: string;
+  nombres: string;
+  apellidoPaterno: string;
+  apellidoMaterno?: string | null;
+  correo?: string | null;
+  contrasena: string;
+  rolesIniciales: string[];
+}
+
+export interface SolicitudActualizarDatosBasicosUsuario {
+  nombres: string;
+  apellidoPaterno: string;
+  apellidoMaterno?: string | null;
+  correo?: string | null;
+  version: number;
+}
+
+export interface SolicitudRestablecerContrasena {
+  nuevaContrasena: string;
+}
+
+export interface RespuestaCrearUsuario {
+  id: string;
 }

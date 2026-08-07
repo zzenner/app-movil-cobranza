@@ -10,7 +10,7 @@ public class SesionAutenticacion {
 
     public enum Estado { ACTIVA, CERRADA, COMPROMETIDA }
 
-    public enum MotivoCierre { LOGOUT, EXPIRADA, REVOCACION_DISPOSITIVO, COMPROMETIDA }
+    public enum MotivoCierre { LOGOUT, EXPIRADA, REVOCACION_DISPOSITIVO, COMPROMETIDA, REVOCACION_ADMIN }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

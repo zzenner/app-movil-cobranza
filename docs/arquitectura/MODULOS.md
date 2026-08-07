@@ -7,8 +7,8 @@ Paquete raíz: `cl.zzenner.cobranza`. Los módulos son sub-paquetes directos det
 
 | Módulo           | Responsabilidad                                                          | Estado                      |
 |------------------|--------------------------------------------------------------------------|-----------------------------|
-| `autenticacion`  | Login, emisión y renovación de tokens JWT RS256, logout, sesiones.       | Implementado (Fase 2 ✅)    |
-| `usuarios`       | Gestión de usuarios, roles y relaciones de supervisión.                  | Implementado (Fase 1C ✅)   |
+| `autenticacion`  | Login, emisión y renovación de tokens JWT RS256, logout, sesiones. `UsuarioAdminEventListener`: revoca sesiones y refresh tokens al recibir `SeguridadUsuarioModificadaEvent` (BEFORE_COMMIT). | Implementado (Fase 2 ✅)    |
+| `usuarios`       | Gestión de usuarios, roles y relaciones de supervisión. Consulta administrativa (Fase 5B-1): `UsuarioAdminConsultaController`, `UsuarioAdminConsultaService`. Escritura administrativa (Fase 5B-2): `UsuarioAdminEscrituraController`, `UsuarioAdminEscrituraService`, `RolAdminController`. Publica `SeguridadUsuarioModificadaEvent` (paquete `usuarios.api`) al desactivar, bloquear o restablecer contraseña. | Implementado (Fases 1C + 5B-1 + 5B-2 ✅) |
 | `dispositivos`   | Registro, activación y revocación de dispositivos Android.               | Implementado (Fase 1C ✅)   |
 | `carteras`       | Carteras de cobranza y relación N:M con personas (historial).            | Implementado (Fase 3A ✅)   |
 | `asignaciones`   | Asignaciones mensuales y diarias de personas a ejecutivos.               | Implementado (Fase 3B ✅)   |
@@ -30,6 +30,12 @@ sincronizacion --> asignaciones, gestiones, dispositivos
 auditoria     --> (consume eventos publicados, no importa módulos)
 compartido    --> (sin dependencias de dominio)
 ```
+
+**Eventos de dominio publicados entre módulos (paquetes `*.api`):**
+
+| Evento                             | Publicado por | Consumido por   | Fase       |
+|------------------------------------|---------------|-----------------|------------|
+| `SeguridadUsuarioModificadaEvent`  | `usuarios`    | `autenticacion` | 5B-2 ✅    |
 
 > Nota: El módulo `creditos` fue renombrado a `operaciones` para alinearse con el dominio confirmado en la Fase 1A (crédito = operación en el vocabulario del sistema externo).
 
@@ -84,9 +90,9 @@ Los módulos `:feature:*` no dependen entre sí. `:app` es el único que conoce 
 | `features/forbidden`  | ✅     | Página 403.                                                                   |
 | `features/not-found`  | ✅     | Página 404.                                                                   |
 
-| `features/usuarios`   | ✅     | Listado paginado y detalle de usuarios (solo lectura — Fase 5B-1). `permissionGuard` con `USUARIOS_VER`. |
+| `features/usuarios`   | ✅     | Listado paginado y detalle de usuarios (Fase 5B-1). Escritura: `UsuarioCreateComponent`, `UsuarioEditComponent`, `ConfirmActionDialogComponent`, `ResetPasswordDialogComponent`, acciones en `UsuarioDetailComponent` (Fase 5B-2). `permissionGuard` con `USUARIOS_VER` (lectura) y `USUARIOS_ADMINISTRAR` (escritura). |
 
-### Pendientes — Fases 5B-2 y posteriores
+### Pendientes — Fases posteriores a 5B-2
 
 | Módulo / feature   | Responsabilidad                                                    |
 |--------------------|--------------------------------------------------------------------|

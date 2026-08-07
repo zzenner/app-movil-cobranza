@@ -258,6 +258,239 @@ fi
 # (el CargadorClavesRsa falla en startup si no puede leer la clave)
 check_body "Claves RSA operativas (API healthy)" "$API_BASE/actuator/health/readiness" '"status":"UP"'
 
+# ── 7. Endpoints de escritura (Fase 5B-2) ────────────────────────────────────
+echo ""
+echo "--- 7. Endpoints de escritura de usuarios (Fase 5B-2) ---------"
+
+if [ -z "$DEV_USER" ] || [ -z "$DEV_PASS" ]; then
+    echo "  [SKIP] Escritura — DEV_ADMIN_USERNAME / DEV_ADMIN_PASSWORD no configurados."
+else
+    # Re-login actor (sesión anterior fue cerrada en sección 5)
+    _ACTOR_RESP=$(curl -s -w "\n%{http_code}" \
+        -X POST \
+        -H "Content-Type: application/json" \
+        -H "Origin: $WEB_BASE" \
+        -d "{\"nombreUsuario\":\"$DEV_USER\",\"clave\":\"$DEV_PASS\"}" \
+        --connect-timeout 5 --max-time 10 \
+        "$API_BASE/api/v1/auth/web/login" 2>/dev/null || echo -e "\n000")
+    _ACTOR_CODE=$(echo "$_ACTOR_RESP" | tail -n1)
+    _ACTOR_BODY=$(echo "$_ACTOR_RESP" | head -n-1)
+    ACTOR_TOKEN=$(echo "$_ACTOR_BODY" | grep -o '"accessToken":"[^"]*"' | cut -d'"' -f4 || echo "")
+
+    if [ "$_ACTOR_CODE" != "200" ] || [ -z "$ACTOR_TOKEN" ]; then
+        fail "Re-login actor para operaciones de escritura — código: $_ACTOR_CODE"
+    else
+        ok "Re-login actor para operaciones de escritura (200)"
+
+        # 7.1 Catálogo de roles
+        _ROLES_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $ACTOR_TOKEN" \
+            --connect-timeout 5 --max-time 10 \
+            "$API_BASE/api/v1/admin/roles" 2>/dev/null || echo "000")
+        if [ "$_ROLES_CODE" = "200" ]; then ok "GET /admin/roles — catálogo disponible (200)"
+        else fail "GET /admin/roles — esperado 200, obtenido $_ROLES_CODE"; fi
+
+        # 7.2 Crear usuario de prueba (nombre único por timestamp)
+        _SMOKE_TS=$(date +%s)
+        _SMOKE_USER="smoke.w.$_SMOKE_TS"
+        # Generar contraseña temporal sin imprimirla
+        _SMOKE_PASS_FILE="$(mktemp)"
+        printf 'SmkP@%s!' "$_SMOKE_TS" > "$_SMOKE_PASS_FILE"
+        _SMOKE_PASS=$(cat "$_SMOKE_PASS_FILE")
+        trap 'rm -f "$COOKIE_JAR" "$_SMOKE_PASS_FILE"' EXIT INT TERM
+
+        _CREATE_BODY_FILE="$(mktemp)"
+        printf '{"nombreUsuario":"%s","nombres":"Smoke","apellidoPaterno":"Test","contrasena":"%s","rolesIniciales":["EJECUTIVO_TERRENO"]}' \
+            "$_SMOKE_USER" "$_SMOKE_PASS" > "$_CREATE_BODY_FILE"
+
+        _CREATE_RESP=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer $ACTOR_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary "@$_CREATE_BODY_FILE" \
+            --connect-timeout 5 --max-time 10 \
+            "$API_BASE/api/v1/admin/usuarios" 2>/dev/null || echo -e "\n000")
+        rm -f "$_CREATE_BODY_FILE"
+        _CREATE_CODE=$(echo "$_CREATE_RESP" | tail -n1)
+        _CREATE_BODY=$(echo "$_CREATE_RESP" | head -n-1)
+
+        if [ "$_CREATE_CODE" = "201" ]; then ok "POST /admin/usuarios — usuario creado (201)"
+        else fail "POST /admin/usuarios — esperado 201, obtenido $_CREATE_CODE"; fi
+
+        if echo "$_CREATE_BODY" | grep -qi "contrasena\|hash"; then
+            fail "Respuesta de creación expone 'contrasena' o 'hash'"
+        else
+            ok "Respuesta de creación NO expone contrasena/hash"
+        fi
+
+        _SMOKE_ID=$(echo "$_CREATE_BODY" | grep -o '"id":"[^"]*"' | cut -d'"' -f4 || echo "")
+        if [ -n "$_SMOKE_ID" ]; then ok "ID del usuario creado presente en respuesta"
+        else fail "ID del usuario creado ausente en respuesta"; fi
+
+        if [ -n "$_SMOKE_ID" ]; then
+            # 7.3 Detalle — debe contener 'version', no 'contrasena'/'hash'
+            _DETAIL=$(curl -s \
+                -H "Authorization: Bearer $ACTOR_TOKEN" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/usuarios/$_SMOKE_ID" 2>/dev/null || echo "")
+            if echo "$_DETAIL" | grep -q '"version"'; then
+                ok "GET /admin/usuarios/{id} — campo 'version' presente"
+            else
+                fail "GET /admin/usuarios/{id} — campo 'version' ausente"
+            fi
+            if echo "$_DETAIL" | grep -qi "contrasena\|hash"; then
+                fail "Detalle expone 'contrasena' o 'hash'"
+            else
+                ok "Detalle NO expone contrasena/hash"
+            fi
+            _SMOKE_VER=$(echo "$_DETAIL" | grep -o '"version":[0-9]*' | cut -d':' -f2 || echo "0")
+
+            # 7.4 Editar datos básicos (version en cuerpo)
+            _EDIT_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X PUT \
+                -H "Authorization: Bearer $ACTOR_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "{\"nombres\":\"SmokeEdit\",\"apellidoPaterno\":\"TestEdit\",\"version\":$_SMOKE_VER}" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/usuarios/$_SMOKE_ID/datos-basicos" 2>/dev/null || echo "000")
+            if [[ "$_EDIT_CODE" =~ ^(200|204)$ ]]; then ok "PUT /admin/usuarios/{id}/datos-basicos ($_EDIT_CODE)"
+            else fail "PUT datos-basicos — esperado 200/204, obtenido $_EDIT_CODE"; fi
+
+            # 7.5 Desactivar usuario
+            _DESACT=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST -H "Authorization: Bearer $ACTOR_TOKEN" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/usuarios/$_SMOKE_ID/desactivar" 2>/dev/null || echo "000")
+            if [[ "$_DESACT" =~ ^(200|204)$ ]]; then ok "POST /admin/usuarios/{id}/desactivar ($_DESACT)"
+            else fail "POST desactivar — esperado 200/204, obtenido $_DESACT"; fi
+
+            # 7.6 Login del target rechazado (inactivo) — usa web login
+            _TARGET_LOGINF=$(mktemp)
+            printf '{"nombreUsuario":"%s","clave":"%s"}' "$_SMOKE_USER" "$_SMOKE_PASS" > "$_TARGET_LOGINF"
+            _TGT_DESACT=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST -H "Content-Type: application/json" -H "Origin: $WEB_BASE" \
+                --data-binary "@$_TARGET_LOGINF" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/auth/web/login" 2>/dev/null || echo "000")
+            if [[ "$_TGT_DESACT" =~ ^(401|403)$ ]]; then ok "Login rechazado para usuario desactivado ($_TGT_DESACT)"
+            else fail "Login usuario desactivado — esperado 401/403, obtenido $_TGT_DESACT"; fi
+
+            # 7.7 Activar usuario
+            _ACT=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST -H "Authorization: Bearer $ACTOR_TOKEN" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/usuarios/$_SMOKE_ID/activar" 2>/dev/null || echo "000")
+            if [[ "$_ACT" =~ ^(200|204)$ ]]; then ok "POST /admin/usuarios/{id}/activar ($_ACT)"
+            else fail "POST activar — esperado 200/204, obtenido $_ACT"; fi
+
+            # 7.8 Login del target aceptado tras activar
+            _TGT_ACT=$(curl -s -w "\n%{http_code}" \
+                -X POST -H "Content-Type: application/json" -H "Origin: $WEB_BASE" \
+                --data-binary "@$_TARGET_LOGINF" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/auth/web/login" 2>/dev/null || echo -e "\n000")
+            _TGT_ACT_CODE=$(echo "$_TGT_ACT" | tail -n1)
+            if [ "$_TGT_ACT_CODE" = "200" ]; then ok "Login aceptado para usuario reactivado (200)"
+            else fail "Login usuario activado — esperado 200, obtenido $_TGT_ACT_CODE"; fi
+
+            # 7.9 Bloquear usuario
+            _BLOQ=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST -H "Authorization: Bearer $ACTOR_TOKEN" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/usuarios/$_SMOKE_ID/bloquear" 2>/dev/null || echo "000")
+            if [[ "$_BLOQ" =~ ^(200|204)$ ]]; then ok "POST /admin/usuarios/{id}/bloquear ($_BLOQ)"
+            else fail "POST bloquear — esperado 200/204, obtenido $_BLOQ"; fi
+
+            # 7.10 Login rechazado (bloqueado)
+            _TGT_BLOQ=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST -H "Content-Type: application/json" -H "Origin: $WEB_BASE" \
+                --data-binary "@$_TARGET_LOGINF" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/auth/web/login" 2>/dev/null || echo "000")
+            if [[ "$_TGT_BLOQ" =~ ^(401|403)$ ]]; then ok "Login rechazado para usuario bloqueado ($_TGT_BLOQ)"
+            else fail "Login usuario bloqueado — esperado 401/403, obtenido $_TGT_BLOQ"; fi
+
+            # 7.11 Desbloquear usuario
+            _DESBLOQ=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST -H "Authorization: Bearer $ACTOR_TOKEN" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/usuarios/$_SMOKE_ID/desbloquear" 2>/dev/null || echo "000")
+            if [[ "$_DESBLOQ" =~ ^(200|204)$ ]]; then ok "POST /admin/usuarios/{id}/desbloquear ($_DESBLOQ)"
+            else fail "POST desbloquear — esperado 200/204, obtenido $_DESBLOQ"; fi
+
+            # 7.12 Login aceptado tras desbloquear
+            _TGT_DESBLOQ=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST -H "Content-Type: application/json" -H "Origin: $WEB_BASE" \
+                --data-binary "@$_TARGET_LOGINF" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/auth/web/login" 2>/dev/null || echo "000")
+            if [ "$_TGT_DESBLOQ" = "200" ]; then ok "Login aceptado para usuario desbloqueado (200)"
+            else fail "Login usuario desbloqueado — esperado 200, obtenido $_TGT_DESBLOQ"; fi
+
+            # 7.13 Restablecer contraseña
+            _NEW_PASS_FILE="$(mktemp)"
+            printf 'SmkNw@%s!' "$_SMOKE_TS" > "$_NEW_PASS_FILE"
+            _SMOKE_NEW_PASS=$(cat "$_NEW_PASS_FILE")
+            _RESET_BODY_FILE="$(mktemp)"
+            printf '{"nuevaContrasena":"%s"}' "$_SMOKE_NEW_PASS" > "$_RESET_BODY_FILE"
+            _RESET=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST -H "Authorization: Bearer $ACTOR_TOKEN" \
+                -H "Content-Type: application/json" \
+                --data-binary "@$_RESET_BODY_FILE" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/usuarios/$_SMOKE_ID/restablecer-contrasena" 2>/dev/null || echo "000")
+            rm -f "$_RESET_BODY_FILE"
+            if [[ "$_RESET" =~ ^(200|204)$ ]]; then ok "POST /admin/usuarios/{id}/contrasena — reset contraseña ($_RESET)"
+            else fail "POST contrasena — esperado 200/204, obtenido $_RESET"; fi
+
+            # 7.14 Contraseña antigua rechazada
+            _OLD_LOGIN=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST -H "Content-Type: application/json" -H "Origin: $WEB_BASE" \
+                --data-binary "@$_TARGET_LOGINF" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/auth/web/login" 2>/dev/null || echo "000")
+            if [[ "$_OLD_LOGIN" =~ ^(401|403)$ ]]; then ok "Login rechazado con contraseña antigua tras reset ($_OLD_LOGIN)"
+            else fail "Contraseña antigua aún válida tras reset — obtenido $_OLD_LOGIN"; fi
+            rm -f "$_TARGET_LOGINF"
+
+            # 7.15 Contraseña nueva aceptada
+            _NEW_LOGIN_FILE="$(mktemp)"
+            printf '{"nombreUsuario":"%s","clave":"%s"}' "$_SMOKE_USER" "$_SMOKE_NEW_PASS" > "$_NEW_LOGIN_FILE"
+            _NEW_LOGIN=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST -H "Content-Type: application/json" -H "Origin: $WEB_BASE" \
+                --data-binary "@$_NEW_LOGIN_FILE" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/auth/web/login" 2>/dev/null || echo "000")
+            rm -f "$_NEW_LOGIN_FILE" "$_NEW_PASS_FILE"
+            if [ "$_NEW_LOGIN" = "200" ]; then ok "Login aceptado con contraseña nueva tras reset (200)"
+            else fail "Contraseña nueva rechazada — esperado 200, obtenido $_NEW_LOGIN"; fi
+
+            # 7.16 Listado contiene el usuario creado
+            _LIST=$(curl -s -H "Authorization: Bearer $ACTOR_TOKEN" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/usuarios" 2>/dev/null || echo "")
+            if echo "$_LIST" | grep -q "$_SMOKE_ID"; then ok "Listado /admin/usuarios contiene al usuario creado"
+            else fail "Listado /admin/usuarios — usuario creado no encontrado"; fi
+
+            # 7.17 Detalle final: activo=true, bloqueado=false
+            _FINAL=$(curl -s -H "Authorization: Bearer $ACTOR_TOKEN" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/usuarios/$_SMOKE_ID" 2>/dev/null || echo "")
+            if echo "$_FINAL" | grep -q '"activo":true'; then ok "Estado final: activo=true"
+            else fail "Estado final: activo no es true"; fi
+            if echo "$_FINAL" | grep -q '"bloqueado":false'; then ok "Estado final: bloqueado=false"
+            else fail "Estado final: bloqueado no es false"; fi
+
+            # 7.18 Desactivar al final para no dejar basura activa
+            curl -s -o /dev/null \
+                -X POST -H "Authorization: Bearer $ACTOR_TOKEN" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/usuarios/$_SMOKE_ID/desactivar" 2>/dev/null || true
+            ok "Limpieza: usuario de prueba desactivado tras smoke test"
+        fi
+    fi
+fi
+
 # ── Resultado ─────────────────────────────────────────────────────────────────
 echo ""
 echo "======================================================"

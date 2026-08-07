@@ -245,6 +245,40 @@ El estado calculado no se persiste en la base de datos; se deriva de los campos 
 
 **Pendiente (no bloqueante):** obtener del inventario de dispositivos: modelo, versión Android, RAM, almacenamiento disponible, cantidad de equipos, y política de actualización de los teléfonos.
 
+### RN-29 Último administrador activo (Fase 5B-2 ✅)
+- Si una operación (desactivar, bloquear) dejaría al sistema sin ningún usuario con rol `JEFE_SUPERVISORES` o `TECNOLOGIA` que esté `activo=true` y `bloqueado=false`, la operación se rechaza con HTTP 409 `ULTIMO_ADMINISTRADOR`.
+- El conteo excluye al propio usuario target de la operación.
+
+### RN-30 Auto-lockout prohibido (Fase 5B-2 ✅)
+- Un administrador no puede desactivar ni bloquear su propia cuenta. Error HTTP 409 `AUTO_LOCKOUT`.
+- Sí puede editar sus propios datos básicos y restablecer su propia contraseña.
+
+### RN-31 Contraseña máximo 72 bytes UTF-8 (Fase 5B-2 ✅)
+- BCrypt trunca silenciosamente a 72 bytes. Se valida antes de hashear: si `contrasena.getBytes(UTF_8).length > 72` → HTTP 400.
+- La validación aplica tanto en creación como en restablecimiento de contraseña.
+
+### RN-32 Locking optimista en edición de usuarios (Fase 5B-2 ✅)
+- El detalle de usuario (`GET /admin/usuarios/{id}`) incluye un campo `version` (entero incremental).
+- La edición de datos básicos (`PUT .../datos-basicos`) requiere enviar la `version` actual del recurso.
+- Si hay conflicto de escritura concurrente, la API devuelve HTTP 409 `CONFLICTO_VERSION`.
+
+### RN-33 activo y bloqueado son ortogonales (Fase 5B-2 ✅)
+- `activar()` solo cambia `activo=true`. No toca el campo `bloqueado`.
+- Un usuario puede estar en estado `activo=true, bloqueado=true` simultáneamente.
+- Para que un usuario pueda acceder al sistema se requiere: `activo=true AND bloqueado=false AND (bloqueado_hasta IS NULL OR bloqueado_hasta > ahora)`.
+- Ver también RN-28 (estado calculado).
+
+### RN-34 Revocación de sesiones al modificar seguridad (Fase 5B-2 ✅)
+- Al desactivar, bloquear o restablecer la contraseña de un usuario, se publica `SeguridadUsuarioModificadaEvent`.
+- El listener en el módulo `autenticacion` (`UsuarioAdminEventListener`) revoca todas las sesiones activas y refresh tokens del usuario target.
+- La revocación es atómica con la operación principal (listener `BEFORE_COMMIT`).
+- El JWT de acceso sigue siendo válido hasta su TTL (máx 15 min); esta ventana residual es aceptada por diseño. Ver ADR-0047, ADR-0048.
+
+### RN-35 Roles iniciales en creación de usuarios (Fase 5B-2 ✅)
+- Los roles se asignan exclusivamente durante la creación del usuario (`POST /admin/usuarios`).
+- No existe endpoint para modificar roles post-creación en la fase actual.
+- El endpoint `GET /admin/roles` expone el catálogo de roles disponibles para poblar el formulario de creación.
+
 ## PENDIENTE — Reglas por confirmar
 
 | ID   | Pregunta                                                                                                    |

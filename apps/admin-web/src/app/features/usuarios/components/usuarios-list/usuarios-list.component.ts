@@ -15,6 +15,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { UsuariosService } from '../../services/usuarios.service';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { ItemListadoUsuario, RespuestaListadoUsuarios } from '../../models/usuario.models';
 
 @Component({
@@ -37,6 +38,11 @@ import { ItemListadoUsuario, RespuestaListadoUsuarios } from '../../models/usuar
   template: `
     <div class="page-header">
       <h1>Usuarios</h1>
+      @if (puedeAdministrar()) {
+        <a mat-raised-button color="primary" routerLink="/usuarios/nuevo" data-testid="btn-nuevo-usuario">
+          <mat-icon>add</mat-icon> Nuevo usuario
+        </a>
+      }
     </div>
 
     <div class="filtros" [formGroup]="filtrosForm">
@@ -196,6 +202,11 @@ export class UsuariosListComponent implements OnInit, OnDestroy {
   private readonly service = inject(UsuariosService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly auth = inject(AuthService);
+
+  get puedeAdministrar(): () => boolean {
+    return () => this.auth.profile()?.permisos?.includes('USUARIOS_ADMINISTRAR') ?? false;
+  }
   private readonly destroy$ = new Subject<void>();
 
   readonly columnas = ['nombreUsuario', 'nombreCompleto', 'roles', 'estado', 'supervisor', 'fechaCreacion', 'acciones'];

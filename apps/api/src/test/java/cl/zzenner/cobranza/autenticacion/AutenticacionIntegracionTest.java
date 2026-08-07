@@ -677,6 +677,67 @@ class AutenticacionIntegracionTest {
         assertThat(count).isEqualTo(1);
     }
 
+    // ─── Renovar con usuario desactivado/bloqueado ────────────────────────────────
+
+    @Test
+    void renovar_con_usuario_desactivado_retorna_401() throws Exception {
+        String idAislado = UUID.randomUUID().toString();
+        // Crear usuario que se desactivará después del primer login
+        UUID desactivarId = usuarioService.crearUsuario(
+                "renov.desactivado", "Renov", "Desactivado", null, null, CONTRASENA);
+        // Primer login para obtener un refresh token válido
+        SolicitudLogin req = new SolicitudLogin("renov.desactivado", CONTRASENA, idAislado);
+        ResponseEntity<RespuestaToken> login = rest.postForEntity("/api/v1/auth/login", req, RespuestaToken.class);
+        assertThat(login.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String refreshToken = login.getBody().refreshToken();
+
+        // Desactivar el usuario en BD (simula operación administrativa)
+        jdbc.update("UPDATE cobranza.usuarios SET activo = false WHERE id = ?", desactivarId);
+
+        // Intentar renovar → debe fallar con 401
+        ResponseEntity<String> renov = rest.postForEntity("/api/v1/auth/refresh",
+                new SolicitudRenovacion(refreshToken), String.class);
+        assertThat(renov.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        // El mensaje de error no debe revelar el estado del usuario
+        assertThat(renov.getBody()).doesNotContain("inactivo", "desactivado", "activo");
+    }
+
+    @Test
+    void renovar_con_usuario_bloqueado_retorna_401() throws Exception {
+        String idAislado = UUID.randomUUID().toString();
+        UUID bloquearId = usuarioService.crearUsuario(
+                "renov.bloqueado", "Renov", "Bloqueado", null, null, CONTRASENA);
+        SolicitudLogin req = new SolicitudLogin("renov.bloqueado", CONTRASENA, idAislado);
+        ResponseEntity<RespuestaToken> login = rest.postForEntity("/api/v1/auth/login", req, RespuestaToken.class);
+        assertThat(login.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String refreshToken = login.getBody().refreshToken();
+
+        jdbc.update("UPDATE cobranza.usuarios SET bloqueado = true WHERE id = ?", bloquearId);
+
+        ResponseEntity<String> renov = rest.postForEntity("/api/v1/auth/refresh",
+                new SolicitudRenovacion(refreshToken), String.class);
+        assertThat(renov.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(renov.getBody()).doesNotContain("bloqueado", "blocked");
+    }
+
+    @Test
+    void renovar_con_bloqueo_temporal_retorna_401() throws Exception {
+        String idAislado = UUID.randomUUID().toString();
+        UUID tempId = usuarioService.crearUsuario(
+                "renov.temp.bloq", "Renov", "TempBloq", null, null, CONTRASENA);
+        SolicitudLogin req = new SolicitudLogin("renov.temp.bloq", CONTRASENA, idAislado);
+        ResponseEntity<RespuestaToken> login = rest.postForEntity("/api/v1/auth/login", req, RespuestaToken.class);
+        assertThat(login.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String refreshToken = login.getBody().refreshToken();
+
+        // Aplicar bloqueo temporal post-login
+        usuarioConsultaApi.aplicarBloqueoTemporal(tempId, Instant.now().plus(Duration.ofHours(1)));
+
+        ResponseEntity<String> renov = rest.postForEntity("/api/v1/auth/refresh",
+                new SolicitudRenovacion(refreshToken), String.class);
+        assertThat(renov.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
     // ─── Utilidad ─────────────────────────────────────────────────────────────────
 
     private RespuestaToken loginPrincipal() {

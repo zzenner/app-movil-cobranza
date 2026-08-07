@@ -3,6 +3,7 @@ package cl.zzenner.cobranza.autenticacion;
 import cl.zzenner.cobranza.autenticacion.web.RespuestaLoginWeb;
 import cl.zzenner.cobranza.autenticacion.web.SolicitudLoginWeb;
 import cl.zzenner.cobranza.usuarios.aplicacion.UsuarioService;
+import org.springframework.jdbc.core.JdbcTemplate;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.BeforeAll;
@@ -39,6 +40,7 @@ class AutenticacionWebIntegracionTest {
 
     @Autowired TestRestTemplate rest;
     @Autowired UsuarioService usuarioService;
+    @Autowired JdbcTemplate jdbc;
 
     static final String CONTRASENA = "ClaveTest.123!";
 
@@ -286,6 +288,55 @@ class AutenticacionWebIntegracionTest {
                 .filter(h -> h.startsWith("rt_web="))
                 .anyMatch(h -> h.contains("Max-Age=0"));
         assertThat(tieneMaxAgeZero).isTrue();
+    }
+
+    // ─── Renovar web con usuario desactivado/bloqueado ───────────────────────
+
+    @Test
+    void refresh_web_con_usuario_desactivado_retorna_401() {
+        java.util.UUID idDesact = usuarioService.crearUsuario(
+                "web.desact.refr", "Web", "Desact", null, null, CONTRASENA);
+        ResponseEntity<RespuestaLoginWeb> login = loginWeb("web.desact.refr");
+        assertThat(login.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String rt = extraerValorCookieRt(login);
+
+        jdbc.update("UPDATE cobranza.usuarios SET activo = false WHERE id = ?", idDesact);
+
+        ResponseEntity<String> renov = refreshWebConCookieStr(rt);
+        assertThat(renov.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        // El mensaje de error no debe revelar el estado del usuario
+        assertThat(renov.getBody()).doesNotContain("inactivo", "desactivado");
+    }
+
+    @Test
+    void refresh_web_con_usuario_bloqueado_retorna_401() {
+        java.util.UUID idBloq = usuarioService.crearUsuario(
+                "web.bloq.refr", "Web", "Bloq", null, null, CONTRASENA);
+        ResponseEntity<RespuestaLoginWeb> login = loginWeb("web.bloq.refr");
+        assertThat(login.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String rt = extraerValorCookieRt(login);
+
+        jdbc.update("UPDATE cobranza.usuarios SET bloqueado = true WHERE id = ?", idBloq);
+
+        ResponseEntity<String> renov = refreshWebConCookieStr(rt);
+        assertThat(renov.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(renov.getBody()).doesNotContain("bloqueado");
+    }
+
+    @Test
+    void refresh_web_con_bloqueo_temporal_retorna_401() {
+        usuarioService.crearUsuario(
+                "web.temp.refr", "Web", "Temp", null, null, CONTRASENA);
+        ResponseEntity<RespuestaLoginWeb> login = loginWeb("web.temp.refr");
+        assertThat(login.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String rt = extraerValorCookieRt(login);
+
+        java.time.Instant futuro = java.time.Instant.now().plus(java.time.Duration.ofHours(1));
+        jdbc.update("UPDATE cobranza.usuarios SET bloqueado_hasta = ? WHERE nombre_usuario = 'web.temp.refr'",
+                java.sql.Timestamp.from(futuro));
+
+        ResponseEntity<String> renov = refreshWebConCookieStr(rt);
+        assertThat(renov.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     // ─── Segundo login cierra sesión anterior ────────────────────────────────

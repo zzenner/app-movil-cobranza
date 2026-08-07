@@ -120,6 +120,28 @@ Usa `UsuarioSeedApi` (interfaz pública del módulo `usuarios`) para respetar lo
 
 Acceso: `JEFE_SUPERVISORES` y `TECNOLOGIA`. `SUPERVISOR` y `EJECUTIVO_TERRENO` reciben 403. Ver ADR-0046.
 
+### Administración de usuarios — escritura (permiso `USUARIOS_ADMINISTRAR`)
+
+| Endpoint | Respuestas | Descripción |
+|---|---|---|
+| `GET /api/v1/admin/roles` | 200 / 401 / 403 | Catálogo de roles disponibles para asignación en creación de usuario. |
+| `POST /api/v1/admin/usuarios` | 201 / 400 / 401 / 403 / 409 | Crear usuario con roles iniciales. Devuelve `{ id }`. No expone contraseña/hash. Errores 409: `NOMBRE_USUARIO_DUPLICADO`, `CORREO_DUPLICADO`. |
+| `PUT /api/v1/admin/usuarios/{id}/datos-basicos` | 204 / 400 / 401 / 403 / 404 / 409 | Editar nombres y correo. Requiere campo `version` para locking optimista. Error 409: `CONFLICTO_VERSION`. |
+| `POST /api/v1/admin/usuarios/{id}/activar` | 204 / 401 / 403 / 404 | Activar usuario inactivo. No cambia flag `bloqueado`. |
+| `POST /api/v1/admin/usuarios/{id}/desactivar` | 204 / 401 / 403 / 404 / 409 | Desactivar usuario. Error 409: `ULTIMO_ADMINISTRADOR` o `AUTO_LOCKOUT`. Revoca todas las sesiones activas del target. |
+| `POST /api/v1/admin/usuarios/{id}/bloquear` | 204 / 401 / 403 / 404 / 409 | Bloquear usuario. Error 409: `ULTIMO_ADMINISTRADOR` o `AUTO_LOCKOUT`. Revoca todas las sesiones activas del target. |
+| `POST /api/v1/admin/usuarios/{id}/desbloquear` | 204 / 401 / 403 / 404 | Desbloquear usuario. Limpia `bloqueadoHasta` e `intentosFallidos`. |
+| `POST /api/v1/admin/usuarios/{id}/restablecer-contrasena` | 204 / 400 / 401 / 403 / 404 | Cambio administrativo de contraseña. Revoca todas las sesiones activas del target. |
+
+Acceso: `JEFE_SUPERVISORES` y `TECNOLOGIA` (poseen `USUARIOS_ADMINISTRAR`). Ver ADR-0047, ADR-0048.
+
+**Reglas de seguridad de escritura:**
+- El actor se valida en BD en cada operación (un admin desactivado con JWT vigente recibe 403).
+- `activar` NO modifica `bloqueado` — los dos flags son ortogonales.
+- Protección de último administrador: si la operación dejaría el sistema sin ningún administrador activo y no bloqueado, devuelve 409 `ULTIMO_ADMINISTRADOR`.
+- Auto-lockout: el actor no puede desactivar ni bloquear su propia cuenta (409 `AUTO_LOCKOUT`).
+- Locking optimista: el campo `version` en el detalle previene sobreescrituras concurrentes (409 `CONFLICTO_VERSION`).
+
 ### Infraestructura (públicos)
 
 | Endpoint | Descripción |

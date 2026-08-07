@@ -24,5 +24,6 @@ public record DetalleUsuarioAdmin(
         UUID supervisorId,
         String supervisorNombreUsuario,
         Instant fechaCreacion,
-        Instant fechaActualizacion
+        Instant fechaActualizacion,
+        long version
 ) {}

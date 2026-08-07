@@ -1,8 +1,8 @@
 # Estado del proyecto
 
-**Última actualización:** 2026-08-05
-**Fase actual:** Entorno Docker local (previa a Fase 5B-2) — IMPLEMENTADA ✅ PENDIENTE COMMIT
-**Fase anterior:** Fase 5B-1 — Consulta administrativa de usuarios (solo lectura) ✅ CERRADA (tag v0.14.0)
+**Última actualización:** 2026-08-06
+**Fase actual:** Fase 5B-2 — Gestión administrativa de usuarios (escritura) — VALIDADA ✅ LISTA PARA CIERRE
+**Fase anterior:** Entorno Docker local ✅ IMPLEMENTADO (tag v0.15.0-entorno-docker-local)
 
 ## Resumen
 
@@ -25,11 +25,12 @@
 | **API — REST asignaciones y gestiones (Fase 3D)**         | **Validada ✅ — Lista para cierre**      |
 | Admin Web (Angular) — Fase 5A base + autenticación        | **Completado ✅** |
 | **Admin Web (Angular) — Fase 5B-1 consulta usuarios**     | **CERRADA ✅ — tag v0.14.0** |
-| **Entorno Docker local (PostgreSQL + API + Admin Web)**    | **IMPLEMENTADA ✅ — pendiente commit** |
+| **Entorno Docker local (PostgreSQL + API + Admin Web)**    | **IMPLEMENTADO ✅ — tag v0.15.0-entorno-docker-local** |
 | **App Android — Fase 4A (base auth + red + seguridad)**   | **Completado ✅**                   |
 | **App Android — Fase 4B (cartera offline Room + WorkManager)** | **Cerrada ✅**               |
 | **App Android — Fase 4C-A (gestiones ASIGNACION_DIARIA offline)**  | **Cerrada ✅**          |
 | **App Android + API — Fase 4C-B (búsqueda directa por RUT)**       | **Implementada ✅ — pendiente commit** |
+| **Admin Web — Fase 5B-2 gestión usuarios (escritura)**             | **VALIDADA ✅ — LISTA PARA CIERRE** |
 | Despliegue en VPS                                                  | No iniciado           |
 
 ## Resultado de auditoría Fase 1A (2026-07-26)

@@ -3,7 +3,7 @@
 ## Identificación
 
 - **Fase:** 5B-2 — Gestión administrativa de usuarios (escritura)
-- **Estado:** PENDIENTE — planificación
+- **Estado:** VALIDADA ✅ — LISTA PARA CIERRE
 - **Rama activa:** `feature/fase-5b-2-usuarios-escritura`
 - **Base funcional:** `1a22c8a feat(infra): implementar entorno docker local integrado`
 - **Tag de fase anterior:** `v0.15.0-entorno-docker-local`
@@ -52,12 +52,12 @@ Angular protegerá formularios y botones por permiso `USUARIOS_ADMINISTRAR`.
 
 ## Siguiente acción exacta
 
-"Revisar `UsuarioService`, `Usuario`, reglas de estado y contraseña para planificar Fase 5B-2".
+Fase 5B-2 VALIDADA. Candidatos para siguiente fase:
+- Fase 5B-3: Gestión de roles post-creación (asignar/revocar roles a usuario existente)
+- Fase 5C: Importación mensual administrativa de datos (personas, operaciones, cuotas, asignaciones — CSV)
+- Fase 5D: Gestión de carteras y asignaciones en Admin Web
 
-Ver:
-- `docs/dominio/REGLAS_NEGOCIO.md` — RN-06 (roles), RN-28 (estado calculado)
-- `apps/api/src/main/java/cl/zzenner/cobranza/usuarios/aplicacion/UsuarioService.java`
-- `apps/api/src/main/java/cl/zzenner/cobranza/usuarios/dominio/Usuario.java`
+Hacer commit en rama `feature/fase-5b-2-usuarios-escritura` y merge a `main` antes de iniciar la siguiente fase.
 
 ## Fases anteriores — CERRADAS ✅
 
