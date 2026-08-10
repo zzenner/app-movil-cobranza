@@ -49,8 +49,10 @@ services:
       DEV_ADMIN_PASSWORD: ${DEV_ADMIN_PASSWORD:-}
       DEV_ADMIN_EMAIL: ${DEV_ADMIN_EMAIL:-}
       DEV_ADMIN_ROL: ${DEV_ADMIN_ROL:-TECNOLOGIA}
+      IMPORTACION_STORAGE_DIR: /var/cobranza/importaciones
     volumes:
       - ./infrastructure/dev-keys:/keys:ro
+      - cobranza_importaciones:/var/cobranza/importaciones
     ports:
       - "${API_PORT:-8081}:8080"
     networks:
@@ -103,6 +105,8 @@ services:
 volumes:
   cobranza_postgres_data:
     name: cobranza_postgres_data
+  cobranza_importaciones:
+    name: cobranza_importaciones
 
 networks:
   cobranza_net:

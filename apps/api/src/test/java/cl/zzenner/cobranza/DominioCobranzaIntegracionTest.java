@@ -278,7 +278,8 @@ class DominioCobranzaIntegracionTest {
     // Distintos de los usados en tests anteriores para evitar conflictos de UNIQUE.
 
     @Test
-    void persona_puede_pertenecer_a_dos_carteras_activas_simultaneamente() {
+    void persona_solo_puede_tener_una_cartera_activa_a_la_vez() {
+        // RN-03 revisado en V012: máximo UNA cartera activa por persona
         Rut rut = Rut.of("20000000", "5");
         Persona p = personaService.upsertPersona(rut, "Multi Cartera", "LEGADO", null, Instant.now());
 
@@ -286,10 +287,13 @@ class DominioCobranzaIntegracionTest {
         Cartera c2 = carteraService.registrar("Cartera Tarjeta", null);
 
         personaService.vincularCartera(p.getId(), c1.getId(), LocalDate.now());
-        personaService.vincularCartera(p.getId(), c2.getId(), LocalDate.now());
+
+        // Intentar vincular una segunda cartera activa viola uq_cp_persona_activa
+        assertThatThrownBy(() -> personaService.vincularCartera(p.getId(), c2.getId(), LocalDate.now()))
+                .isInstanceOf(Exception.class);
 
         List<java.util.UUID> carteras = personaService.consultarCarterasActivas(p.getId());
-        assertThat(carteras).hasSize(2).contains(c1.getId(), c2.getId());
+        assertThat(carteras).hasSize(1).contains(c1.getId());
     }
 
     @Test

@@ -4,6 +4,26 @@ Este documento registra deuda técnica real identificada, con contexto suficient
 
 ## Deuda activa
 
+### DT-IMX-001 — Cola de mensajes para workers de importación
+**Área:** API, infraestructura.
+**Descripción:** Los workers de validación y procesamiento (`@Async`) no tienen reintentos automáticos. Si el worker falla (OOM, error no controlado), el estado queda en VALIDANDO/PROCESANDO y el job de recuperación lo marca FALLIDA. El operador debe volver a subir el archivo.
+**Impacto:** Experiencia del operador: un fallo transitorio en la infraestructura obliga a resubir el archivo. Sin observabilidad directa sobre las causas del fallo del worker.
+**Decisión recomendada:** Migrar a RabbitMQ o Kafka con reintentos configurables cuando el volumen de importaciones lo justifique. Ver ADR-0050.
+
+---
+
+### ~~DT-IMX-002~~ — Tests Angular para módulo de importación ✅ RESUELTA (2026-08-10)
+**Área:** Admin Web.
+**Resolución:** Creados 4 spec files con 54 tests en total: `importacion.service.spec.ts` (9 tests, 100% cobertura), `importacion-list.component.spec.ts` (8 tests), `importacion-nueva.component.spec.ts` (15 tests), `importacion-detail.component.spec.ts` (22 tests). Cobertura global ≥80%.
+
+---
+
+### ~~DT-IMX-003~~ — Smoke tests de importación ✅ RESUELTA (2026-08-10)
+**Área:** Scripts CI.
+**Resolución:** Añadida sección 8 en `scripts/smoke-test.sh` con 21 escenarios de importación mensual. Ejecuta con skips graceful cuando no hay carteras activas (entorno sin seed). Verificado 49/49 OK en entorno Docker local.
+
+---
+
 ### DT-007 — Depuración de refresh tokens consumidos
 **Área:** API, DB.
 **Descripción:** Los tokens `CONSUMIDO` se conservan en `refresh_tokens` para detección de reutilización, pero no existe proceso de purga. La tabla crecerá indefinidamente.

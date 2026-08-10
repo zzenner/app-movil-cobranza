@@ -94,6 +94,13 @@
             <version>${springdoc-openapi.version}</version>
         </dependency>
 
+        <!-- Importación CSV -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.11.0</version>
+        </dependency>
+
         <!-- Pruebas -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

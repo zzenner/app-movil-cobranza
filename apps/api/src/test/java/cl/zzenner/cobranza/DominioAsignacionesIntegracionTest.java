@@ -191,7 +191,10 @@ class DominioAsignacionesIntegracionTest {
     }
 
     @Test
-    void persona_puede_estar_activa_en_dos_carteras_distintas() {
+    void persona_puede_estar_en_asignaciones_de_carteras_distintas_de_forma_secuencial() {
+        // RN-03 (V012): una persona solo puede tener UNA cartera activa simultánea.
+        // Las asignaciones mensuales registran gestiones históricas y pueden abarcar distintas carteras
+        // si la persona migra de cartera entre períodos.
         UUID supId = crearSupervisor("multi.cartera");
         UUID ejeId1 = crearEjecutivoConSupervision("multi.cartera.eje1", supId);
         UUID ejeId2 = crearEjecutivoConSupervision("multi.cartera.eje2", supId);
@@ -202,19 +205,21 @@ class DominioAsignacionesIntegracionTest {
         // RUT 21000000-3
         Rut rut = Rut.of("21000000", "3");
         Persona persona = personaService.upsertPersona(rut, "Multi Persona", "LEGADO", null, java.time.Instant.now());
-        personaService.vincularCartera(persona.getId(), cartA.getId(), LocalDate.now());
-        personaService.vincularCartera(persona.getId(), cartB.getId(), LocalDate.now());
 
+        // Período en cartera A
+        personaService.vincularCartera(persona.getId(), cartA.getId(), LocalDate.now());
         LocalDate inicio = LocalDate.of(2026, 8, 1);
         LocalDate fin    = LocalDate.of(2026, 8, 31);
-
         UUID amA = asignacionService.crearAsignacionMensual(cartA.getId(), ejeId1, supId, inicio, fin, null);
-        UUID amB = asignacionService.crearAsignacionMensual(cartB.getId(), ejeId2, supId, inicio, fin, null);
-
         asignacionService.agregarPersonaAMensual(amA, persona.getId());
+
+        // Migración a cartera B (se cierra A antes de abrir B — RN-03)
+        personaService.cerrarVinculo(persona.getId(), cartA.getId(), LocalDate.now());
+        personaService.vincularCartera(persona.getId(), cartB.getId(), LocalDate.now());
+        UUID amB = asignacionService.crearAsignacionMensual(cartB.getId(), ejeId2, supId, inicio, fin, null);
         asignacionService.agregarPersonaAMensual(amB, persona.getId());
 
-        // Persona activa en ambas asignaciones (carteras distintas)
+        // Persona activa en ambas asignaciones (de distintas carteras, en forma secuencial)
         Integer totalActivos = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM cobranza.asignaciones_mensuales_personas WHERE persona_id=? AND activa=TRUE",
                 Integer.class, persona.getId());

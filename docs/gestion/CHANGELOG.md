@@ -5,6 +5,71 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-10 — Fase 5C: Validación final
+
+### Añadido
+
+- `apps/admin-web/src/app/features/importacion/services/importacion.service.spec.ts` — 9 tests, 100% cobertura del servicio. Resuelve DT-IMX-002.
+- `apps/admin-web/src/app/features/importacion/components/importacion-list/importacion-list.component.spec.ts` — 8 tests.
+- `apps/admin-web/src/app/features/importacion/components/importacion-nueva/importacion-nueva.component.spec.ts` — 15 tests.
+- `apps/admin-web/src/app/features/importacion/components/importacion-detail/importacion-detail.component.spec.ts` — 22 tests (todos los estados, polling, confirmar).
+- `apps/admin-web/e2e/importacion.spec.ts` — 14 escenarios Playwright `[PLAYWRIGHT INTERCEPTADO]`: historial, nueva importación, acceso sin permiso, cartera, período, archivo, VALIDANDO, VALIDADA, confirmar, PROCESANDO, COMPLETADA, CON_ERRORES, ARCHIVO_YA_IMPORTADO, EXPIRADA.
+- `scripts/smoke-test.sh` — sección 8 con 21 escenarios de importación mensual. Resuelve DT-IMX-003.
+
+### Validado
+
+- API: 404/404 tests — 2 corridas sin flakiness — BUILD SUCCESS.
+- Angular: 148/148 tests Vitest, ng build OK, cobertura ≥80%, npm audit 0 high.
+- Playwright: 40/40 tests (14 nuevos importación + 26 existentes).
+- Docker: `docker compose build` OK, `docker compose up` 3 servicios healthy, volumen cobranza_importaciones creado.
+- Smoke test: 49/49 OK — sección 8 con skip graceful (no carteras en entorno sin seed).
+- Persistencia: API restart → DB intacta, V012 persistida (23 tablas, constraints correctos).
+
+---
+
+## [Sin versión] — 2026-08-09 — Fase 5C: Importación mensual de datos de cobranza
+
+### Añadido — API (`apps/api/`)
+
+- `V012__importacion_mensual.sql` — tablas `importaciones_mensuales`, `errores_importacion`; permiso `DATOS_IMPORTAR` (UUID `a1b2c3d4-0002-0002-0002-000000000008`); asignación a `JEFE_SUPERVISORES` y `TECNOLOGIA`; UNIQUE parcial `uq_cp_persona_activa` (una cartera activa por persona) e índice de idempotencia.
+- `importacion/` — módulo Spring Modulith completo (30 archivos Java):
+  - `EstadoImportacion` — enum con 8 estados y métodos `esTerminal()`, `permiteConfirmar()`, `archivoPuedeExistir()`.
+  - `ImportacionMensual`, `ErrorImportacion` — entidades JPA para las nuevas tablas.
+  - `FilaCsv` — record con 29 campos del contrato CSV.
+  - `CsvImportacionParser` — parser con separador `;`, UTF-8, strip BOM, headers case-insensitive.
+  - `ValidadorIntraArchivo` — validación módulo 11 RUT y coherencia intra-archivo.
+  - `ImportacionService` — `recibirImportacion()`, `confirmar()`, `obtener()`, `listar()`, `listarErrores()`; validación de actor en DB (no solo JWT).
+  - `ImportacionEstadoService` — transiciones atómicas con bloqueo pesimista (`REQUIRES_NEW`).
+  - `ImportacionPersistenciaService` — upsert batch por lotes de 100 con flush/clear.
+  - `ImportacionValidacionWorker`, `ImportacionProcesamientoWorker` — workers `@TransactionalEventListener(AFTER_COMMIT)` + `@Async`.
+  - `RecuperacionImportacionJob` — recuperación de huérfanas al arranque y periódicamente.
+  - `ImportacionAsyncConfig` — executor dedicado `importacionExecutor` (core=2, max=4, cola=50).
+  - `ImportacionAdminController` — 5 endpoints bajo `/api/v1/admin/importaciones/mensuales`, protegidos con `PERM_DATOS_IMPORTAR`.
+  - `ArchivoImportacionStorageImpl` — almacenamiento con prevención de path traversal y rutas UUID.
+  - Excepciones de dominio: `ArchivoYaImportadoException`, `CarteraNoActivaException`, `EstadoInvalidoParaConfirmarException`, `ImportacionEnProgresoException`, `ImportacionMensualNoEncontradaException`, `PeriodoAnteriorNoPermitidoException`.
+- `CarteraAdminController.GET /api/v1/admin/carteras/activas` — nuevo endpoint para selector de carteras.
+- `application.yml` — `spring.servlet.multipart` (50MB), `app.importacion.storage.*`.
+- `ImportacionAdminRestTest` — 17 tests de integración (auth, upload, CSV válido/erróneo, confirmación, privacidad, carteras).
+- Fixture CSV `importacion_valida_2026-08.csv` y `importacion_con_errores.csv`.
+- `pom.xml` — dependencia `commons-csv:1.11.0`.
+
+### Añadido — Angular (`apps/admin-web/`)
+
+- `importacion/` — feature completo:
+  - `importacion.models.ts` — 7 interfaces, tipo `EstadoImportacion`, constantes `ESTADOS_EN_PROGRESO`/`ESTADOS_TERMINALES`.
+  - `importacion.service.ts` — 6 métodos (listarCarteras, crear, listar, obtener, listarErrores, confirmar).
+  - `importacion.routes.ts` — 3 rutas protegidas por `DATOS_IMPORTAR`.
+  - `ImportacionListComponent` — lista con filtro por cartera, paginación, badges de estado.
+  - `ImportacionNuevaComponent` — formulario de subida con selector de cartera, período YYYY-MM y archivo.
+  - `ImportacionDetailComponent` — detalle con polling (3s para estados en progreso), panel CONFIRMAR para VALIDADA, tabla de errores paginada.
+- `app.routes.ts` — ruta lazy `/importacion` añadida.
+
+### Modificado
+
+- `compose.yaml` — volumen dedicado `cobranza_importaciones` montado en `/var/cobranza/importaciones`; env `IMPORTACION_STORAGE_DIR`.
+
+---
+
 ## [Sin versión] — 2026-08-06 — Fase 5B-2: Gestión administrativa de usuarios (escritura)
 
 ### Añadido — API (`apps/api/`)

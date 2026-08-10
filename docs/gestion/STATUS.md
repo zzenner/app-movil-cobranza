@@ -1,8 +1,8 @@
 # Estado del proyecto
 
-**Última actualización:** 2026-08-06
-**Fase actual:** Fase 5B-2 — Gestión administrativa de usuarios (escritura) — VALIDADA ✅ LISTA PARA CIERRE
-**Fase anterior:** Entorno Docker local ✅ IMPLEMENTADO (tag v0.15.0-entorno-docker-local)
+**Última actualización:** 2026-08-10
+**Fase actual:** Fase 5C — Importación mensual de datos de cobranza — VALIDADA ✅ LISTA PARA CIERRE
+**Fase anterior:** Fase 5B-2 — Gestión administrativa de usuarios (escritura) — VALIDADA ✅
 
 ## Resumen
 
@@ -31,6 +31,7 @@
 | **App Android — Fase 4C-A (gestiones ASIGNACION_DIARIA offline)**  | **Cerrada ✅**          |
 | **App Android + API — Fase 4C-B (búsqueda directa por RUT)**       | **Implementada ✅ — pendiente commit** |
 | **Admin Web — Fase 5B-2 gestión usuarios (escritura)**             | **VALIDADA ✅ — LISTA PARA CIERRE** |
+| **API + Admin Web — Fase 5C importación mensual**                  | **VALIDADA ✅ — 404/404 tests** |
 | Despliegue en VPS                                                  | No iniciado           |
 
 ## Resultado de auditoría Fase 1A (2026-07-26)
@@ -58,6 +59,33 @@ Documentos revisados: todos los de `docs/dominio/`, `docs/sincronizacion/`, `doc
 ## Bloqueantes activos
 
 Sin bloqueantes activos.
+
+## Fase 5C — Validación final completada (2026-08-10)
+
+**Resultado: Fase 5C VALIDADA. 404/404 tests API, 148/148 tests Angular, 40/40 Playwright, Docker 3 servicios healthy, smoke test 49/49 OK.**
+
+| Item | Resultado |
+|---|---|
+| Endpoint POST /api/v1/admin/importaciones/mensuales → 202 Accepted | ✅ |
+| Workflow async RECIBIDA→VALIDANDO→VALIDADA→PROCESANDO→COMPLETADA | ✅ |
+| 33 tests ImportacionAdminRestTest (Testcontainers) — 2 corridas sin flakiness | ✅ |
+| 404/404 tests API totales — BUILD SUCCESS — 0 failures | ✅ |
+| Flyway V012 aplicada (importaciones_mensuales, errores_importacion, DATOS_IMPORTAR) | ✅ |
+| V012 expande ck_operaciones_estado (VIGENTE, VENCIDO, CASTIGADO) | ✅ |
+| V012 agrega uq_cp_persona_activa (RN-03 revisado) | ✅ |
+| Tests pre-existentes actualizados (conteos de tablas/permisos, RN-03) | ✅ |
+| Angular importacion-detail component con polling y panel CONFIRMAR | ✅ |
+| Angular specs — 54 tests DT-IMX-002 resuelto — cobertura ≥80% | ✅ |
+| Angular 148/148 tests totales — ng build OK — npm audit 0 high | ✅ |
+| Playwright 14 escenarios importación [INTERCEPTADO] — 40/40 total | ✅ |
+| Docker compose build — ambas imágenes compiladas sin errores | ✅ |
+| Docker compose up — postgres + api + admin-web healthy | ✅ |
+| Volumen cobranza_importaciones creado y accesible | ✅ |
+| V012 en DB verificada: 23 tablas, constraints correctos | ✅ |
+| Smoke test sección 8 — DT-IMX-003 resuelto — 49/49 OK | ✅ |
+| Persistencia tras restart API — DB intacta, API UP | ✅ |
+| ADR-0049 (workflow importación) y ADR-0050 (patrón async) creados | ✅ |
+| FORMATO_IMPORTACION_MENSUAL.md documentado | ✅ |
 
 ## Fase 1B completada (2026-07-27)
 

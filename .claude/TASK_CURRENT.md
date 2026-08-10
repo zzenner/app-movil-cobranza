@@ -3,7 +3,7 @@
 ## Identificación
 
 - **Fase:** 5C — Importación mensual administrativa de datos
-- **Estado:** EN PREPARACIÓN — pendiente análisis de modelo y diseño de contrato
+- **Estado:** VALIDADA ✅ — LISTA PARA CIERRE
 - **Rama activa:** `feature/fase-5c-importacion-mensual`
 - **Base funcional:** `b3c4c8a feat: implementar gestion administrativa de usuarios fase 5b-2`
 - **Tag de fase anterior:** `v0.16.0-usuarios-admin-write`
@@ -13,58 +13,60 @@
 Permitir cargar mensualmente mediante archivo CSV la información que alimenta el sistema de cobranza:
 personas deudoras, operaciones de crédito, cuotas y asignaciones de carteras.
 
-## Alcance preliminar Fase 5C
+## Alcance definitivo Fase 5C
 
-### Datos a importar
+Ver el plan aprobado en el prompt de inicio de sesión. En resumen:
 
-- Personas (deudores y avales)
-- Operaciones de crédito
-- Cuotas de cada operación
-- Asignaciones/carteras (qué ejecutivo atiende qué cartera con qué personas)
-- Identificadores externos: `persona_ext_id`, `operacion_ext_id`, `cuota_ext_id`
+- CSV de 29 columnas (Persona 4, Dirección 5, Operación 9, Cuota 10, Asignación 1)
+- Workflow: RECIBIDA → VALIDANDO → VALIDADA → PROCESANDO → COMPLETADA / CON_ERRORES / FALLIDA / EXPIRADA
+- Validación previa sin escritura; confirmación explícita
+- Upsert batch de personas, direcciones, operaciones, cuotas, asignaciones mensuales
+- Supervisor resuelto desde supervision_usuarios
+- Cartera por carteraId en metadata del POST (no en CSV)
+- Idempotencia: hash+periodo+carteraId+sistemaOrigen
+- Storage seguro en volumen Docker dedicado (importaciones_tmp)
+- Async AFTER_COMMIT para workers de validación y procesamiento
+- Recuperación automática de VALIDANDO/PROCESANDO huérfanos
+- TTL de archivos VALIDADA
+- Angular: /importacion, /importacion/nueva, /importacion/:id
+- Permiso DATOS_IMPORTAR en V012
+- UNIQUE (persona_id) WHERE activa=TRUE en carteras_personas
 
-### Funcionalidades requeridas
+## Bloques de implementación
 
-- Carga mediante archivo CSV desde admin-web
-- Validación previa al persistir (errores por fila, resumen de la carga)
-- Procesamiento controlado (transaccional, sin estado inconsistente)
-- Resumen post-carga: filas procesadas, creadas, actualizadas, rechazadas
-- Prevención de duplicados (comportamiento ante registros existentes por ext_id)
-- Trazabilidad: quién importó, cuándo, cuántos registros afectados
-- Posibilidad de probar el proceso completo desde admin-web
+- [x] Recuperación y lectura de contexto
+- [x] TASK_CURRENT.md actualizado
+- [x] pom.xml — agregar Apache Commons CSV
+- [x] V012 — migración Flyway
+- [x] Módulo importacion — domain
+- [x] Módulo importacion — aplicacion
+- [x] Módulo importacion — infraestructura
+- [x] Módulo importacion — web
+- [x] Módulo carteras — endpoint listar activas
+- [x] GlobalExceptionHandler — nuevas excepciones
+- [x] application.yml — configuración storage/TTL/async
+- [x] Angular — modelos
+- [x] Angular — service
+- [x] Angular — components
+- [x] Angular — routes
+- [x] Tests API — 404/404 — 2 corridas sin flakiness
+- [x] Tests Angular — 148/148 — specs importacion creados (DT-IMX-002 resuelto)
+- [x] Playwright — 14 escenarios importacion — 40/40 total
+- [x] Docker — compose.yaml + volumen — 3 servicios healthy
+- [x] Smoke tests — 49/49 OK — sección 8 importacion (DT-IMX-003 resuelto)
+- [x] Fixture CSV
+- [x] Documentación — STATUS/CHANGELOG/DEUDA_TECNICA actualizados
+- [x] SESSION_HANDOFF.md actualizado
 
-## No incluye en 5C (fuera de alcance inicial)
+## No incluye en 5C
 
-- XLSX (salvo decisión explícita posterior)
-- Integración automática con API externa corporativa
-- Jobs programados / importación automática
+- XLSX
+- Integración automática con API corporativa
+- Jobs programados desde frontend
 - Importación Android
-- Importación de usuarios (cubierta en Fase 5B-2)
-
-## Preguntas abiertas — a resolver antes de implementar
-
-- Formato definitivo del CSV (columnas, separador, encoding, cabecera)
-- Comportamiento ante registros existentes: ¿reemplazar, ignorar o rechazar?
-- ¿Atomicidad por lote completo o por fila?
-- Carga mensual vs. carga inicial histórica: ¿mismo flujo?
-- Tamaño esperado de archivos (para decidir streaming vs. carga completa)
-- Significado exacto de `persona_ext_id`, `operacion_ext_id`, `cuota_ext_id`
-- Relación entre RUT, operación y número de cuota en el CSV corporativo
-
-## Siguiente acción exacta
-
-"Analizar el modelo de datos y los documentos existentes para diseñar el contrato CSV
-y el flujo de importación mensual de Fase 5C".
-
-Leer en este orden:
-1. `docs/dominio/REGLAS_NEGOCIO.md` — RN-01 a RN-15 (carteras, personas, operaciones, cuotas)
-2. `docs/dominio/DIAGRAMA_ENTIDAD_RELACION.md`
-3. `docs/dominio/DICCIONARIO_DATOS_PRELIMINAR.md`
-4. Migraciones Flyway: `apps/api/src/main/resources/db/migration/` (V006–V009, carteras/personas/operaciones/asignaciones)
-5. Entidades JPA: `Persona`, `Operacion`, `Cuota`, `Cartera`, `AsignacionMensual`
-6. `docs/producto/REQUISITOS_FUNCIONALES.md` — RF-03 a RF-04 (gestión de carteras y asignaciones)
-7. `docs/producto/HISTORIAS_USUARIO.md` — HU-008 (Asignar cartera a cobrador)
-8. ADR existentes sobre carga inicial (si los hay)
+- Importación de usuarios (Fase 5B-2)
+- Avales (postergado)
+- CRUD de carteras
 
 ## Fases anteriores — CERRADAS ✅
 

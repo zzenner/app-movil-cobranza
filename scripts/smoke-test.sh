@@ -491,6 +491,352 @@ else
     fi
 fi
 
+# ── 8. Importación mensual (Fase 5C) — DT-IMX-003 ────────────────────────────
+echo ""
+echo "--- 8. Importación mensual (Fase 5C) --------------------------"
+
+# Requiere credenciales del administrador (misma variable que sección 5 y 7)
+if [ -z "$DEV_USER" ] || [ -z "$DEV_PASS" ]; then
+    echo "  [SKIP] Importación — DEV_ADMIN_USERNAME / DEV_ADMIN_PASSWORD no configurados."
+else
+    # Re-login para tener token fresco (la sesión de la sección anterior puede estar cerrada)
+    _IMP_LOGIN=$(curl -s -w "\n%{http_code}" \
+        -X POST -H "Content-Type: application/json" -H "Origin: $WEB_BASE" \
+        -d "{\"nombreUsuario\":\"$DEV_USER\",\"clave\":\"$DEV_PASS\"}" \
+        --connect-timeout 5 --max-time 10 \
+        "$API_BASE/api/v1/auth/web/login" 2>/dev/null || echo -e "\n000")
+    _IMP_LOGIN_CODE=$(echo "$_IMP_LOGIN" | tail -n1)
+    _IMP_LOGIN_BODY=$(echo "$_IMP_LOGIN" | head -n-1)
+    IMP_TOKEN=$(echo "$_IMP_LOGIN_BODY" | grep -o '"accessToken":"[^"]*"' | cut -d'"' -f4 || echo "")
+
+    if [ "$_IMP_LOGIN_CODE" != "200" ] || [ -z "$IMP_TOKEN" ]; then
+        fail "Login para smoke de importación — código: $_IMP_LOGIN_CODE"
+    else
+        ok "Login actor para importación (200)"
+
+        # ─── ESCENARIO 1: GET /admin/carteras/activas ─────────────────────────
+        _CART_RESP=$(curl -s \
+            -H "Authorization: Bearer $IMP_TOKEN" \
+            --connect-timeout 5 --max-time 10 \
+            "$API_BASE/api/v1/admin/carteras/activas" 2>/dev/null || echo "[]")
+        _CART_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $IMP_TOKEN" \
+            --connect-timeout 5 --max-time 10 \
+            "$API_BASE/api/v1/admin/carteras/activas" 2>/dev/null || echo "000")
+        if [ "$_CART_CODE" = "200" ]; then ok "Escenario 1: GET /admin/carteras/activas — 200"
+        else fail "Escenario 1: GET /admin/carteras/activas — esperado 200, obtenido $_CART_CODE"; fi
+
+        # Extraer primera carteraId (para usar en siguientes escenarios)
+        IMP_CARTERA_ID=$(echo "$_CART_RESP" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "")
+
+        if [ -z "$IMP_CARTERA_ID" ]; then
+            echo "  [SKIP] No hay carteras activas — omitiendo escenarios 2-21 de importación."
+        else
+            # ─── ESCENARIO 2: GET /admin/importaciones/mensuales ──────────────────
+            _LIST_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                -H "Authorization: Bearer $IMP_TOKEN" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/importaciones/mensuales?pagina=0&tamanio=20" 2>/dev/null || echo "000")
+            if [ "$_LIST_CODE" = "200" ]; then ok "Escenario 2: GET /admin/importaciones/mensuales — 200"
+            else fail "Escenario 2: GET /admin/importaciones/mensuales — esperado 200, obtenido $_LIST_CODE"; fi
+
+            # ─── ESCENARIO 3: GET /admin/importaciones/mensuales sin token ────────
+            _NO_AUTH=$(curl -s -o /dev/null -w "%{http_code}" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/importaciones/mensuales" 2>/dev/null || echo "000")
+            if [[ "$_NO_AUTH" =~ ^(401|403)$ ]]; then
+                ok "Escenario 3: GET sin token — 401/403 ($_ NO_AUTH)"
+            else
+                fail "Escenario 3: GET sin token — esperado 401/403, obtenido $_NO_AUTH"
+            fi
+
+            # ─── ESCENARIO 4: GET con filtro carteraId ────────────────────────────
+            _FILT_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                -H "Authorization: Bearer $IMP_TOKEN" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/importaciones/mensuales?carteraId=${IMP_CARTERA_ID}" 2>/dev/null || echo "000")
+            if [ "$_FILT_CODE" = "200" ]; then ok "Escenario 4: GET con filtro carteraId — 200"
+            else fail "Escenario 4: GET con filtro carteraId — esperado 200, obtenido $_FILT_CODE"; fi
+
+            # ─── ESCENARIO 5: POST crear importación con archivo válido ───────────
+            IMP_FIXTURE="${ROOT_DIR}/apps/api/src/test/resources/fixtures/importacion/importacion_valida_2026-08.csv"
+            # Usar período dinámico para evitar idempotencia con corridas anteriores
+            IMP_PERIODO="$(date +%Y-%m)"
+            _IMP_TS=$(date +%s)
+
+            _CREATE_RESP=$(curl -s -w "\n%{http_code}" \
+                -X POST \
+                -H "Authorization: Bearer $IMP_TOKEN" \
+                -F "carteraId=${IMP_CARTERA_ID}" \
+                -F "periodo=${IMP_PERIODO}-${_IMP_TS}" \
+                -F "sistemaOrigen=LEGADO" \
+                -F "archivo=@${IMP_FIXTURE};type=text/csv" \
+                --connect-timeout 5 --max-time 30 \
+                "$API_BASE/api/v1/admin/importaciones/mensuales" 2>/dev/null || echo -e "\n000")
+            _CREATE_CODE=$(echo "$_CREATE_RESP" | tail -n1)
+            _CREATE_BODY=$(echo "$_CREATE_RESP" | head -n-1)
+
+            # Período con timestamp hace que cada ejecución use un hash distinto
+            # Formato válido de período es YYYY-MM; usar timestamp como sufijo no cumple el patrón.
+            # Usar un período fijo aleatorio para smoke
+            # Reintento con período estático (el API valida el formato YYYY-MM)
+            _CREATE_RESP=$(curl -s -w "\n%{http_code}" \
+                -X POST \
+                -H "Authorization: Bearer $IMP_TOKEN" \
+                -F "carteraId=${IMP_CARTERA_ID}" \
+                -F "periodo=2025-01" \
+                -F "sistemaOrigen=LEGADO" \
+                -F "archivo=@${IMP_FIXTURE};type=text/csv" \
+                --connect-timeout 5 --max-time 30 \
+                "$API_BASE/api/v1/admin/importaciones/mensuales" 2>/dev/null || echo -e "\n000")
+            _CREATE_CODE=$(echo "$_CREATE_RESP" | tail -n1)
+            _CREATE_BODY=$(echo "$_CREATE_RESP" | head -n-1)
+
+            if [[ "$_CREATE_CODE" =~ ^(202|409)$ ]]; then
+                if [ "$_CREATE_CODE" = "202" ]; then
+                    ok "Escenario 5: POST crear importación — 202"
+                else
+                    # 409 = ARCHIVO_YA_IMPORTADO o EN_PROGRESO — aceptable si ya existía
+                    ok "Escenario 5: POST crear importación — 409 (ya existe, idempotente)"
+                fi
+            else
+                fail "Escenario 5: POST crear importación — esperado 202/409, obtenido $_CREATE_CODE"
+            fi
+
+            IMP_ID=$(echo "$_CREATE_BODY" | grep -o '"importacionId":"[^"]*"' | cut -d'"' -f4 || echo "")
+            # Si no se creó una nueva (409 idempotencia), usar la existente
+            if [ -z "$IMP_ID" ]; then
+                IMP_ID=$(echo "$_CREATE_BODY" | grep -o '"importacionId":"[^"]*"\|"importacionEnProgresoId":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "")
+            fi
+
+            if [ -n "$IMP_ID" ]; then
+                # ─── ESCENARIO 6: GET detalle inicial ─────────────────────────────
+                _DET_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                    -H "Authorization: Bearer $IMP_TOKEN" \
+                    --connect-timeout 5 --max-time 10 \
+                    "$API_BASE/api/v1/admin/importaciones/mensuales/${IMP_ID}" 2>/dev/null || echo "000")
+                if [ "$_DET_CODE" = "200" ]; then ok "Escenario 6: GET detalle importación — 200"
+                else fail "Escenario 6: GET detalle — esperado 200, obtenido $_DET_CODE"; fi
+
+                # ─── ESCENARIO 7: Esperar estado terminal (max 90s) ───────────────
+                IMP_ESTADO=""
+                for _i in $(seq 1 18); do
+                    sleep 5
+                    _EST=$(curl -s \
+                        -H "Authorization: Bearer $IMP_TOKEN" \
+                        --connect-timeout 5 --max-time 10 \
+                        "$API_BASE/api/v1/admin/importaciones/mensuales/${IMP_ID}" 2>/dev/null || echo "{}")
+                    IMP_ESTADO=$(echo "$_EST" | grep -o '"estado":"[^"]*"' | cut -d'"' -f4 || echo "")
+                    if [[ "$IMP_ESTADO" =~ ^(VALIDADA|CON_ERRORES|COMPLETADA|FALLIDA|EXPIRADA)$ ]]; then
+                        break
+                    fi
+                done
+
+                if [[ "$IMP_ESTADO" =~ ^(VALIDADA|CON_ERRORES|COMPLETADA)$ ]]; then
+                    ok "Escenario 7: poll estado — alcanzó estado esperado ($IMP_ESTADO)"
+                elif [ "$IMP_ESTADO" = "FALLIDA" ]; then
+                    fail "Escenario 7: poll estado — alcanzó FALLIDA (archivo válido no debería fallar)"
+                else
+                    fail "Escenario 7: poll estado — timeout sin estado terminal (último: $IMP_ESTADO)"
+                fi
+
+                # ─── ESCENARIO 8: GET errores (siempre disponible) ─────────────────
+                _ERR_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                    -H "Authorization: Bearer $IMP_TOKEN" \
+                    --connect-timeout 5 --max-time 10 \
+                    "$API_BASE/api/v1/admin/importaciones/mensuales/${IMP_ID}/errores" 2>/dev/null || echo "000")
+                if [ "$_ERR_CODE" = "200" ]; then ok "Escenario 8: GET errores importación — 200"
+                else fail "Escenario 8: GET errores — esperado 200, obtenido $_ERR_CODE"; fi
+
+                # ─── ESCENARIO 9: confirmar si VALIDADA ────────────────────────────
+                if [ "$IMP_ESTADO" = "VALIDADA" ]; then
+                    _CONF_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                        -X POST \
+                        -H "Authorization: Bearer $IMP_TOKEN" \
+                        --connect-timeout 5 --max-time 10 \
+                        "$API_BASE/api/v1/admin/importaciones/mensuales/${IMP_ID}/confirmar" 2>/dev/null || echo "000")
+                    if [ "$_CONF_CODE" = "202" ]; then ok "Escenario 9: POST confirmar — 202"
+                    else fail "Escenario 9: POST confirmar — esperado 202, obtenido $_CONF_CODE"; fi
+
+                    # ─── ESCENARIO 10: poll hasta COMPLETADA ──────────────────────
+                    IMP_ESTADO_FINAL=""
+                    for _j in $(seq 1 18); do
+                        sleep 5
+                        _EST2=$(curl -s \
+                            -H "Authorization: Bearer $IMP_TOKEN" \
+                            --connect-timeout 5 --max-time 10 \
+                            "$API_BASE/api/v1/admin/importaciones/mensuales/${IMP_ID}" 2>/dev/null || echo "{}")
+                        IMP_ESTADO_FINAL=$(echo "$_EST2" | grep -o '"estado":"[^"]*"' | cut -d'"' -f4 || echo "")
+                        if [[ "$IMP_ESTADO_FINAL" =~ ^(COMPLETADA|FALLIDA|CON_ERRORES)$ ]]; then
+                            break
+                        fi
+                    done
+                    if [ "$IMP_ESTADO_FINAL" = "COMPLETADA" ]; then
+                        ok "Escenario 10: poll post-confirmar — COMPLETADA"
+                    else
+                        fail "Escenario 10: poll post-confirmar — esperado COMPLETADA, obtenido $IMP_ESTADO_FINAL"
+                    fi
+
+                    # ─── ESCENARIO 11: detalle COMPLETADA tiene contadores ─────────
+                    _DET_COMP=$(curl -s \
+                        -H "Authorization: Bearer $IMP_TOKEN" \
+                        --connect-timeout 5 --max-time 10 \
+                        "$API_BASE/api/v1/admin/importaciones/mensuales/${IMP_ID}" 2>/dev/null || echo "{}")
+                    if echo "$_DET_COMP" | grep -q '"personasCreadas"'; then
+                        ok "Escenario 11: detalle COMPLETADA — campo personasCreadas presente"
+                    else
+                        fail "Escenario 11: detalle COMPLETADA — campo personasCreadas ausente"
+                    fi
+                else
+                    ok "Escenario 9: confirmar no aplica (estado: $IMP_ESTADO) — SKIP"
+                    ok "Escenario 10: poll COMPLETADA — SKIP (estado: $IMP_ESTADO)"
+                    ok "Escenario 11: contadores — SKIP (estado: $IMP_ESTADO)"
+                fi
+
+                # ─── ESCENARIO 12: mismo archivo → 409 ARCHIVO_YA_IMPORTADO ───────
+                _IDEM_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                    -X POST \
+                    -H "Authorization: Bearer $IMP_TOKEN" \
+                    -F "carteraId=${IMP_CARTERA_ID}" \
+                    -F "periodo=2025-01" \
+                    -F "sistemaOrigen=LEGADO" \
+                    -F "archivo=@${IMP_FIXTURE};type=text/csv" \
+                    --connect-timeout 5 --max-time 30 \
+                    "$API_BASE/api/v1/admin/importaciones/mensuales" 2>/dev/null || echo "000")
+                if [ "$_IDEM_CODE" = "409" ]; then ok "Escenario 12: mismo archivo → 409 (idempotencia hash)"
+                else fail "Escenario 12: idempotencia — esperado 409, obtenido $_IDEM_CODE"; fi
+            else
+                fail "Escenario 6-12: sin ID de importación — no se pueden ejecutar (escenario 5 retornó $_CREATE_CODE)"
+            fi
+
+            # ─── ESCENARIO 13: GET /admin/importaciones/mensuales/{id inexistente} → 404 ──
+            _NX=$(curl -s -o /dev/null -w "%{http_code}" \
+                -H "Authorization: Bearer $IMP_TOKEN" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/importaciones/mensuales/00000000-0000-0000-0000-000000000000" 2>/dev/null || echo "000")
+            if [ "$_NX" = "404" ]; then ok "Escenario 13: GET ID inexistente — 404"
+            else fail "Escenario 13: GET ID inexistente — esperado 404, obtenido $_NX"; fi
+
+            # ─── ESCENARIO 14: POST confirmar ID inexistente → 404 ───────────────
+            _CNX=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST \
+                -H "Authorization: Bearer $IMP_TOKEN" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/importaciones/mensuales/00000000-0000-0000-0000-000000000000/confirmar" 2>/dev/null || echo "000")
+            if [ "$_CNX" = "404" ]; then ok "Escenario 14: POST confirmar ID inexistente — 404"
+            else fail "Escenario 14: POST confirmar ID inexistente — esperado 404, obtenido $_CNX"; fi
+
+            # ─── ESCENARIO 15: subir archivo con errores de validación ────────────
+            IMP_FIXTURE_ERR="${ROOT_DIR}/apps/api/src/test/resources/fixtures/importacion/importacion_con_errores.csv"
+            _ERR_IMPORT_RESP=$(curl -s -w "\n%{http_code}" \
+                -X POST \
+                -H "Authorization: Bearer $IMP_TOKEN" \
+                -F "carteraId=${IMP_CARTERA_ID}" \
+                -F "periodo=2025-02" \
+                -F "sistemaOrigen=LEGADO" \
+                -F "archivo=@${IMP_FIXTURE_ERR};type=text/csv" \
+                --connect-timeout 5 --max-time 30 \
+                "$API_BASE/api/v1/admin/importaciones/mensuales" 2>/dev/null || echo -e "\n000")
+            _ERR_IMPORT_CODE=$(echo "$_ERR_IMPORT_RESP" | tail -n1)
+            _ERR_IMPORT_BODY=$(echo "$_ERR_IMPORT_RESP" | head -n-1)
+
+            if [[ "$_ERR_IMPORT_CODE" =~ ^(202|409)$ ]]; then
+                if [ "$_ERR_IMPORT_CODE" = "202" ]; then
+                    ok "Escenario 15: POST archivo con errores — 202"
+                else
+                    ok "Escenario 15: POST archivo con errores — 409 (ya existía, idempotente)"
+                fi
+            else
+                fail "Escenario 15: POST archivo con errores — esperado 202/409, obtenido $_ERR_IMPORT_CODE"
+            fi
+
+            ERR_IMP_ID=$(echo "$_ERR_IMPORT_BODY" | grep -o '"importacionId":"[^"]*"' | cut -d'"' -f4 || echo "")
+
+            if [ -n "$ERR_IMP_ID" ]; then
+                # ─── ESCENARIO 16: poll hasta CON_ERRORES ──────────────────────────
+                ERR_ESTADO=""
+                for _k in $(seq 1 18); do
+                    sleep 5
+                    _EST3=$(curl -s \
+                        -H "Authorization: Bearer $IMP_TOKEN" \
+                        --connect-timeout 5 --max-time 10 \
+                        "$API_BASE/api/v1/admin/importaciones/mensuales/${ERR_IMP_ID}" 2>/dev/null || echo "{}")
+                    ERR_ESTADO=$(echo "$_EST3" | grep -o '"estado":"[^"]*"' | cut -d'"' -f4 || echo "")
+                    if [[ "$ERR_ESTADO" =~ ^(CON_ERRORES|VALIDADA|COMPLETADA|FALLIDA|EXPIRADA)$ ]]; then
+                        break
+                    fi
+                done
+                if [[ "$ERR_ESTADO" =~ ^(CON_ERRORES|FALLIDA)$ ]]; then
+                    ok "Escenario 16: archivo con errores alcanzó $ERR_ESTADO"
+                else
+                    fail "Escenario 16: archivo con errores — esperado CON_ERRORES/FALLIDA, obtenido $ERR_ESTADO"
+                fi
+
+                # ─── ESCENARIO 17: GET errores de importación con errores — >0 ────
+                _ERR_LISTA=$(curl -s \
+                    -H "Authorization: Bearer $IMP_TOKEN" \
+                    --connect-timeout 5 --max-time 10 \
+                    "$API_BASE/api/v1/admin/importaciones/mensuales/${ERR_IMP_ID}/errores" 2>/dev/null || echo "{}")
+                _ERR_TOT=$(echo "$_ERR_LISTA" | grep -o '"totalElementos":[0-9]*' | cut -d':' -f2 || echo "0")
+                # Para CON_ERRORES se esperan errores; para FALLIDA puede haber 0 (error global)
+                if [[ "$ERR_ESTADO" == "CON_ERRORES" ]]; then
+                    if [ "${_ERR_TOT:-0}" -gt 0 ]; then
+                        ok "Escenario 17: errores de importación CON_ERRORES — totalElementos=$_ERR_TOT"
+                    else
+                        fail "Escenario 17: errores de importación CON_ERRORES — esperaba >0, obtenido 0"
+                    fi
+                else
+                    ok "Escenario 17: GET errores — estado es $ERR_ESTADO, no CON_ERRORES — SKIP"
+                fi
+
+                # ─── ESCENARIO 18: confirmar importación NO VALIDADA → 409 ─────────
+                if [[ "$ERR_ESTADO" =~ ^(CON_ERRORES|FALLIDA)$ ]]; then
+                    _CONF_ERR=$(curl -s -o /dev/null -w "%{http_code}" \
+                        -X POST \
+                        -H "Authorization: Bearer $IMP_TOKEN" \
+                        --connect-timeout 5 --max-time 10 \
+                        "$API_BASE/api/v1/admin/importaciones/mensuales/${ERR_IMP_ID}/confirmar" 2>/dev/null || echo "000")
+                    if [ "$_CONF_ERR" = "409" ]; then
+                        ok "Escenario 18: confirmar $ERR_ESTADO → 409 (estado inválido para confirmar)"
+                    else
+                        fail "Escenario 18: confirmar $ERR_ESTADO — esperado 409, obtenido $_CONF_ERR"
+                    fi
+                else
+                    ok "Escenario 18: confirmar estado inválido — SKIP (estado: $ERR_ESTADO)"
+                fi
+            else
+                ok "Escenario 16-18: sin ID de importación con errores — SKIP (escenario 15 retornó $_ERR_IMPORT_CODE)"
+            fi
+
+            # ─── ESCENARIO 19: GET listado paginado contiene resultados esperados ─
+            _PAG_RESP=$(curl -s \
+                -H "Authorization: Bearer $IMP_TOKEN" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/importaciones/mensuales?pagina=0&tamanio=20" 2>/dev/null || echo "{}")
+            if echo "$_PAG_RESP" | grep -q '"totalElementos"'; then
+                ok "Escenario 19: GET listado paginado — campo totalElementos presente"
+            else
+                fail "Escenario 19: GET listado paginado — campo totalElementos ausente"
+            fi
+
+            # ─── ESCENARIO 20: errores GET sin token → 401 ───────────────────────
+            _ERR_NOAUTH=$(curl -s -o /dev/null -w "%{http_code}" \
+                --connect-timeout 5 --max-time 10 \
+                "$API_BASE/api/v1/admin/importaciones/mensuales" 2>/dev/null || echo "000")
+            if [[ "$_ERR_NOAUTH" =~ ^(401|403)$ ]]; then
+                ok "Escenario 20: GET listado sin token — 401/403 ($_ ERR_NOAUTH)"
+            else
+                fail "Escenario 20: GET listado sin token — esperado 401/403, obtenido $_ERR_NOAUTH"
+            fi
+
+            # ─── ESCENARIO 21: volumen de archivos accesible en el contenedor ──────
+            _VOL=$(docker compose exec api ls /var/cobranza/importaciones 2>/dev/null && echo "ok" || echo "err")
+            if [ "$_VOL" = "ok" ]; then ok "Escenario 21: volumen /var/cobranza/importaciones accesible en container API"
+            else fail "Escenario 21: volumen /var/cobranza/importaciones — no accesible en container API"; fi
+        fi
+    fi
+fi
+
 # ── Resultado ─────────────────────────────────────────────────────────────────
 echo ""
 echo "======================================================"

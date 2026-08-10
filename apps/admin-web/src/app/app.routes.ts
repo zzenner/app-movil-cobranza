@@ -26,6 +26,11 @@ export const routes: Routes = [
           import('./features/usuarios/usuarios.routes').then((m) => m.usuariosRoutes),
       },
       {
+        path: 'importacion',
+        loadChildren: () =>
+          import('./features/importacion/importacion.routes').then((m) => m.importacionRoutes),
+      },
+      {
         path: 'forbidden',
         loadComponent: () =>
           import('./features/forbidden/forbidden.component').then((m) => m.ForbiddenComponent),
