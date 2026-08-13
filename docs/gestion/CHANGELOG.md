@@ -5,6 +5,30 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [v0.21.0] — 2026-08-13 — Fase 6B: Asignaciones Diarias y Publicación — COMPLETADA
+
+### Añadido
+
+- `V016__asignaciones_admin.sql` — columna `publicado_por_id UUID NULL` en `asignaciones_diarias`; permisos ASIGNACIONES_VER y ASIGNACIONES_ADMINISTRAR asignados a rol TECNOLOGIA
+- `AsignacionAdminQueryService` — consultas nativas via `EntityManager`: periodos con asignaciones, mensuales disponibles, personas disponibles en mensual, diarias con filtros, detalle completo con lista de personas
+- `AsignacionAdminService` — operaciones administrativas: crear borrador, actualizar personas, publicar (con registro de publicadoPorId), cancelar
+- `AsignacionAdminController` — 9 endpoints en `/api/v1/admin/asignaciones`: GET /periodos, GET /mensuales, GET /mensuales/{id}/personas-disponibles, GET /diarias, GET /diarias/{id}, POST /diarias, PUT /diarias/{id}/personas, POST /diarias/{id}/publicar, POST /diarias/{id}/cancelar
+- `AsignacionAdminRestTest.java` — 12 escenarios de integración con @Order (10–120)
+- Angular `features/asignaciones/` — módulo completo con modelos, servicio (9 métodos), 3 componentes, rutas y specs
+- Angular `AsignacionesListComponent` — tabla con columnas fecha/período/cartera/ejecutivo/personas/estado, filtros por fecha y estado
+- Angular `AsignacionCreateComponent` — stepper 2 pasos: selección mensual+fecha → selección de personas con checkbox
+- Angular `AsignacionDetailComponent` — detalle completo, botón Publicar (con diálogo confirmación), Cancelar (con campo motivo)
+- Angular `LayoutComponent` — ítem de menú Asignaciones con visibilidad condicionada a ASIGNACIONES_VER
+
+### Modificado
+
+- `AsignacionDiaria.publicar()` → `publicar(UUID publicadoPorId)` — registra auditoría de quién publicó
+- `AsignacionService.publicarAsignacionDiaria(UUID)` → `publicarAsignacionDiaria(UUID, UUID)` — propaga publicadoPorId
+- `AsignacionDiariaPersonaRepository` — añadido `deleteByAsignacionDiariaIdAndPersonaId` para actualización incremental de personas en diaria
+- Tests existentes corregidos para nueva firma `publicar(UUID)`: `AsignacionDescargaRestTest`, `GestionRestTest`, `GestionesIntegracionTest`, `DominioAsignacionesIntegracionTest`, `AsignacionDiariaDominioTest`
+
+---
+
 ## [v0.20.0] — 2026-08-13 — Fase 6A: Carteras y Supervisión — COMPLETADA
 
 ### Añadido

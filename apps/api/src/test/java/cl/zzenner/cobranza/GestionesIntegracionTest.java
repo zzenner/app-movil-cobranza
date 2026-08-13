@@ -96,7 +96,7 @@ class GestionesIntegracionTest {
     private UUID crearDiariaPublicadaConPersona(UUID amId, UUID supId, LocalDate fecha, UUID personaId) {
         UUID adId = asignacionService.crearAsignacionDiaria(amId, supId, fecha);
         asignacionService.agregarPersonaADiaria(adId, personaId);
-        asignacionService.publicarAsignacionDiaria(adId);
+        asignacionService.publicarAsignacionDiaria(adId, null);
         return adId;
     }
 

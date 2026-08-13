@@ -1,70 +1,98 @@
-# Estado de sesión — Conectividad Android corregida
+# Estado de sesión — Fase 6B: Asignaciones Diarias y Publicación
 
 **Fecha:** 2026-08-13
 **Rama:** main
-**Estado:** COMPLETADA Y CERRADA ✅ — commit f1a1b22
+**Estado:** IMPLEMENTADA ✅ — pendiente commit formal y push
 
 ## Resumen de lo implementado
 
-### Correcciones de conectividad Android (commit f1a1b22)
+### API (Java / Spring Boot)
 
-| Item | Resultado |
-|------|-----------|
-| `NetworkModule.kt` — URL corregida de `8080` a `8081` vía `BuildConfig.BASE_URL` | ✅ |
-| `core/network/build.gradle.kts` — `buildConfig = true`, `BASE_URL` en `debug`/`release` | ✅ |
-| `app/src/debug/res/xml/network_security_config.xml` — cleartext permitido para `10.0.2.2`, `localhost` | ✅ |
-| `app/src/main/res/xml/network_security_config.xml` — release: sin cleartext | ✅ |
-| `AndroidManifest.xml` — `android:networkSecurityConfig` declarado | ✅ |
-| `LoginViewModel.kt` — `ConnectException` → `ERROR_SERVIDOR` (antes caía en `IOException` → `SIN_CONEXION`) | ✅ |
-| `LoginViewModelTest.kt` — test nuevo: `servidor inaccesible devuelve estado Error ERROR_SERVIDOR` | ✅ |
-| `local.properties.example` — eliminada referencia falsa a `api.base.url`; documentada fuente real | ✅ |
-| `docs/operacion/DOCKER_LOCAL.md` — nueva sección de conectividad Android | ✅ |
-| 165 pruebas JVM — BUILD SUCCESSFUL | ✅ |
-| assembleDebug — BUILD SUCCESSFUL | ✅ |
-| lintDebug — BUILD SUCCESSFUL | ✅ |
+| Archivo | Cambio |
+|---------|--------|
+| `V016__asignaciones_admin.sql` | `publicado_por_id UUID NULL` en `asignaciones_diarias`; permisos asignaciones a TECNOLOGIA |
+| `AsignacionDiaria.java` | `publicar(UUID publicadoPorId)` — campo `publicadoPorId` + getter |
+| `AsignacionService.java` | `publicarAsignacionDiaria(UUID, UUID)` — 2do arg propagado |
+| `AsignacionDiariaPersonaRepository.java` | `deleteByAsignacionDiariaIdAndPersonaId` añadido |
+| `AsignacionAdminQueryService.java` | Consultas nativas: periodos, mensuales, personas-disponibles, diarias, detalle |
+| `AsignacionAdminService.java` | crearBorrador, actualizarPersonas, publicar, cancelar |
+| `AsignacionAdminController.java` | 9 endpoints en /api/v1/admin/asignaciones |
+| `AsignacionAdminRestTest.java` | 12 escenarios @Order(10–120) |
+| 4 test files existentes | `publicarAsignacionDiaria(id, null)` en AsignacionDescargaRestTest, GestionRestTest, GestionesIntegracionTest, DominioAsignacionesIntegracionTest |
+| `AsignacionDiariaDominioTest.java` | `ad.publicar(null)` y `() -> ad.publicar(null)` en assertThatThrownBy |
+
+### Angular (Admin Web)
+
+| Archivo | Cambio |
+|---------|--------|
+| `features/asignaciones/models/asignacion.models.ts` | Interfaces: ItemPeriodo, ItemAsignacionMensualAdmin, ItemPersonaDisponible, ItemAsignacionDiariaAdmin, DetalleAsignacionDiariaAdmin, ItemPersonaEnDiaria + DTOs |
+| `features/asignaciones/services/asignaciones.service.ts` | 9 métodos HTTP |
+| `features/asignaciones/components/asignaciones-list/` | Tabla con filtros fecha/estado |
+| `features/asignaciones/components/asignacion-create/` | Stepper: mensual → personas → guardar |
+| `features/asignaciones/components/asignacion-detail/` | Detalle, publicar, cancelar |
+| `features/asignaciones/asignaciones.routes.ts` | Rutas con permissionGuard |
+| `app/app.routes.ts` | Ruta /asignaciones añadida |
+| `core/layout/layout.component.ts` | Ítem menú Asignaciones + tienePermisoAsignaciones signal |
+| Specs (4 archivos) | 196/196 tests totales |
+
+## Estado de pruebas
+
+| Suite | Resultado |
+|-------|-----------|
+| API unit tests (domain) | 29/29 ✅ |
+| API integration tests | No ejecutados — Docker no disponible en WSL2 |
+| Angular unit tests (Vitest) | 196/196 ✅ |
+| Angular build (ng build) | Limpio — 0 warnings ✅ |
 
 ## Estado del repositorio
 
 - Rama: main
-- HEAD: f1a1b22
-- Docker: 3 servicios healthy (postgres, api:8081, admin-web:8080)
-- origin/main: aún en 2cf9340 — pendiente push (requiere autorización)
-
-## Causa raíz del problema
-
-Dos problemas combinados:
-1. **Puerto incorrecto**: `NetworkModule.kt` usaba `8080` (admin-web) en lugar de `8081` (API)
-2. **Cleartext bloqueado**: Desde API 28+, Android bloquea HTTP por defecto; sin `network_security_config.xml`, OkHttp lanzaba `IOException` que aparecía como "Sin conexión a Internet"
+- HEAD: 0f1bd24 (docs: documentar conectividad Android con entorno Docker local)
+- Todos los cambios de Fase 6B están en working tree (sin commit aún)
+- origin/main: pendiente push (requiere autorización)
 
 ## Siguiente acción exacta
 
-Para publicar en el repositorio remoto (requiere autorización explícita):
 ```bash
-git push origin main
+cd /home/msalazar/app-movil-cobranza
+
+git add \
+  apps/api/src/main/resources/db/migration/V016__asignaciones_admin.sql \
+  apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/dominio/AsignacionDiaria.java \
+  apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/aplicacion/AsignacionService.java \
+  apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/infraestructura/AsignacionDiariaPersonaRepository.java \
+  apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/aplicacion/AsignacionAdminQueryService.java \
+  apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/aplicacion/AsignacionAdminService.java \
+  apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/web/AsignacionAdminController.java \
+  apps/api/src/test/java/cl/zzenner/cobranza/AsignacionAdminRestTest.java \
+  apps/api/src/test/java/cl/zzenner/cobranza/AsignacionDescargaRestTest.java \
+  apps/api/src/test/java/cl/zzenner/cobranza/DominioAsignacionesIntegracionTest.java \
+  apps/api/src/test/java/cl/zzenner/cobranza/GestionRestTest.java \
+  apps/api/src/test/java/cl/zzenner/cobranza/GestionesIntegracionTest.java \
+  apps/api/src/test/java/cl/zzenner/cobranza/asignaciones/AsignacionDiariaDominioTest.java \
+  apps/admin-web/src/app/app.routes.ts \
+  apps/admin-web/src/app/core/layout/layout.component.ts \
+  apps/admin-web/src/app/core/layout/layout.component.spec.ts \
+  apps/admin-web/src/app/features/asignaciones/ \
+  docs/gestion/STATUS.md \
+  docs/gestion/CHANGELOG.md \
+  docs/gestion/ROADMAP.md \
+  .claude/TASK_CURRENT.md \
+  .claude/SESSION_HANDOFF.md
+
+git commit -m "feat(asignaciones): implementar asignaciones diarias fase 6b"
+
+git tag v0.21.0-asignaciones-diarias
 ```
 
-## Instrucciones de validación manual
+Luego (requiere autorización explícita):
+```bash
+git push origin main
+git push origin v0.21.0-asignaciones-diarias
+```
 
-1. Verificar Docker: `docker compose ps` → 3 servicios healthy
-2. Verificar API: `curl http://localhost:8081/actuator/health`
-3. Instalar APK debug en emulador (AVD) o usar Run desde Android Studio
-4. Verificar desde Chrome del emulador: `http://10.0.2.2:8081/actuator/health` → `{"status":"UP"}`
-5. Abrir la app → pantalla Login
-6. Ingresar las credenciales definidas en `DEV_ADMIN_USERNAME` / `DEV_ADMIN_PASSWORD` del `.env`
-7. Esperar respuesta — debe alcanzar estado `Autenticado`
+## Deuda técnica
 
-## Próxima fase recomendada
-
-**Fase 6B — Asignaciones diarias desde supervisión** (backend + Android)
-- Asignar carteras a ejecutivos por mes
-- Distribuir personas a ejecutivos diariamente
-- Requiere UI en Admin Web y sincronización con app Android
-
-**Alternativa: Fase 6C — Supervisión en app Android**
-- Lista de ejecutivos a cargo del supervisor
-- Estado de gestiones por ejecutivo en la app
-
-## Deuda técnica registrada
-
-- `ErrorTipo.DISPOSITIVO_REVOCADO` y `SESION_EXPIRADA` están definidos en el enum pero nunca se asignan en `LoginViewModel` ni `SessionRepository`. Son casos de manejo incompleto que se implementarán cuando el backend exponga esos flujos.
-- `BuildConfig.BASE_URL` en release es cadena vacía `""`. Debe configurarse con la URL de producción antes de compilar un release.
+- Integration tests requieren Docker Desktop WSL2 integration habilitado.
+- OpenAPI YAML (`contracts/openapi/cobranza-api.yaml`) no actualizado aún con los nuevos endpoints de admin/asignaciones.
+- No hay Playwright E2E para el flujo de asignaciones (pendiente si se requiere cobertura E2E).

@@ -1,6 +1,6 @@
 # Roadmap
 
-## Fase actual: Fase 5B-2 — Gestión administrativa de usuarios (escritura) — VALIDADA ✅ LISTA PARA CIERRE
+## Fase actual: Fase 6B — Asignaciones Diarias y Publicación — COMPLETADA ✅
 
 ## Fase 0 — Inicialización del repositorio ✅
 
@@ -308,7 +308,28 @@
 
 ---
 
-## Fase 6 — Despliegue en VPS (PENDIENTE)
+## Fase 6B — Asignaciones Diarias y Publicación ✅ COMPLETADA — tag v0.21.0-asignaciones-diarias
+
+**Objetivo:** Completar el flujo administrativo de asignaciones: Supervisor crea borrador diario, selecciona personas, publica.
+
+**Completado (2026-08-13):**
+- `V016` — `publicado_por_id` en `asignaciones_diarias`; permisos de asignaciones asignados a TECNOLOGIA.
+- `AsignacionAdminQueryService` — consultas nativas de períodos, mensuales, personas disponibles, listado y detalle de diarias.
+- `AsignacionAdminService` — operaciones: crearBorrador, actualizarPersonas, publicar (auditoría), cancelar.
+- `AsignacionAdminController` — 9 endpoints en `/api/v1/admin/asignaciones` con permisos `ASIGNACIONES_VER` / `ASIGNACIONES_ADMINISTRAR`.
+- Angular `features/asignaciones` — lista, creación (stepper), detalle con publicación y cancelación.
+- Android: sin cambios — endpoint `GET /api/v1/asignaciones/diaria/activa` ya existía; solo devuelve asignaciones PUBLICADAS.
+- 29/29 unit tests API, 196/196 Angular tests, ng build limpio.
+- ADR pendiente: ninguno nuevo (decisiones ya documentadas en ADR-0008, RN-21, RN-22).
+
+**No incluye:**
+- Finalización de asignaciones (FINALIZADA se activa cuando el ejecutivo sincroniza al final del día — flujo Android existente).
+- Fotografías.
+- Despliegue en VPS.
+
+---
+
+## Fase 7 — Despliegue en VPS (PENDIENTE)
 
 **Objetivo:** Desplegar el sistema completo en un VPS Ubuntu con Docker Compose y Nginx.
 

@@ -94,7 +94,7 @@ class GestionRestTest {
 
         diariaId = asignacionService.crearAsignacionDiaria(amId, supervisorId, LocalDate.now(SANTIAGO));
         asignacionService.agregarPersonaADiaria(diariaId, personaId);
-        asignacionService.publicarAsignacionDiaria(diariaId);
+        asignacionService.publicarAsignacionDiaria(diariaId, null);
 
         tokenEjecutivo = generarToken(ejecutivoId, List.of("EJECUTIVO_TERRENO"));
         UUID otroId = usuarioService.crearUsuario(

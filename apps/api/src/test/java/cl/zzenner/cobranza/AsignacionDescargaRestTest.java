@@ -102,7 +102,7 @@ class AsignacionDescargaRestTest {
 
         diariaId = asignacionService.crearAsignacionDiaria(amId, supervisorId, fechaHoy);
         asignacionService.agregarPersonaADiaria(diariaId, personaId);
-        asignacionService.publicarAsignacionDiaria(diariaId);
+        asignacionService.publicarAsignacionDiaria(diariaId, null);
 
         // Agregar una gestión de prueba
         var cmd = new ComandoCrearGestion(

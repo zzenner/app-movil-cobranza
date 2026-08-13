@@ -292,7 +292,7 @@ class DominioAsignacionesIntegracionTest {
 
         UUID adId = asignacionService.crearAsignacionDiaria(amId, supId, LocalDate.of(2026, 8, 5));
 
-        assertThatThrownBy(() -> asignacionService.publicarAsignacionDiaria(adId))
+        assertThatThrownBy(() -> asignacionService.publicarAsignacionDiaria(adId, null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("sin personas");
     }
@@ -314,7 +314,7 @@ class DominioAsignacionesIntegracionTest {
 
         UUID adId = asignacionService.crearAsignacionDiaria(amId, supId, LocalDate.of(2026, 8, 5));
         asignacionService.agregarPersonaADiaria(adId, persona.getId());
-        asignacionService.publicarAsignacionDiaria(adId);
+        asignacionService.publicarAsignacionDiaria(adId, null);
 
         String estado = jdbc.queryForObject(
                 "SELECT estado FROM cobranza.asignaciones_diarias WHERE id=?",

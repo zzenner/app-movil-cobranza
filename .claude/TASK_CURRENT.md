@@ -1,44 +1,37 @@
 # Tarea activa
 
-**Fase:** 6A — Carteras y Supervisión
-**Estado:** BACKEND + ANGULAR COMPLETADOS — Pendiente commit y cierre formal
-**Rama:** feature/fase-6a-carteras-supervision
+**Fase:** 6B — Asignaciones Diarias y Publicación
+**Estado:** COMPLETADA ✅ — pendiente commit, tag y push
+**Rama:** main
 
 ## Completado en esta sesión
 
 ### Backend (Java / Spring Boot)
-- V015 migration: 3 permisos nuevos (CARTERAS_VER, SUPERVISION_VER, SUPERVISION_ADMINISTRAR), asignados a roles
-- Cartera.java: campo codigoOrigen mapeado
-- CarteraService: listarTodas() con Sort
-- CarteraAdminController: GET /api/v1/admin/carteras con PERM_CARTERAS_VER
-- CodigoEjecutivoDuplicadoException: excepción de dominio
-- Usuario.java: codigoEjecutivoOrigen field + setter normalizado
-- UsuarioRepository: 2 nuevos query methods
-- UsuarioRolRepository: findAllByRolIdAndActivoTrue
-- SupervisionService: reescritura completa (reasignar atómico, validarUsuarioOperativo, actualizarCodigo, saveAndFlush)
-- SupervisionAdminQueryService: consultas con filtros
-- SupervisionAdminController: 5 endpoints REST (GET ×2, POST, DELETE, PATCH)
-- CarterasSupervisionRestTest: 22 escenarios integración — TODOS PASAN ✅
-- SeguridadIntegracionTest: actualizado conteo permisos 8→11 — PASAN ✅
-- Suite completa: 461 tests, 0 fallos ✅
+- V016: columna `publicado_por_id` en `asignaciones_diarias`; permisos de asignaciones a TECNOLOGIA
+- `AsignacionDiaria.publicar(UUID)` — firma actualizada con auditoría de publicador
+- `AsignacionAdminQueryService` — consultas nativas vía EntityManager
+- `AsignacionAdminService` — crearBorrador, actualizarPersonas, publicar, cancelar
+- `AsignacionAdminController` — 9 endpoints en /api/v1/admin/asignaciones
+- `AsignacionAdminRestTest` — 12 escenarios de integración
+- Tests previos corregidos (4 archivos + AsignacionDiariaDominioTest)
+- 29/29 unit tests — 0 failures ✅
 
 ### Angular (Admin Web)
-- CartesrasModule: CarterasService + CarterasListComponent + carteras.routes.ts
-- SupervisionModule: SupervisionService + SupervisionListComponent + diálogos + supervision.routes.ts
-- app.routes.ts: rutas /carteras y /supervision registradas
-- Layout: items de menú Carteras (CARTERAS_VER) y Supervisión (SUPERVISION_VER)
-- 4 specs nuevos (2 service + 2 component) — 176 tests, 0 fallos ✅
-- Build producción OK ✅
-
-### Docker
-- Rebuild exitoso: API + Admin Web
-- Smoke test: GET /api/v1/admin/carteras → 200 + 4 carteras, GET /api/v1/admin/supervision/ejecutivos → 200
+- `features/asignaciones/` — módulo completo: models, service, 3 componentes, rutas
+- Layout actualizado con ítem Asignaciones (ASIGNACIONES_VER)
+- 196/196 tests Vitest — 0 failures ✅
+- ng build — limpio sin warnings ✅
 
 ## Pendiente para cierre formal
 
-1. Commit: feat(admin): implementar carteras y supervision fase 6a
-2. Push branch feature/fase-6a-carteras-supervision
-3. Merge a main con --ff-only
-4. Tag v0.20.0-carteras-supervision
-5. Actualizar SESSION_HANDOFF.md final
-6. Entregar reporte final
+1. `git add` + `git commit -m "feat(asignaciones): implementar asignaciones diarias fase 6b"`
+2. `git tag v0.21.0-asignaciones-diarias`
+3. `git push origin main` (requiere autorización explícita)
+4. `git push origin v0.21.0-asignaciones-diarias` (requiere autorización)
+
+## Nota sobre Docker / integration tests
+
+Docker Desktop WSL2 integration no está habilitado en esta sesión WSL2.
+Los 16 integration tests (Testcontainers) fallan por infraestructura, no por código.
+Todos los unit tests de dominio (29/29) pasan.
+Para ejecutar la suite completa: habilitar WSL2 integration en Docker Desktop settings.

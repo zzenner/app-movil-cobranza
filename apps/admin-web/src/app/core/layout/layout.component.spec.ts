@@ -123,6 +123,21 @@ describe('LayoutComponent — menú de navegación', () => {
     expect(el.querySelector('[data-testid="menu-importacion"]')).toBeTruthy();
   });
 
+  // ── Asignaciones ──────────────────────────────────────────────────────────
+
+  it('muestra Asignaciones cuando el perfil tiene ASIGNACIONES_VER', async () => {
+    const { el } = await renderLayout(['ASIGNACIONES_VER']);
+    const asignaciones = el.querySelector('[data-testid="menu-asignaciones"]');
+    expect(asignaciones).toBeTruthy();
+    expect(asignaciones?.textContent).toContain('Asignaciones');
+  });
+
+  it('NO muestra Asignaciones cuando el perfil no tiene ASIGNACIONES_VER', async () => {
+    const { el } = await renderLayout(['USUARIOS_VER']);
+    const asignaciones = el.querySelector('[data-testid="menu-asignaciones"]');
+    expect(asignaciones).toBeNull();
+  });
+
   // ── computed signals ───────────────────────────────────────────────────────
 
   it('tienePermisoImportacion es true con DATOS_IMPORTAR', async () => {
@@ -133,5 +148,15 @@ describe('LayoutComponent — menú de navegación', () => {
   it('tienePermisoImportacion es false sin DATOS_IMPORTAR', async () => {
     const { fixture } = await renderLayout(['USUARIOS_VER']);
     expect(fixture.componentInstance.tienePermisoImportacion()).toBe(false);
+  });
+
+  it('tienePermisoAsignaciones es true con ASIGNACIONES_VER', async () => {
+    const { fixture } = await renderLayout(['ASIGNACIONES_VER']);
+    expect(fixture.componentInstance.tienePermisoAsignaciones()).toBe(true);
+  });
+
+  it('tienePermisoAsignaciones es false sin ASIGNACIONES_VER', async () => {
+    const { fixture } = await renderLayout(['USUARIOS_VER']);
+    expect(fixture.componentInstance.tienePermisoAsignaciones()).toBe(false);
   });
 });

@@ -30,38 +30,38 @@ class AsignacionDiariaDominioTest {
     @Test
     void publicar_diaria_cambia_estado_a_publicada() {
         AsignacionDiaria ad = nuevaDiaria();
-        ad.publicar();
+        ad.publicar(null);
         assertThat(ad.getEstado()).isEqualTo(EstadoAsignacionDiaria.PUBLICADA);
     }
 
     @Test
     void publicar_diaria_registra_fecha_publicacion() {
         AsignacionDiaria ad = nuevaDiaria();
-        ad.publicar();
+        ad.publicar(null);
         assertThat(ad.getFechaPublicacion()).isNotNull();
     }
 
     @Test
     void publicar_diaria_ya_publicada_lanza_excepcion() {
         AsignacionDiaria ad = nuevaDiaria();
-        ad.publicar();
-        assertThatThrownBy(ad::publicar)
+        ad.publicar(null);
+        assertThatThrownBy(() -> ad.publicar(null))
                 .isInstanceOf(TransicionEstadoInvalidaException.class);
     }
 
     @Test
     void publicar_diaria_finalizada_lanza_excepcion() {
         AsignacionDiaria ad = nuevaDiaria();
-        ad.publicar();
+        ad.publicar(null);
         ad.finalizar();
-        assertThatThrownBy(ad::publicar)
+        assertThatThrownBy(() -> ad.publicar(null))
                 .isInstanceOf(TransicionEstadoInvalidaException.class);
     }
 
     @Test
     void finalizar_diaria_publicada_la_finaliza() {
         AsignacionDiaria ad = nuevaDiaria();
-        ad.publicar();
+        ad.publicar(null);
         ad.finalizar();
         assertThat(ad.getEstado()).isEqualTo(EstadoAsignacionDiaria.FINALIZADA);
     }
@@ -76,7 +76,7 @@ class AsignacionDiariaDominioTest {
     @Test
     void finalizar_diaria_ya_finalizada_lanza_excepcion() {
         AsignacionDiaria ad = nuevaDiaria();
-        ad.publicar();
+        ad.publicar(null);
         ad.finalizar();
         assertThatThrownBy(ad::finalizar)
                 .isInstanceOf(TransicionEstadoInvalidaException.class);
@@ -93,7 +93,7 @@ class AsignacionDiariaDominioTest {
     @Test
     void cancelar_publicada_con_motivo_valido_la_cancela() {
         AsignacionDiaria ad = nuevaDiaria();
-        ad.publicar();
+        ad.publicar(null);
         ad.cancelar("Cancelada por supervisor");
         assertThat(ad.getEstado()).isEqualTo(EstadoAsignacionDiaria.CANCELADA);
     }
@@ -112,7 +112,7 @@ class AsignacionDiariaDominioTest {
     @Test
     void cancelar_diaria_finalizada_lanza_excepcion() {
         AsignacionDiaria ad = nuevaDiaria();
-        ad.publicar();
+        ad.publicar(null);
         ad.finalizar();
         assertThatThrownBy(() -> ad.cancelar("Motivo"))
                 .isInstanceOf(TransicionEstadoInvalidaException.class);

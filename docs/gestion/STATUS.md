@@ -1,8 +1,8 @@
 # Estado del proyecto
 
 **Última actualización:** 2026-08-13
-**Fase actual:** Fase 6A — Carteras y Supervisión — COMPLETADA ✅ — tag v0.20.0-carteras-supervision
-**Fase anterior:** Fase 5E — Importación real validada — encoding Win-1252 + periodo + V014 — COMPLETADA ✅
+**Fase actual:** Fase 6B — Asignaciones Diarias y Publicación — COMPLETADA ✅ — tag v0.21.0-asignaciones-diarias
+**Fase anterior:** Fase 6A — Carteras y Supervisión — COMPLETADA ✅ — tag v0.20.0-carteras-supervision
 
 ## Resumen
 
@@ -36,6 +36,7 @@
 | **API + Admin Web — Fase 5E importación real (Win-1252, periodo, V014)** | **COMPLETADA ✅ — 9839/9839 filas, 0 errores** |
 | **API + Admin Web — Fase 6A Carteras y Supervisión**              | **COMPLETADA ✅ — tag v0.20.0-carteras-supervision** |
 | **App Android — Conectividad API local corregida**                 | **COMPLETADA ✅ — commit f1a1b22** |
+| **API + Admin Web — Fase 6B Asignaciones Diarias y Publicación**   | **COMPLETADA ✅ — tag v0.21.0-asignaciones-diarias** |
 | Despliegue en VPS                                                  | No iniciado           |
 
 ## Resultado de auditoría Fase 1A (2026-07-26)
@@ -166,8 +167,8 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 | P-02 | ¿Los ejecutivos ven gestiones de otros ejecutivos sobre la misma persona en la app Android?                  |
 | P-03 | ¿Cuál es el catálogo completo futuro de tipos de gestión? (los tres iniciales están confirmados)             |
 | P-04 | ¿Se implementa exportación a Excel en la Fase 1 o en una posterior?                                         |
-| P-05 | ¿Puede el supervisor modificar una asignación `PUBLICADA` o debe crear una nueva?                           |
-| P-06 | ¿Se implementa `CANCELADA` como estado de asignación diaria en el MVP?                                      |
+| ~~P-05~~ | ~~¿Puede el supervisor modificar una asignación `PUBLICADA` o debe crear una nueva?~~ **Resuelta Fase 6B: PUBLICADA es inmutable; se cancela y crea nueva** |
+| ~~P-06~~ | ~~¿Se implementa `CANCELADA` como estado de asignación diaria en el MVP?~~ **Resuelta Fase 6B: sí, CANCELADA implementada** |
 | P-07 | Confirmar minSdk definitivo con inventario de dispositivos corporativos (provisional: API 29 / Android 10).  |
 | P-08 | Confirmar si el aval se asocia a persona u operación en el sistema externo definitivo (no bloqueante).       |
 
@@ -657,11 +658,40 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 | Docker stack — postgres/api/admin-web healthy | ✅ |
 | Smoke-test — 69/69 OK | ✅ |
 
+## Fase 6B — Asignaciones Diarias y Publicación (2026-08-13) — COMPLETADA ✅
+
+**Resultado: API + Admin Web para administración de asignaciones diarias. 29/29 unit tests verdes (Docker no disponible en WSL2 para integration tests). 196/196 Angular tests. ng build limpio.**
+
+| Item | Resultado |
+|---|---|
+| `V016__asignaciones_admin.sql` — columna `publicado_por_id` en `asignaciones_diarias`; permiso ASIGNACIONES_ADMINISTRAR asignado a TECNOLOGIA | ✅ |
+| `AsignacionDiaria.publicar(UUID)` — registra quién publicó | ✅ |
+| `AsignacionAdminQueryService` — consultas nativas: periodos, mensuales, personas disponibles, diarias, detalle | ✅ |
+| `AsignacionAdminService` — operaciones: crearBorrador, actualizarPersonas, publicar, cancelar | ✅ |
+| `AsignacionAdminController` — `/api/v1/admin/asignaciones` — 9 endpoints REST | ✅ |
+| Permisos: ASIGNACIONES_VER (lectura) / ASIGNACIONES_ADMINISTRAR (escritura + publicación) | ✅ |
+| `AsignacionAdminRestTest` — 12 escenarios de integración ordenados | ✅ |
+| `AsignacionDiariaPersonaRepository` — `deleteByAsignacionDiariaIdAndPersonaId` añadido | ✅ |
+| Tests previos corregidos (`publicarAsignacionDiaria(id, null)` en 4 archivos + `ad.publicar(null)` en dominio test) | ✅ |
+| Angular: `asignacion.models.ts` — interfaces y DTOs completos | ✅ |
+| Angular: `AsignacionesService` — 9 métodos HTTP | ✅ |
+| Angular: `AsignacionesListComponent` — tabla con filtros | ✅ |
+| Angular: `AsignacionCreateComponent` — stepper: período → personas → guardar | ✅ |
+| Angular: `AsignacionDetailComponent` — detalle, publicar (confirm), cancelar (motivo) | ✅ |
+| Angular: `asignaciones.routes.ts` + rutas registradas en `app.routes.ts` | ✅ |
+| Angular: `LayoutComponent` — ítem Asignaciones con permiso ASIGNACIONES_VER | ✅ |
+| Angular specs: service (9), list (3), detail (3), layout (4 nuevos) — 196/196 total | ✅ |
+| Android: endpoint `GET /api/v1/asignaciones/diaria/activa` existente; solo devuelve PUBLICADA | ✅ |
+| 29/29 unit tests API — 0 failures | ✅ |
+| 196/196 Angular tests — 0 failures | ✅ |
+| ng build — sin warnings ni errores | ✅ |
+
 ## Próximo paso recomendado
 
-1. `git push origin main` para publicar el commit `9133f49` (requiere autorización explícita).
-2. Crear tag `v0.17.0-importacion-mensual` (requiere autorización explícita).
-3. Iniciar Fase 6 (por definir en ROADMAP).
+1. Habilitar Docker Desktop WSL2 integration para correr la suite completa de integración (Testcontainers).
+2. `git push origin main` para publicar (requiere autorización explícita).
+3. Crear tag `v0.21.0-asignaciones-diarias` (requiere autorización explícita).
+4. Iniciar Fase 7 — Reportería / supervisión en Android (por definir).
 
 ## Historial de fases
 

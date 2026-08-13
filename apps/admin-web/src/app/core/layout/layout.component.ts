@@ -51,6 +51,12 @@ import { AuthService } from '../auth/auth.service';
               <span matListItemTitle>Supervisión</span>
             </a>
           }
+          @if (tienePermisoAsignaciones()) {
+            <a mat-list-item routerLink="/asignaciones" data-testid="menu-asignaciones">
+              <mat-icon matListItemIcon>assignment</mat-icon>
+              <span matListItemTitle>Asignaciones</span>
+            </a>
+          }
         </mat-nav-list>
       </mat-sidenav>
 
@@ -97,6 +103,9 @@ export class LayoutComponent {
   );
   readonly tienePermisoSupervision = computed(() =>
     this.authService.profile()?.permisos?.includes('SUPERVISION_VER') ?? false,
+  );
+  readonly tienePermisoAsignaciones = computed(() =>
+    this.authService.profile()?.permisos?.includes('ASIGNACIONES_VER') ?? false,
   );
 
   logout(): void {

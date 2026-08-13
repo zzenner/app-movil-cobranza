@@ -32,6 +32,9 @@ public class AsignacionDiaria {
     @Column(name = "fecha_publicacion")
     private Instant fechaPublicacion;
 
+    @Column(name = "publicado_por_id")
+    private UUID publicadoPorId;
+
     @Column(name = "motivo_cancelacion")
     private String motivoCancelacion;
 
@@ -68,13 +71,14 @@ public class AsignacionDiaria {
         fechaActualizacion = Instant.now();
     }
 
-    public void publicar() {
+    public void publicar(UUID publicadoPorId) {
         if (this.estado != EstadoAsignacionDiaria.BORRADOR) {
             throw new TransicionEstadoInvalidaException(
                     "Solo se puede publicar desde BORRADOR. Estado actual: " + this.estado);
         }
         this.estado = EstadoAsignacionDiaria.PUBLICADA;
         this.fechaPublicacion = Instant.now();
+        this.publicadoPorId = publicadoPorId;
     }
 
     public void finalizar() {
@@ -105,6 +109,7 @@ public class AsignacionDiaria {
     public LocalDate getFecha() { return fecha; }
     public EstadoAsignacionDiaria getEstado() { return estado; }
     public Instant getFechaPublicacion() { return fechaPublicacion; }
+    public UUID getPublicadoPorId() { return publicadoPorId; }
     public String getMotivoCancelacion() { return motivoCancelacion; }
     public Instant getFechaCreacion() { return fechaCreacion; }
     public Instant getFechaActualizacion() { return fechaActualizacion; }

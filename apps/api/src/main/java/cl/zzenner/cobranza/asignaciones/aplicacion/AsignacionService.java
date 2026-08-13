@@ -153,7 +153,7 @@ public class AsignacionService {
         asignacionDiariaPersonaRepository.save(new AsignacionDiariaPersona(asignacionDiariaId, personaId));
     }
 
-    public void publicarAsignacionDiaria(UUID asignacionDiariaId) {
+    public void publicarAsignacionDiaria(UUID asignacionDiariaId, UUID publicadoPorId) {
         AsignacionDiaria ad = asignacionDiariaRepository.findById(asignacionDiariaId)
                 .orElseThrow(() -> new AsignacionNoEncontradaException(asignacionDiariaId));
 
@@ -162,7 +162,7 @@ public class AsignacionService {
             throw new IllegalStateException("No se puede publicar una asignación diaria sin personas");
         }
 
-        ad.publicar();
+        ad.publicar(publicadoPorId);
         asignacionDiariaRepository.save(ad);
     }
 

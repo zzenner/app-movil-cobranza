@@ -20,4 +20,8 @@ public interface AsignacionDiariaPersonaRepository
 
     @Query("SELECT adp.id.personaId FROM AsignacionDiariaPersona adp WHERE adp.id.asignacionDiariaId = :did")
     List<UUID> findPersonaIdsByAsignacionDiariaId(@Param("did") UUID asignacionDiariaId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM AsignacionDiariaPersona adp WHERE adp.id.asignacionDiariaId = :did AND adp.id.personaId = :pid")
+    void deleteByAsignacionDiariaIdAndPersonaId(@Param("did") UUID asignacionDiariaId, @Param("pid") UUID personaId);
 }

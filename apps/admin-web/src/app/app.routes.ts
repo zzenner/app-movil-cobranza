@@ -41,6 +41,11 @@ export const routes: Routes = [
           import('./features/supervision/supervision.routes').then((m) => m.supervisionRoutes),
       },
       {
+        path: 'asignaciones',
+        loadChildren: () =>
+          import('./features/asignaciones/asignaciones.routes').then((m) => m.asignacionesRoutes),
+      },
+      {
         path: 'forbidden',
         loadComponent: () =>
           import('./features/forbidden/forbidden.component').then((m) => m.ForbiddenComponent),
