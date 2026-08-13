@@ -75,6 +75,15 @@ export class ImportacionNuevaComponent {
   readonly enviando = signal(false);
   readonly errorServidor = signal<string | null>(null);
 
+  private extraerMensajeError(err: any): string {
+    const status = err?.status as number | undefined;
+    if (status === 0) return 'Error de conexión. Verifique su acceso a la red.';
+    if (status === 401) return 'Su sesión ha expirado. Por favor, vuelva a iniciar sesión.';
+    if (status === 403) return 'No tiene permiso para importar archivos.';
+    if (status === 413) return 'El archivo supera el tamaño máximo permitido (50 MB).';
+    return err?.error?.detail ?? err?.error?.title ?? 'Error al subir el archivo.';
+  }
+
   onArchivoSeleccionado(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
@@ -94,8 +103,7 @@ export class ImportacionNuevaComponent {
       next: (r) => this.router.navigate(['/importacion', r.importacionId]),
       error: (err) => {
         this.enviando.set(false);
-        const msg = err?.error?.detail ?? err?.error?.message ?? 'Error al subir el archivo';
-        this.errorServidor.set(msg);
+        this.errorServidor.set(this.extraerMensajeError(err));
       },
     });
   }

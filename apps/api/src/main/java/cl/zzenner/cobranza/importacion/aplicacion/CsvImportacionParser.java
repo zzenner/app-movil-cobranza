@@ -8,13 +8,14 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.stereotype.Component;
 
-import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -22,6 +23,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -55,8 +57,9 @@ class CsvImportacionParser {
     // Fechas del sistema origen: YYYY-MM-DD
     static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-    // UTF-8 estricto — el archivo origen debe estar en UTF-8
-    static final java.nio.charset.Charset ENCODING_REQUERIDO = StandardCharsets.UTF_8;
+    // Encodings soportados: UTF-8 (preferido) y Windows-1252 (legacy del sistema origen)
+    static final Charset ENCODING_UTF8 = StandardCharsets.UTF_8;
+    static final Charset ENCODING_WIN1252 = Charset.forName("windows-1252");
 
     // Carteras válidas del catálogo (códigos de origen)
     static final Set<String> CARTERAS_VALIDAS = Set.of("1", "2", "3", "4");
@@ -77,11 +80,21 @@ class CsvImportacionParser {
                 .setIgnoreEmptyLines(false)
                 .build();
 
-        CharsetDecoder decoder = ENCODING_REQUERIDO.newDecoder()
-                .onMalformedInput(CodingErrorAction.REPORT)
-                .onUnmappableCharacter(CodingErrorAction.REPORT);
+        byte[] bytes;
+        try {
+            bytes = inputStream.readAllBytes();
+        } catch (IOException e) {
+            errores.add(new ErrorImportacion(importacionId, null, null,
+                    "FORMATO_INVALIDO", NivelError.ERROR,
+                    "Error al leer el archivo CSV: " + e.getMessage()));
+            return new ResultadoParser(filas, errores, 0);
+        }
 
-        try (InputStreamReader reader = new InputStreamReader(stripBom(inputStream), decoder);
+        // Detectar encoding: UTF-8 preferido, fallback a Windows-1252
+        Charset charset = detectarEncoding(bytes);
+        byte[] data = stripBomBytes(bytes);
+
+        try (InputStreamReader reader = new InputStreamReader(new ByteArrayInputStream(data), charset);
              CSVParser parser = CSVParser.parse(reader, formato)) {
 
             verificarColumnasRequeridas(parser.getHeaderNames(), importacionId, errores);
@@ -106,10 +119,6 @@ class CsvImportacionParser {
                 }
             }
 
-        } catch (CharacterCodingException e) {
-            errores.add(new ErrorImportacion(importacionId, null, null,
-                    "ENCODING_INVALIDO", NivelError.ERROR,
-                    "El archivo no está en UTF-8. El sistema origen debe exportar en UTF-8."));
         } catch (IOException e) {
             errores.add(new ErrorImportacion(importacionId, null, null,
                     "FORMATO_INVALIDO", NivelError.ERROR,
@@ -117,6 +126,30 @@ class CsvImportacionParser {
         }
 
         return new ResultadoParser(filas, errores, totalFilas);
+    }
+
+    // Detecta si el archivo es UTF-8 válido; si falla, usa Windows-1252.
+    // Windows-1252 acepta cualquier secuencia de bytes, por lo que el fallback siempre tiene éxito.
+    private Charset detectarEncoding(byte[] bytes) {
+        try {
+            ENCODING_UTF8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(bytes));
+            return ENCODING_UTF8;
+        } catch (CharacterCodingException e) {
+            return ENCODING_WIN1252;
+        }
+    }
+
+    private byte[] stripBomBytes(byte[] bytes) {
+        if (bytes.length >= 3
+                && bytes[0] == (byte) 0xEF
+                && bytes[1] == (byte) 0xBB
+                && bytes[2] == (byte) 0xBF) {
+            return Arrays.copyOfRange(bytes, 3, bytes.length);
+        }
+        return bytes;
     }
 
     private boolean esFilaTotalmenteVacia(CSVRecord rec) {
@@ -302,18 +335,6 @@ class CsvImportacionParser {
             throw new FilaInvalidaException(fila, col, "FORMATO_ENTERO",
                     "El campo " + col + " no es un número entero válido: " + raw);
         }
-    }
-
-    private InputStream stripBom(InputStream is) throws IOException {
-        BufferedInputStream bis = (is instanceof BufferedInputStream b) ? b : new BufferedInputStream(is);
-        bis.mark(3);
-        byte[] bom = bis.readNBytes(3);
-        if (bom.length == 3 && bom[0] == (byte) 0xEF
-                && bom[1] == (byte) 0xBB && bom[2] == (byte) 0xBF) {
-            return bis;
-        }
-        bis.reset();
-        return bis;
     }
 
     static class FilaInvalidaException extends RuntimeException {

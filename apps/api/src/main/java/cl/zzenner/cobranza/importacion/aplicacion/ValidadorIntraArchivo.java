@@ -6,12 +6,25 @@ import cl.zzenner.cobranza.importacion.dominio.NivelError;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 class ValidadorIntraArchivo {
 
     List<ErrorImportacion> validar(UUID importacionId, List<FilaCsv> filas) {
         List<ErrorImportacion> errores = new ArrayList<>();
+
+        // Un solo período por archivo
+        Set<String> periodosDistintos = filas.stream()
+                .map(FilaCsv::periodo)
+                .collect(Collectors.toCollection(TreeSet::new));
+        if (periodosDistintos.size() > 1) {
+            errores.add(new ErrorImportacion(importacionId, null, "PERIODO",
+                    "PERIODOS_MULTIPLES_ARCHIVO", NivelError.ERROR,
+                    "El archivo contiene más de un período: " +
+                            String.join(", ", periodosDistintos) +
+                            ". Un archivo mensual debe contener exactamente un período."));
+        }
 
         // Clave de posición: PERIODO+RUT+OP+CUOTA+CARTERA
         Set<String> posicionesVistas = new HashSet<>();

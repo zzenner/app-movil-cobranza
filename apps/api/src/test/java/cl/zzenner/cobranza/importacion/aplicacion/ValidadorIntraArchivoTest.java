@@ -131,7 +131,38 @@ class ValidadorIntraArchivoTest {
                 .filter(e -> "PERSONA_EJECUTIVOS_MULTIPLES".equals(e.getCodigoError())).toList()).isEmpty();
     }
 
-    // --- Test 31: dvEsValido calcula módulo 11 correctamente
+    // --- Test 31: Múltiples períodos en el mismo archivo → error PERIODOS_MULTIPLES_ARCHIVO
+    @Test
+    void multiples_periodos_en_archivo_generan_error() {
+        List<FilaCsv> filas = List.of(
+                fila(1, "12345678", "5", "2026-08", "600001", "TipoCred", "1001", "2"),
+                fila(2, "23456789", "K", "2026-09", "600002", "TipoCred", "1001", "2")
+        );
+
+        List<ErrorImportacion> errores = validador.validar(importacionId, filas);
+
+        assertThat(errores).anyMatch(e ->
+                "PERIODOS_MULTIPLES_ARCHIVO".equals(e.getCodigoError()) &&
+                NivelError.ERROR.equals(e.getNivel()) &&
+                e.getMensaje().contains("2026-08") &&
+                e.getMensaje().contains("2026-09"));
+    }
+
+    // --- Test 32: Un solo período en el archivo → sin error PERIODOS_MULTIPLES_ARCHIVO
+    @Test
+    void un_solo_periodo_en_archivo_no_genera_error() {
+        List<FilaCsv> filas = List.of(
+                fila(1, "12345678", "5", "2026-08", "600001", "TipoCred", "1001", "2"),
+                fila(2, "23456789", "K", "2026-08", "600002", "TipoCred", "1001", "2")
+        );
+
+        List<ErrorImportacion> errores = validador.validar(importacionId, filas);
+
+        assertThat(errores.stream()
+                .filter(e -> "PERIODOS_MULTIPLES_ARCHIVO".equals(e.getCodigoError())).toList()).isEmpty();
+    }
+
+    // --- Test 33: dvEsValido calcula módulo 11 correctamente
     @Test
     void dv_es_valido_calcula_modulo_11_correctamente() {
         assertThat(ValidadorIntraArchivo.dvEsValido(12345678, "5")).isTrue();

@@ -132,7 +132,7 @@ describe('ImportacionNuevaComponent', () => {
 
   it('muestra error del servidor cuando crear falla con ARCHIVO_YA_IMPORTADO', async () => {
     const errorBody = { detail: 'ARCHIVO_YA_IMPORTADO: el archivo ya fue procesado' };
-    serviceMock.crear.mockReturnValue(throwError(() => ({ error: errorBody })));
+    serviceMock.crear.mockReturnValue(throwError(() => ({ status: 409, error: errorBody })));
     const fixture = TestBed.createComponent(ImportacionNuevaComponent);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -145,19 +145,59 @@ describe('ImportacionNuevaComponent', () => {
   });
 
   it('muestra error genérico cuando crear falla sin detail', async () => {
-    serviceMock.crear.mockReturnValue(throwError(() => ({ error: {} })));
+    serviceMock.crear.mockReturnValue(throwError(() => ({ status: 500, error: {} })));
     const fixture = TestBed.createComponent(ImportacionNuevaComponent);
     fixture.detectChanges();
     await fixture.whenStable();
     const comp = fixture.componentInstance;
     comp.archivoSeleccionado.set(new File(['x'], 'f.csv'));
     comp.enviar();
-    expect(comp.errorServidor()).toBeTruthy();
+    expect(comp.errorServidor()).toBe('Error al subir el archivo.');
+  });
+
+  it('muestra mensaje de sesión expirada con status 401', async () => {
+    serviceMock.crear.mockReturnValue(throwError(() => ({ status: 401, error: null })));
+    const fixture = TestBed.createComponent(ImportacionNuevaComponent);
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+    comp.archivoSeleccionado.set(new File(['x'], 'f.csv'));
+    comp.enviar();
+    expect(comp.errorServidor()).toContain('sesión');
+  });
+
+  it('muestra mensaje de permiso denegado con status 403', async () => {
+    serviceMock.crear.mockReturnValue(throwError(() => ({ status: 403, error: null })));
+    const fixture = TestBed.createComponent(ImportacionNuevaComponent);
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+    comp.archivoSeleccionado.set(new File(['x'], 'f.csv'));
+    comp.enviar();
+    expect(comp.errorServidor()).toContain('permiso');
+  });
+
+  it('muestra mensaje de tamaño excedido con status 413', async () => {
+    serviceMock.crear.mockReturnValue(throwError(() => ({ status: 413, error: null })));
+    const fixture = TestBed.createComponent(ImportacionNuevaComponent);
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+    comp.archivoSeleccionado.set(new File(['x'], 'f.csv'));
+    comp.enviar();
+    expect(comp.errorServidor()).toContain('50 MB');
+  });
+
+  it('muestra mensaje de error de conexión con status 0', async () => {
+    serviceMock.crear.mockReturnValue(throwError(() => ({ status: 0, error: null })));
+    const fixture = TestBed.createComponent(ImportacionNuevaComponent);
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+    comp.archivoSeleccionado.set(new File(['x'], 'f.csv'));
+    comp.enviar();
+    expect(comp.errorServidor()).toContain('conexión');
   });
 
   it('muestra el área de error del servidor en el template', async () => {
     const errorBody = { detail: 'PERIODO_ANTERIOR_NO_PERMITIDO' };
-    serviceMock.crear.mockReturnValue(throwError(() => ({ error: errorBody })));
+    serviceMock.crear.mockReturnValue(throwError(() => ({ status: 422, error: errorBody })));
     const fixture = TestBed.createComponent(ImportacionNuevaComponent);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -171,7 +211,7 @@ describe('ImportacionNuevaComponent', () => {
   });
 
   it('enviando vuelve a false cuando crear falla', async () => {
-    serviceMock.crear.mockReturnValue(throwError(() => ({ error: { detail: 'error' } })));
+    serviceMock.crear.mockReturnValue(throwError(() => ({ status: 400, error: { detail: 'error' } })));
     const fixture = TestBed.createComponent(ImportacionNuevaComponent);
     fixture.detectChanges();
     await fixture.whenStable();

@@ -238,23 +238,57 @@ class CsvImportacionParserTest {
         assertThat(resultado.errores().stream().filter(e -> e.getNivel() == NivelError.ERROR).toList()).isEmpty();
     }
 
-    // --- Test 16: Archivo con encoding ISO-8859-1 (no UTF-8) → error ENCODING_INVALIDO
+    // --- Test 16: Archivo Windows-1252 con ñ → aceptado y nombre preservado
     @Test
-    void archivo_iso_8859_1_genera_error_encoding_invalido() {
-        Charset latin1 = Charset.forName("ISO-8859-1");
-        // Nombre con ñ o á codificado en latin-1 = bytes inválidos en UTF-8
+    void archivo_windows1252_con_acento_es_aceptado_y_nombre_preservado() {
+        Charset win1252 = Charset.forName("windows-1252");
         String filaConAcento = "2026-08;12345678;5;JOSE NUÑEZ RAMOS;600001;Consumo;VIGENTE;" +
                 "1000000;0;0;1020000;2027-12-31;1;VIGENTE;50000;" +
                 "45000;3000;1500;500;50000;2026-09-30;1001;AV LIBERTADOR 1234;;2;N";
         String csv = HEADER + "\n" + filaConAcento;
 
-        // Codificar con latin-1 (bytes inválidos en UTF-8)
-        byte[] bytes = csv.getBytes(latin1);
+        byte[] bytes = csv.getBytes(win1252);
         var resultado = parsearBytes(bytes);
 
-        assertThat(resultado.errores()).anyMatch(e ->
-                "ENCODING_INVALIDO".equals(e.getCodigoError()) &&
-                NivelError.ERROR.equals(e.getNivel()));
+        assertThat(resultado.errores().stream()
+                .filter(e -> e.getNivel() == NivelError.ERROR).toList()).isEmpty();
+        assertThat(resultado.filas()).hasSize(1);
+        assertThat(resultado.filas().get(0).nombrePersona()).isEqualTo("JOSE NUÑEZ RAMOS");
+    }
+
+    // --- Test 16b: UTF-8 con acentos y ñ → aceptado
+    @Test
+    void archivo_utf8_con_acentos_es_aceptado() {
+        // áéíóúñÑ en UTF-8
+        String filaConAcento = "2026-08;12345678;5;TOMÁS ÑOÑO GARCÍA;600001;Consumo;VIGENTE;" +
+                "1000000;0;0;1020000;2027-12-31;1;VIGENTE;50000;" +
+                "45000;3000;1500;500;50000;2026-09-30;1001;AV GÓMEZ 123;;2;N";
+        String csv = HEADER + "\n" + filaConAcento;
+
+        byte[] bytes = csv.getBytes(StandardCharsets.UTF_8);
+        var resultado = parsearBytes(bytes);
+
+        assertThat(resultado.errores().stream()
+                .filter(e -> e.getNivel() == NivelError.ERROR).toList()).isEmpty();
+        assertThat(resultado.filas().get(0).nombrePersona()).isEqualTo("TOMÁS ÑOÑO GARCÍA");
+    }
+
+    // --- Test 16c: UTF-8 con BOM → BOM descartado, contenido correcto
+    @Test
+    void archivo_utf8_con_bom_es_aceptado() {
+        String csv = HEADER + "\n" + FILA_VALIDA;
+        byte[] cuerpo = csv.getBytes(StandardCharsets.UTF_8);
+        byte[] bom = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+        byte[] conBom = new byte[bom.length + cuerpo.length];
+        System.arraycopy(bom, 0, conBom, 0, bom.length);
+        System.arraycopy(cuerpo, 0, conBom, bom.length, cuerpo.length);
+
+        var resultado = parsearBytes(conBom);
+
+        assertThat(resultado.errores().stream()
+                .filter(e -> e.getNivel() == NivelError.ERROR).toList()).isEmpty();
+        assertThat(resultado.filas()).hasSize(1);
+        assertThat(resultado.filas().get(0).periodo()).isEqualTo("2026-08");
     }
 
     // --- Test 17: Múltiples filas con mismo RUT → todas parseadas

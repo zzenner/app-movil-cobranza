@@ -1,7 +1,7 @@
 # Estado del proyecto
 
-**Última actualización:** 2026-08-13
-**Fase actual:** Fase 5D — Contrato CSV definitivo de importación mensual — CERRADA ✅ COMMIT 9133f49
+**Última actualización:** 2026-08-12
+**Fase actual:** Fase 5E — Importación real validada — encoding Win-1252 + periodo + V014 — COMPLETADA ✅
 **Fase anterior:** Fase 5C — Importación mensual de datos de cobranza — VALIDADA ✅
 
 ## Resumen
@@ -33,6 +33,7 @@
 | **Admin Web — Fase 5B-2 gestión usuarios (escritura)**             | **VALIDADA ✅ — LISTA PARA CIERRE** |
 | **API + Admin Web — Fase 5C importación mensual**                  | **VALIDADA ✅ — 404/404 tests** |
 | **API + Admin Web + OpenAPI — Fase 5D contrato CSV v2 (26 columnas)** | **CERRADA ✅ — commit 9133f49 (pendiente push)** |
+| **API + Admin Web — Fase 5E importación real (Win-1252, periodo, V014)** | **COMPLETADA ✅ — 9839/9839 filas, 0 errores** |
 | Despliegue en VPS                                                  | No iniciado           |
 
 ## Resultado de auditoría Fase 1A (2026-07-26)

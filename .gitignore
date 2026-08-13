@@ -70,3 +70,6 @@ infrastructure/dev-keys/
 
 # Carpetas de sistema
 __MACOSX/
+
+# Archivos de prueba con datos reales (PII — nunca deben commitearse)
+docs/pruebas/importar_completa.csv

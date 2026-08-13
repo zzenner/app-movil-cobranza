@@ -82,9 +82,12 @@ class ImportacionValidacionWorker {
             int filasAdvert = (int) todosErrores.stream()
                     .filter(e -> e.getNivel() == NivelError.ADVERTENCIA).count();
 
+            String periodo = (!tieneErrores && !resultadoParser.filas().isEmpty())
+                    ? resultadoParser.filas().get(0).periodo() : null;
+
             guardarResultadoValidacion(importacionId, todosErrores,
                     resultadoParser.totalFilas(), filasRechazadas, filasAdvert, tieneErrores,
-                    im.getRutaArchivo());
+                    periodo, im.getRutaArchivo());
 
         } catch (Exception e) {
             log.error("[IMPORTACION] Error validando importacion={}", importacionId, e);
@@ -95,7 +98,7 @@ class ImportacionValidacionWorker {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     void guardarResultadoValidacion(UUID importacionId, List<ErrorImportacion> errores,
                                      int totalFilas, int filasRechazadas, int filasAdvertencia,
-                                     boolean tieneErrores, String rutaArchivo) {
+                                     boolean tieneErrores, String periodo, String rutaArchivo) {
         ImportacionMensual im = repository.findById(importacionId)
                 .orElseThrow(() -> new ImportacionMensualNoEncontradaException(importacionId));
 
@@ -108,6 +111,7 @@ class ImportacionValidacionWorker {
             repository.save(im);
             if (rutaArchivo != null) storage.eliminar(rutaArchivo);
         } else {
+            if (periodo != null) im.registrarPeriodo(periodo);
             im.transicionarA(EstadoImportacion.VALIDADA);
             repository.save(im);
             expirarValidadasAnteriores(im);

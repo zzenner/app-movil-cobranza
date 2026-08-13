@@ -5,6 +5,35 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-12 — Fase 5E: Importación real validada (encoding Win-1252, periodo, V014) — COMPLETADA
+
+### Añadido
+
+- `V014__ampliar_columnas_importacion.sql` — amplía `operaciones.tipo_operacion` de VARCHAR(50) a VARCHAR(200) (DEFECTO DE IMPLEMENTACIÓN: datos reales tienen hasta 51 chars)
+
+### Modificado
+
+- `CsvImportacionParser.java` — detección automática de encoding: UTF-8 estricto primero, fallback a Windows-1252; `stripBomBytes()` reemplaza `stripBom(InputStream)`; buffer completo de bytes
+- `ValidadorIntraArchivo.java` — nueva validación `PERIODOS_MULTIPLES_ARCHIVO` (un archivo mensual debe tener un solo período)
+- `ImportacionMensual.java` — nuevo método `registrarPeriodo(String)` para persistir el período desde el CSV
+- `ImportacionValidacionWorker.java` — extrae período de `filas.get(0).periodo()` y lo pasa a `guardarResultadoValidacion()` que llama `registrarPeriodo()`
+- `ImportacionNuevaComponent.ts` (Angular) — `extraerMensajeError()` devuelve mensajes específicos para HTTP 0, 401, 403, 413 en lugar del genérico "Error al subir el archivo"
+- `FORMATO_IMPORTACION_MENSUAL.md` — sección codificación actualizada: UTF-8 preferida + Windows-1252 aceptada
+
+### Tests añadidos
+
+- `CsvImportacionParserTest.java` — test 16 (Win-1252 con ñ aceptado), 16b (UTF-8 con acentos), 16c (UTF-8 con BOM)
+- `ValidadorIntraArchivoTest.java` — test 31 (PERIODOS_MULTIPLES_ARCHIVO), test 32 (un período no genera error)
+- `ImportacionNuevaComponent.spec.ts` — 4 tests nuevos: HTTP 401, 403, 413, 0
+
+### Resultado importación real
+
+- Archivo: 9839 filas, período 2026-08, encoding Windows-1252, 2,5 MB
+- Flujo: RECIBIDA → VALIDADA (periodo=2026-08 persistido) → COMPLETADA en ~45 s
+- DB: 3592 personas, 4198 operaciones, 9839 cuotas — 0 errores
+
+---
+
 ## [Sin versión] — 2026-08-12/13 — Fase 5D: Contrato CSV definitivo (26 columnas, UTF-8, YYYY-MM-DD) — CERRADA
 
 ### Añadido

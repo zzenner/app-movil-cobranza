@@ -128,6 +128,11 @@ public class ImportacionMensual {
         this.fechaActualizacion = Instant.now();
     }
 
+    public void registrarPeriodo(String periodo) {
+        this.periodo = periodo;
+        this.fechaActualizacion = Instant.now();
+    }
+
     public void registrarError(String mensaje) {
         this.mensajeError = mensaje;
         this.fechaActualizacion = Instant.now();

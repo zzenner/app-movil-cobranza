@@ -4,7 +4,7 @@
 
 ## Descripción general
 
-El archivo de importación mensual es un CSV con separador `;`, codificación **UTF-8 estricto**, que contiene una fila por cuota. Un crédito con N cuotas ocupa N filas. Una persona con varios créditos ocupa la suma de todas sus cuotas.
+El archivo de importación mensual es un CSV con separador `;` que contiene una fila por cuota. Un crédito con N cuotas ocupa N filas. Una persona con varios créditos ocupa la suma de todas sus cuotas.
 
 ## Estructura
 
@@ -44,8 +44,8 @@ El archivo debe tener exactamente las siguientes **26 columnas** en la primera f
 ## Reglas de formato
 
 - **Separador**: `;` (punto y coma)
-- **Codificación**: **UTF-8 estricto**. El sistema rechaza archivos no UTF-8 con error `ENCODING_INVALIDO`. No se acepta CP850 ni ISO-8859-1.
-- **BOM UTF-8**: Se acepta y descarta automáticamente.
+- **Codificación**: **UTF-8** (preferida) o **Windows-1252** (aceptada para compatibilidad con sistemas legados). El sistema detecta automáticamente cuál usar: intenta decodificar como UTF-8 estricto y, si falla, reintenta como Windows-1252. No se acepta CP850 ni ISO-8859-1 puro fuera del subconjunto Windows-1252.
+- **BOM UTF-8** (`0xEF 0xBB 0xBF`): Se acepta y descarta automáticamente.
 - **Decimales**: punto `.` o coma `,` como separador decimal (ambos se aceptan)
 - **Fechas**: `YYYY-MM-DD` (año-mes-día con guiones)
 - **Sin comillas obligatorias**: los valores de texto no requieren comillas a menos que contengan el separador
