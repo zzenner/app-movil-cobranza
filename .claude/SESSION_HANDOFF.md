@@ -1,89 +1,48 @@
-# Estado de sesión — Fase 6A Carteras y Supervisión
+# Estado de sesión — Fase 6A CERRADA
 
 **Fecha:** 2026-08-13
-**Rama:** feature/fase-6a-carteras-supervision
-**Estado:** IMPLEMENTACIÓN COMPLETA — Pendiente commit y push
+**Rama:** main (merge desde feature/fase-6a-carteras-supervision)
+**Estado:** COMPLETADA Y CERRADA ✅ — commit 6af58ca, tag v0.20.0-carteras-supervision
 
-## Árbol de cambios realizados en esta sesión
+## Resumen de lo implementado
 
-### Nuevos archivos
-```
-apps/api/src/main/resources/db/migration/V015__carteras_supervision_permisos.sql
-apps/api/src/main/java/cl/zzenner/cobranza/usuarios/dominio/CodigoEjecutivoDuplicadoException.java
-apps/api/src/main/java/cl/zzenner/cobranza/usuarios/aplicacion/SupervisionAdminQueryService.java
-apps/api/src/main/java/cl/zzenner/cobranza/usuarios/web/SupervisionAdminController.java
-apps/api/src/test/java/cl/zzenner/cobranza/CarterasSupervisionRestTest.java
-apps/admin-web/src/app/features/carteras/models/cartera.models.ts
-apps/admin-web/src/app/features/carteras/services/carteras.service.ts
-apps/admin-web/src/app/features/carteras/services/carteras.service.spec.ts
-apps/admin-web/src/app/features/carteras/components/carteras-list/carteras-list.component.ts
-apps/admin-web/src/app/features/carteras/components/carteras-list/carteras-list.component.spec.ts
-apps/admin-web/src/app/features/carteras/carteras.routes.ts
-apps/admin-web/src/app/features/supervision/models/supervision.models.ts
-apps/admin-web/src/app/features/supervision/services/supervision.service.ts
-apps/admin-web/src/app/features/supervision/services/supervision.service.spec.ts
-apps/admin-web/src/app/features/supervision/components/supervision-list/supervision-list.component.ts
-apps/admin-web/src/app/features/supervision/components/supervision-list/supervision-list.component.spec.ts
-apps/admin-web/src/app/features/supervision/components/asignar-supervisor-dialog/asignar-supervisor-dialog.component.ts
-apps/admin-web/src/app/features/supervision/components/actualizar-codigo-dialog/actualizar-codigo-dialog.component.ts
-apps/admin-web/src/app/features/supervision/supervision.routes.ts
-```
+### Backend (API Java/Spring Boot)
+- V015 — 3 nuevos permisos: CARTERAS_VER, SUPERVISION_VER, SUPERVISION_ADMINISTRAR
+- CarteraAdminController: nuevo GET /api/v1/admin/carteras con PERM_CARTERAS_VER
+- SupervisionAdminController: 5 endpoints REST de supervisión
+- SupervisionAdminQueryService: consultas con filtros ejecutivos/supervisores
+- SupervisionService: reescritura con reasignar atómico (saveAndFlush)
+- CodigoEjecutivoDuplicadoException + codigoEjecutivoOrigen en Usuario
+- 461 tests, 0 fallos
 
-### Archivos modificados
-```
-apps/api/src/main/java/cl/zzenner/cobranza/carteras/dominio/Cartera.java
-apps/api/src/main/java/cl/zzenner/cobranza/carteras/web/CarteraAdminController.java
-apps/api/src/main/java/cl/zzenner/cobranza/carteras/aplicacion/CarteraService.java
-apps/api/src/main/java/cl/zzenner/cobranza/usuarios/dominio/Usuario.java
-apps/api/src/main/java/cl/zzenner/cobranza/usuarios/infraestructura/UsuarioRepository.java
-apps/api/src/main/java/cl/zzenner/cobranza/usuarios/infraestructura/UsuarioRolRepository.java
-apps/api/src/main/java/cl/zzenner/cobranza/usuarios/aplicacion/SupervisionService.java
-apps/api/src/test/java/cl/zzenner/cobranza/SeguridadIntegracionTest.java
-apps/admin-web/src/app/app.routes.ts
-apps/admin-web/src/app/core/layout/layout.component.ts
-docs/gestion/STATUS.md
-docs/gestion/CHANGELOG.md
-.claude/TASK_CURRENT.md
-.claude/SESSION_HANDOFF.md
-```
+### Angular (Admin Web)
+- /carteras: lista de las 4 carteras del catálogo
+- /supervision: lista ejecutivos con supervisor, diálogos asignar/reasignar y código
+- Menú lateral: items Carteras (CARTERAS_VER) y Supervisión (SUPERVISION_VER)
+- 176 tests, 0 fallos
 
-## Resultados de tests
+## Estado del repositorio
 
-- API: `./mvnw test` → 461 tests, 0 fallos ✅
-- Angular: `npm run test:ci` → 176 tests, 0 fallos ✅
-- Docker: Smoke test GET /api/v1/admin/carteras → 200 + 4 carteras ✅
+- Rama: main
+- HEAD: 6af58ca
+- Tag: v0.20.0-carteras-supervision (pendiente push a origin)
+- origin/main: v0.19.0 (a796fde) — pendiente push
 
 ## Siguiente acción exacta
 
+Para publicar en el repositorio remoto (con autorización explícita del usuario):
 ```bash
-# 1. Verificar estado antes de commit
-git status --short
-
-# 2. Commit backend + Angular
-git add \
-  apps/api/src/main/resources/db/migration/V015__carteras_supervision_permisos.sql \
-  apps/api/src/main/java/cl/zzenner/cobranza/carteras/ \
-  apps/api/src/main/java/cl/zzenner/cobranza/usuarios/ \
-  apps/api/src/test/java/cl/zzenner/cobranza/CarterasSupervisionRestTest.java \
-  apps/api/src/test/java/cl/zzenner/cobranza/SeguridadIntegracionTest.java \
-  apps/admin-web/src/app/ \
-  docs/gestion/ \
-  .claude/
-
-git commit -m "feat(admin): implementar carteras y supervision fase 6a
-
-- V015: 3 nuevos permisos CARTERAS_VER/SUPERVISION_VER/SUPERVISION_ADMINISTRAR
-- API: CarteraAdminController GET /carteras, SupervisionAdminController 5 endpoints
-- API: SupervisionService reescrito (reasignar atómico, saveAndFlush)
-- Angular: módulos Carteras y Supervisión con diálogos y menú
-- Tests: 461 API + 176 Angular, 0 fallos"
-
-# 3. Push y merge
-git push origin feature/fase-6a-carteras-supervision
-git checkout main && git merge --ff-only feature/fase-6a-carteras-supervision
 git push origin main
-
-# 4. Tag
-git tag -a v0.20.0-carteras-supervision -m "Fase 6A: Carteras y Supervisión operativas"
 git push origin v0.20.0-carteras-supervision
 ```
+
+## Próxima fase recomendada
+
+**Fase 6B — Asignaciones diarias desde supervisión**
+- Asignar carteras a ejecutivos por mes
+- Distribuir personas/operaciones a ejecutivos diariamente
+- Requiere UI en Admin Web y sincronización con app Android
+
+Alternativa: **Fase 6C — Supervisión en app Android**
+- Ver lista de ejecutivos a cargo
+- Ver estado de gestiones por ejecutivo
