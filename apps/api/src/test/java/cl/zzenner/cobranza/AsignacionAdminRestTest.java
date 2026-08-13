@@ -87,12 +87,12 @@ class AsignacionAdminRestTest {
 
         // Personas
         Persona p1 = personaService.upsertPersona(
-                Rut.of("25000001", "5"), "Juan Moreira Demo", "TEST_6B", null, Instant.now());
+                Rut.of("25000001", "4"), "Juan Moreira Demo", "TEST_6B", null, Instant.now());
         personaService.vincularCartera(p1.getId(), carteraId, HOY);
         personaId1 = p1.getId();
 
         Persona p2 = personaService.upsertPersona(
-                Rut.of("25000002", "3"), "Ana González Demo", "TEST_6B", null, Instant.now());
+                Rut.of("25000002", "2"), "Ana González Demo", "TEST_6B", null, Instant.now());
         personaService.vincularCartera(p2.getId(), carteraId, HOY);
         personaId2 = p2.getId();
 
@@ -426,8 +426,8 @@ class AsignacionAdminRestTest {
                 .subject(sub.toString())
                 .issuedAt(Instant.now())
                 .expiresAt(Instant.now().plus(Duration.ofMinutes(15)))
-                .claim("rol", rol)
-                .claim("permisos", permisos)
+                .claim("roles", List.of(rol))
+                .claim("permisos", List.of(permisos))
                 .claim("tipo_cliente", "ANDROID")
                 .build();
         return jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();

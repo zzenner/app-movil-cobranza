@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -16,6 +17,14 @@ import java.util.UUID;
 public class AsignacionAdminQueryService {
 
     private final EntityManager em;
+
+    // PostgreSQL JDBC may return TIMESTAMPTZ as Timestamp, OffsetDateTime, or Instant depending on driver version
+    private static Instant toInstant(Object obj) {
+        if (obj instanceof java.sql.Timestamp ts) return ts.toInstant();
+        if (obj instanceof OffsetDateTime odt) return odt.toInstant();
+        if (obj instanceof Instant i) return i;
+        throw new IllegalStateException("Unexpected timestamp type: " + obj.getClass());
+    }
 
     public AsignacionAdminQueryService(EntityManager em) {
         this.em = em;
@@ -146,7 +155,7 @@ public class AsignacionAdminQueryService {
                 .setParameter("mensualId", asignacionMensualId)
                 .getResultList()).stream()
                 .map(row -> new ItemPersonaDisponible(
-                        (UUID) row[0], (String) row[1], (String) row[2], (String) row[3],
+                        (UUID) row[0], (String) row[1], row[2].toString(), (String) row[3],
                         (UUID) row[4], (String) row[5],
                         ((Number) row[6]).intValue(),
                         (Boolean) row[7]
@@ -197,7 +206,7 @@ public class AsignacionAdminQueryService {
                 (String) row[2], (UUID) row[3], (String) row[4],
                 (UUID) row[5], (String) row[6], (UUID) row[7], (String) row[8],
                 EstadoAsignacionDiaria.valueOf((String) row[9]),
-                row[10] != null ? ((java.sql.Timestamp) row[10]).toInstant() : null,
+                row[10] != null ? toInstant(row[10]) : null,
                 ((Number) row[11]).intValue()
         )).toList();
     }
@@ -243,12 +252,12 @@ public class AsignacionAdminQueryService {
                 .setParameter("id", asignacionDiariaId)
                 .getResultList()).stream()
                 .map(r -> new ItemPersonaEnDiaria(
-                        (UUID) r[0], (String) r[1], (String) r[2], (String) r[3]))
+                        (UUID) r[0], (String) r[1], r[2].toString(), (String) r[3]))
                 .toList();
 
         LocalDate fecha = row[1] instanceof java.sql.Date d ? d.toLocalDate() : (LocalDate) row[1];
-        Instant fechaPub = row[10] != null ? ((java.sql.Timestamp) row[10]).toInstant() : null;
-        Instant fechaCreacion = row[14] instanceof java.sql.Timestamp ts ? ts.toInstant() : (Instant) row[14];
+        Instant fechaPub = row[10] != null ? toInstant(row[10]) : null;
+        Instant fechaCreacion = toInstant(row[14]);
 
         return new DetalleAsignacionDiariaAdmin(
                 (UUID) row[0], fecha, (String) row[2], (UUID) row[3], (String) row[4],
