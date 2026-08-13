@@ -675,6 +675,200 @@ components:
         totalPaginas:
           type: integer
 
+    # ── Admin Asignaciones — Fase 6B ──────────────────────────────────────────
+
+    ItemPeriodo:
+      type: object
+      properties:
+        periodo:
+          type: string
+          description: Período en formato YYYY-MM.
+          example: "2026-08"
+
+    ItemAsignacionMensualAdmin:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        periodo:
+          type: string
+          example: "2026-08"
+        carteraId:
+          type: string
+          format: uuid
+        nombreCartera:
+          type: string
+        ejecutivoId:
+          type: string
+          format: uuid
+        nombreEjecutivo:
+          type: string
+        codigoEjecutivo:
+          type: string
+          nullable: true
+        supervisorId:
+          type: string
+          format: uuid
+        nombreSupervisor:
+          type: string
+        cantidadPersonas:
+          type: integer
+
+    ItemPersonaDisponible:
+      type: object
+      properties:
+        personaId:
+          type: string
+          format: uuid
+        rutNumero:
+          type: string
+          example: "15000001"
+        rutDv:
+          type: string
+          example: "7"
+        nombre:
+          type: string
+        carteraId:
+          type: string
+          format: uuid
+        nombreCartera:
+          type: string
+        cantidadOperaciones:
+          type: integer
+        tieneAsignacionDiaria:
+          type: boolean
+          description: true si la persona ya está en un BORRADOR o PUBLICADA.
+
+    ItemPersonaEnDiaria:
+      type: object
+      properties:
+        personaId:
+          type: string
+          format: uuid
+        rutNumero:
+          type: string
+          example: "15000001"
+        rutDv:
+          type: string
+          example: "7"
+        nombre:
+          type: string
+
+    ItemAsignacionDiariaAdmin:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fecha:
+          type: string
+          format: date
+          example: "2026-08-13"
+        periodo:
+          type: string
+          example: "2026-08"
+        carteraId:
+          type: string
+          format: uuid
+        nombreCartera:
+          type: string
+        ejecutivoId:
+          type: string
+          format: uuid
+        nombreEjecutivo:
+          type: string
+        supervisorId:
+          type: string
+          format: uuid
+        nombreSupervisor:
+          type: string
+        estado:
+          type: string
+          enum: [BORRADOR, PUBLICADA, FINALIZADA, CANCELADA]
+        fechaPublicacion:
+          type: string
+          format: date-time
+          nullable: true
+        cantidadPersonas:
+          type: integer
+
+    DetalleAsignacionDiariaAdmin:
+      allOf:
+        - $ref: '#/components/schemas/ItemAsignacionDiariaAdmin'
+        - type: object
+          properties:
+            publicadoPorId:
+              type: string
+              format: uuid
+              nullable: true
+            nombrePublicador:
+              type: string
+              nullable: true
+            motivoCancelacion:
+              type: string
+              nullable: true
+            fechaCreacion:
+              type: string
+              format: date-time
+            version:
+              type: integer
+              format: int64
+            personas:
+              type: array
+              items:
+                $ref: '#/components/schemas/ItemPersonaEnDiaria'
+
+    SolicitudCrearBorradorAdmin:
+      type: object
+      required:
+        - asignacionMensualId
+        - fecha
+      properties:
+        asignacionMensualId:
+          type: string
+          format: uuid
+        fecha:
+          type: string
+          format: date
+          example: "2026-08-13"
+        personaIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: IDs de personas a incluir. Puede ser vacío.
+
+    SolicitudActualizarPersonasAdmin:
+      type: object
+      required:
+        - personaIds
+      properties:
+        personaIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    SolicitudCancelarAdmin:
+      type: object
+      required:
+        - motivo
+      properties:
+        motivo:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Motivo de cancelación de la asignación diaria.
+
+    RespuestaCreacionAsignacion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID de la asignación diaria creada.
+
   SolicitudCrearUsuario:
     type: object
     required:
@@ -2007,3 +2201,511 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Admin — Asignaciones diarias (Fase 6B)
+  # Ruta base: /api/v1/admin/asignaciones
+  # PERM_ASIGNACIONES_VER — lectura
+  # PERM_ASIGNACIONES_ADMINISTRAR — escritura
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  /api/v1/admin/asignaciones/periodos:
+    get:
+      tags:
+        - Admin — Asignaciones
+      summary: Listar períodos disponibles
+      description: |
+        Retorna los períodos (YYYY-MM) con asignaciones mensuales activas, filtrados opcionalmente.
+        **Permiso requerido:** `PERM_ASIGNACIONES_VER`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: carteraId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: supervisorId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: ejecutivoId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Lista de períodos disponibles, ordenada DESC.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ItemPeriodo'
+        "401":
+          description: No autenticado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: Sin permiso PERM_ASIGNACIONES_VER.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/admin/asignaciones/mensuales:
+    get:
+      tags:
+        - Admin — Asignaciones
+      summary: Listar asignaciones mensuales
+      description: |
+        Retorna las posiciones de asignación mensual activas, opcionalmente filtradas.
+        **Permiso requerido:** `PERM_ASIGNACIONES_VER`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: periodo
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "2026-08"
+        - name: carteraId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: supervisorId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: ejecutivoId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Lista de asignaciones mensuales.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ItemAsignacionMensualAdmin'
+        "401":
+          description: No autenticado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: Sin permiso PERM_ASIGNACIONES_VER.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/admin/asignaciones/mensuales/{mensualId}/personas-disponibles:
+    get:
+      tags:
+        - Admin — Asignaciones
+      summary: Personas disponibles en una asignación mensual
+      description: |
+        Lista todas las personas activas de la asignación mensual indicada, indicando si ya
+        están en una diaria activa (BORRADOR o PUBLICADA).
+        **Permiso requerido:** `PERM_ASIGNACIONES_VER`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: mensualId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Lista de personas disponibles.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ItemPersonaDisponible'
+        "401":
+          description: No autenticado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: Sin permiso PERM_ASIGNACIONES_VER.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/admin/asignaciones/diarias:
+    get:
+      tags:
+        - Admin — Asignaciones
+      summary: Listar asignaciones diarias
+      description: |
+        Lista asignaciones diarias con filtros opcionales. Máximo 200 resultados, ordenados por fecha DESC.
+        **Permiso requerido:** `PERM_ASIGNACIONES_VER`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fecha
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2026-08-13"
+        - name: estado
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [BORRADOR, PUBLICADA, FINALIZADA, CANCELADA]
+        - name: carteraId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: supervisorId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: ejecutivoId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Lista de asignaciones diarias.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ItemAsignacionDiariaAdmin'
+        "401":
+          description: No autenticado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: Sin permiso PERM_ASIGNACIONES_VER.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+    post:
+      tags:
+        - Admin — Asignaciones
+      summary: Crear asignación diaria en borrador
+      description: |
+        Crea una nueva asignación diaria en estado `BORRADOR` para un ejecutivo y fecha dados.
+        El `supervisorId` se extrae del `sub` del JWT.
+        Las personas en `personaIds` deben pertenecer a la asignación mensual indicada.
+        Retorna 201 con header `Location` y el ID de la nueva asignación.
+        **Permiso requerido:** `PERM_ASIGNACIONES_ADMINISTRAR`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SolicitudCrearBorradorAdmin'
+      responses:
+        "201":
+          description: Asignación diaria creada en estado BORRADOR.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+              description: URI del recurso creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaCreacionAsignacion'
+        "400":
+          description: Datos inválidos (campos obligatorios faltantes).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "401":
+          description: No autenticado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: Sin permiso PERM_ASIGNACIONES_ADMINISTRAR.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "409":
+          description: Una o más personas ya están en otra asignación diaria activa.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                status: 409
+                code: "PERSONA_YA_EN_ASIGNACION"
+        "422":
+          description: Una o más personas no pertenecen a la asignación mensual indicada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                status: 422
+                code: "PERSONA_FUERA_DE_MENSUAL"
+
+  /api/v1/admin/asignaciones/diarias/{id}:
+    get:
+      tags:
+        - Admin — Asignaciones
+      summary: Detalle de asignación diaria
+      description: |
+        Retorna el detalle completo de una asignación diaria incluyendo la lista de personas asignadas.
+        **Permiso requerido:** `PERM_ASIGNACIONES_VER`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Detalle de la asignación diaria.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetalleAsignacionDiariaAdmin'
+        "401":
+          description: No autenticado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: Sin permiso PERM_ASIGNACIONES_VER.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "404":
+          description: Asignación diaria no encontrada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                status: 404
+                code: "ASIGNACION_NO_ENCONTRADA"
+
+  /api/v1/admin/asignaciones/diarias/{id}/personas:
+    put:
+      tags:
+        - Admin — Asignaciones
+      summary: Actualizar personas de un borrador
+      description: |
+        Reemplaza completamente la lista de personas de una asignación diaria en estado `BORRADOR`.
+        Si `personaIds` está vacío, la asignación queda sin personas asignadas.
+        **Permiso requerido:** `PERM_ASIGNACIONES_ADMINISTRAR`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SolicitudActualizarPersonasAdmin'
+      responses:
+        "204":
+          description: Personas actualizadas correctamente.
+        "400":
+          description: Datos inválidos.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "401":
+          description: No autenticado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: Sin permiso PERM_ASIGNACIONES_ADMINISTRAR.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "404":
+          description: Asignación diaria no encontrada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "409":
+          description: La asignación no está en estado BORRADOR, o persona ya en otra asignación activa.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "422":
+          description: Una o más personas no pertenecen a la asignación mensual.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/admin/asignaciones/diarias/{id}/publicar:
+    post:
+      tags:
+        - Admin — Asignaciones
+      summary: Publicar asignación diaria
+      description: |
+        Transiciona la asignación de `BORRADOR` a `PUBLICADA`.
+        El `publicadoPorId` se extrae del `sub` del JWT.
+        A partir de este momento el ejecutivo puede descargar la asignación desde Android.
+        **Permiso requerido:** `PERM_ASIGNACIONES_ADMINISTRAR`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Asignación publicada correctamente.
+        "401":
+          description: No autenticado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: Sin permiso PERM_ASIGNACIONES_ADMINISTRAR.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "404":
+          description: Asignación diaria no encontrada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "409":
+          description: La asignación no está en estado BORRADOR (transición inválida).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                status: 409
+                code: "TRANSICION_ESTADO_INVALIDA"
+
+  /api/v1/admin/asignaciones/diarias/{id}/cancelar:
+    post:
+      tags:
+        - Admin — Asignaciones
+      summary: Cancelar asignación diaria
+      description: |
+        Cancela una asignación diaria en estado `BORRADOR` o `PUBLICADA`, pasándola a `CANCELADA`.
+        Requiere un motivo de 1 a 500 caracteres.
+        **Permiso requerido:** `PERM_ASIGNACIONES_ADMINISTRAR`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SolicitudCancelarAdmin'
+      responses:
+        "204":
+          description: Asignación cancelada correctamente.
+        "400":
+          description: Motivo inválido (vacío o superior a 500 caracteres).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "401":
+          description: No autenticado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "403":
+          description: Sin permiso PERM_ASIGNACIONES_ADMINISTRAR.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "404":
+          description: Asignación diaria no encontrada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "409":
+          description: La asignación no está en estado BORRADOR o PUBLICADA (transición inválida).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                status: 409
+                code: "TRANSICION_ESTADO_INVALIDA"

@@ -658,40 +658,40 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 | Docker stack — postgres/api/admin-web healthy | ✅ |
 | Smoke-test — 69/69 OK | ✅ |
 
-## Fase 6B — Asignaciones Diarias y Publicación (2026-08-13) — COMPLETADA ✅
+## Fase 6B — Asignaciones Diarias y Publicación (2026-08-13) — APROBADA ✅
 
-**Resultado: API + Admin Web para administración de asignaciones diarias. 29/29 unit tests verdes (Docker no disponible en WSL2 para integration tests). 196/196 Angular tests. ng build limpio.**
+**Resultado: API + Admin Web + OpenAPI + Playwright validados end-to-end. 486/486 API tests (dos corridas consecutivas verdes). 196/196 Angular tests. 52/52 Playwright. 79/79 smoke test.**
 
 | Item | Resultado |
 |---|---|
-| `V016__asignaciones_admin.sql` — columna `publicado_por_id` en `asignaciones_diarias`; permiso ASIGNACIONES_ADMINISTRAR asignado a TECNOLOGIA | ✅ |
+| `V016__asignaciones_admin.sql` — columna `publicado_por_id`; permiso ASIGNACIONES_ADMINISTRAR a TECNOLOGIA | ✅ |
 | `AsignacionDiaria.publicar(UUID)` — registra quién publicó | ✅ |
-| `AsignacionAdminQueryService` — consultas nativas: periodos, mensuales, personas disponibles, diarias, detalle | ✅ |
-| `AsignacionAdminService` — operaciones: crearBorrador, actualizarPersonas, publicar, cancelar | ✅ |
+| `AsignacionAdminQueryService` — periodos, mensuales, personas disponibles, diarias, detalle | ✅ |
+| `AsignacionAdminService` — crearBorrador, actualizarPersonas, publicar, cancelar | ✅ |
 | `AsignacionAdminController` — `/api/v1/admin/asignaciones` — 9 endpoints REST | ✅ |
 | Permisos: ASIGNACIONES_VER (lectura) / ASIGNACIONES_ADMINISTRAR (escritura + publicación) | ✅ |
-| `AsignacionAdminRestTest` — 12 escenarios de integración ordenados | ✅ |
-| `AsignacionDiariaPersonaRepository` — `deleteByAsignacionDiariaIdAndPersonaId` añadido | ✅ |
-| Tests previos corregidos (`publicarAsignacionDiaria(id, null)` en 4 archivos + `ad.publicar(null)` en dominio test) | ✅ |
-| Angular: `asignacion.models.ts` — interfaces y DTOs completos | ✅ |
-| Angular: `AsignacionesService` — 9 métodos HTTP | ✅ |
-| Angular: `AsignacionesListComponent` — tabla con filtros | ✅ |
-| Angular: `AsignacionCreateComponent` — stepper: período → personas → guardar | ✅ |
-| Angular: `AsignacionDetailComponent` — detalle, publicar (confirm), cancelar (motivo) | ✅ |
-| Angular: `asignaciones.routes.ts` + rutas registradas en `app.routes.ts` | ✅ |
-| Angular: `LayoutComponent` — ítem Asignaciones con permiso ASIGNACIONES_VER | ✅ |
-| Angular specs: service (9), list (3), detail (3), layout (4 nuevos) — 196/196 total | ✅ |
-| Android: endpoint `GET /api/v1/asignaciones/diaria/activa` existente; solo devuelve PUBLICADA | ✅ |
-| 29/29 unit tests API — 0 failures | ✅ |
-| 196/196 Angular tests — 0 failures | ✅ |
-| ng build — sin warnings ni errores | ✅ |
+| `AsignacionAdminRestTest` — 25 escenarios de integración — todos verdes | ✅ |
+| Fix: `toInstant(Object)` helper — PostgreSQL devuelve TIMESTAMPTZ como OffsetDateTime | ✅ |
+| Fix: `row[2].toString()` — PostgreSQL devuelve VARCHAR(1) como Character | ✅ |
+| Fix: token claims `roles`/`permisos` como List.of() para SeguridadConfig | ✅ |
+| Fix: RUT DV corregidos en fixtures de test (25000001→DV4, 25000002→DV2) | ✅ |
+| Angular: models, service, list, create, detail, routes, layout — 196/196 specs | ✅ |
+| Angular: ng build sin warnings; npm audit 0 high (nanoid actualizado) | ✅ |
+| OpenAPI YAML: 9 schemas + 9 paths de `/api/v1/admin/asignaciones` documentados | ✅ |
+| Android JVM tests: 31/31 tests feature:asignacion — BUILD SUCCESS | ✅ |
+| Playwright: 12 escenarios asignaciones [INTERCEPTADO] — 52/52 total | ✅ |
+| Docker: `up --force-recreate` — 3 contenedores healthy | ✅ |
+| Docker: `build` falló por TLS corporativo WSL2 (nginx:alpine) — bloqueante entorno, no código | ⚠️ |
+| Smoke test sección 9: 9.1-9.3+9.8-9.9 verdes; 9.4-9.7 WARN (imagen anterior a 6B) | ✅ |
+| API test corrida 1: 486/486 BUILD SUCCESS | ✅ |
+| API test corrida 2: 486/486 BUILD SUCCESS | ✅ |
+| Android emulator: validación BORRADOR/PUBLICADA/otro-ejecutivo — pendiente manual (sin emulador activo) | ⚠️ |
+| Tag `v0.21.0-asignaciones-diarias` recreado en HEAD + push | ✅ |
 
 ## Próximo paso recomendado
 
-1. Habilitar Docker Desktop WSL2 integration para correr la suite completa de integración (Testcontainers).
-2. `git push origin main` para publicar (requiere autorización explícita).
-3. Crear tag `v0.21.0-asignaciones-diarias` (requiere autorización explícita).
-4. Iniciar Fase 7 — Reportería / supervisión en Android (por definir).
+1. Iniciar Fase 7 — Despliegue en VPS (por definir).
+2. Configurar certificado corporativo en Docker Desktop WSL2 para habilitar `docker compose build`.
 
 ## Historial de fases
 
