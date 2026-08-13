@@ -35,6 +35,7 @@
 | **API + Admin Web + OpenAPI — Fase 5D contrato CSV v2 (26 columnas)** | **CERRADA ✅ — commit 9133f49 (pendiente push)** |
 | **API + Admin Web — Fase 5E importación real (Win-1252, periodo, V014)** | **COMPLETADA ✅ — 9839/9839 filas, 0 errores** |
 | **API + Admin Web — Fase 6A Carteras y Supervisión**              | **COMPLETADA ✅ — tag v0.20.0-carteras-supervision** |
+| **App Android — Conectividad API local corregida**                 | **COMPLETADA ✅ — commit f1a1b22** |
 | Despliegue en VPS                                                  | No iniciado           |
 
 ## Resultado de auditoría Fase 1A (2026-07-26)

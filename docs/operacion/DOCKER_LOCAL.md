@@ -163,6 +163,35 @@ El script verifica:
 5. Proxy `/api` → API (espera 401/403, no 502/504)
 6. Flujo de autenticación completo (login, /me, /admin/usuarios)
 
+## Conectividad con el emulador Android
+
+El emulador Android no puede usar `localhost` para apuntar al host. La dirección especial del emulador es:
+
+| Dirección | A quién apunta |
+|-----------|----------------|
+| `10.0.2.2` | Host de la máquina de desarrollo (localhost del host) |
+| `localhost` | Propio emulador (no el host) |
+
+**URL correcta de la API desde el emulador:** `http://10.0.2.2:8081/`
+
+La URL se define en `apps/mobile-android/core/network/build.gradle.kts` (campo `BuildConfig.BASE_URL`).
+
+**Para verificar desde el emulador:**
+1. Iniciar Docker Compose: `./scripts/levantar-entorno.sh`
+2. Verificar en el host: `curl http://localhost:8081/actuator/health`
+3. Abrir Chrome en el emulador y navegar a: `http://10.0.2.2:8081/actuator/health`
+4. Debe responder `{"status":"UP", ...}`
+
+**Credenciales de prueba (solo entorno Docker dev):**
+- Usuario: valor de `DEV_ADMIN_USERNAME` en `.env` (por defecto `admin.local`)
+- Contraseña: valor de `DEV_ADMIN_PASSWORD` en `.env`
+- Rol: `TECNOLOGIA`
+
+**Nota:** `DevSeedRunner` usa creación idempotente (`crearSiNoExiste`). Si el usuario ya existe en la base de datos, cambiar `DEV_ADMIN_PASSWORD` en `.env` no actualiza la contraseña almacenada. Para forzar re-creación: `docker compose down -v && ./scripts/levantar-entorno.sh`.
+
+**Seguridad HTTP local:**
+El build `debug` de Android incluye `src/debug/res/xml/network_security_config.xml` que permite tráfico HTTP (cleartext) solo a `10.0.2.2` y `localhost`. El build `release` usa `src/main/res/xml/network_security_config.xml` que rechaza todo cleartext.
+
 ## Checklist de prueba manual
 
 - [ ] `http://localhost:8080` carga la pantalla de login
@@ -172,6 +201,12 @@ El script verifica:
 - [ ] Botón de logout cierra la sesión
 - [ ] `http://localhost:8081/swagger-ui/index.html` carga Swagger UI
 - [ ] `http://localhost:8081/actuator/health` devuelve `{"status":"UP"}`
+
+**Checklist Android (emulador):**
+- [ ] Docker Compose levantado y `api` healthy
+- [ ] Chrome en emulador: `http://10.0.2.2:8081/actuator/health` → `{"status":"UP"}`
+- [ ] App Android debug: login con `DEV_ADMIN_USERNAME` / `DEV_ADMIN_PASSWORD` exitoso
+- [ ] Estado `Autenticado` alcanzado (sin error "Sin conexión" ni "Error en el servidor")
 
 ## Limpieza y ciclo completo
 
