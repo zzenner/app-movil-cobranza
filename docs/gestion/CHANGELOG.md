@@ -5,7 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
-## [Sin versión] — 2026-08-13 — Fase 6A: Carteras y Supervisión — EN CURSO
+## [v0.20.0] — 2026-08-13 — Fase 6A: Carteras y Supervisión — COMPLETADA
 
 ### Añadido
 
