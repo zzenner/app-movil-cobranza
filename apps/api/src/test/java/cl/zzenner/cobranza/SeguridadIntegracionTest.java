@@ -93,11 +93,11 @@ class SeguridadIntegracionTest {
     }
 
     @Test
-    void existen_ocho_permisos_iniciales() {
-        // V003: 7 permisos base; V012: +DATOS_IMPORTAR → 8
+    void existen_once_permisos_iniciales() {
+        // V003: 7, V012: +DATOS_IMPORTAR=8, V015: +CARTERAS_VER+SUPERVISION_VER+SUPERVISION_ADMINISTRAR=11
         Integer count = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM cobranza.permisos", Integer.class);
-        assertThat(count).isEqualTo(8);
+        assertThat(count).isEqualTo(11);
     }
 
     @Test
@@ -116,12 +116,12 @@ class SeguridadIntegracionTest {
 
     @Test
     void jefe_supervisores_tiene_todos_los_permisos() {
-        // V003: 7 permisos; V012: +DATOS_IMPORTAR → 8
+        // V003: 7, V012: +DATOS_IMPORTAR=8, V015: +CARTERAS_VER+SUPERVISION_VER+SUPERVISION_ADMINISTRAR=11
         Integer count = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM cobranza.rol_permisos rp"
                 + " JOIN cobranza.roles r ON r.id = rp.rol_id"
                 + " WHERE r.codigo = 'JEFE_SUPERVISORES'", Integer.class);
-        assertThat(count).isEqualTo(8);
+        assertThat(count).isEqualTo(11);
     }
 
     @Test

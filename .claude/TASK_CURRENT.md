@@ -1,23 +1,44 @@
 # Tarea activa
 
-**Fase:** 5E — Importación real validada
-**Estado:** PUBLICADA Y CERRADA ✅ — tag v0.19.0-importacion-real
+**Fase:** 6A — Carteras y Supervisión
+**Estado:** BACKEND + ANGULAR COMPLETADOS — Pendiente commit y cierre formal
+**Rama:** feature/fase-6a-carteras-supervision
 
-## Resultado
+## Completado en esta sesión
 
-IMPORTACIÓN REAL VALIDADA — FLUJO COMPLETO OPERATIVO
+### Backend (Java / Spring Boot)
+- V015 migration: 3 permisos nuevos (CARTERAS_VER, SUPERVISION_VER, SUPERVISION_ADMINISTRAR), asignados a roles
+- Cartera.java: campo codigoOrigen mapeado
+- CarteraService: listarTodas() con Sort
+- CarteraAdminController: GET /api/v1/admin/carteras con PERM_CARTERAS_VER
+- CodigoEjecutivoDuplicadoException: excepción de dominio
+- Usuario.java: codigoEjecutivoOrigen field + setter normalizado
+- UsuarioRepository: 2 nuevos query methods
+- UsuarioRolRepository: findAllByRolIdAndActivoTrue
+- SupervisionService: reescritura completa (reasignar atómico, validarUsuarioOperativo, actualizarCodigo, saveAndFlush)
+- SupervisionAdminQueryService: consultas con filtros
+- SupervisionAdminController: 5 endpoints REST (GET ×2, POST, DELETE, PATCH)
+- CarterasSupervisionRestTest: 22 escenarios integración — TODOS PASAN ✅
+- SeguridadIntegracionTest: actualizado conteo permisos 8→11 — PASAN ✅
+- Suite completa: 461 tests, 0 fallos ✅
 
-- 9839 filas procesadas, 0 errores, período 2026-08 persistido
-- 3 commits publicados en origin/main: menú admin, importación real, docs
-- origin/main sincronizado con HEAD en 2c82f84
+### Angular (Admin Web)
+- CartesrasModule: CarterasService + CarterasListComponent + carteras.routes.ts
+- SupervisionModule: SupervisionService + SupervisionListComponent + diálogos + supervision.routes.ts
+- app.routes.ts: rutas /carteras y /supervision registradas
+- Layout: items de menú Carteras (CARTERAS_VER) y Supervisión (SUPERVISION_VER)
+- 4 specs nuevos (2 service + 2 component) — 176 tests, 0 fallos ✅
+- Build producción OK ✅
 
-## Próxima fase recomendada
+### Docker
+- Rebuild exitoso: API + Admin Web
+- Smoke test: GET /api/v1/admin/carteras → 200 + 4 carteras, GET /api/v1/admin/supervision/ejecutivos → 200
 
-**Fase 6A — App Android sincronización de importaciones (offline-first)**
+## Pendiente para cierre formal
 
-El módulo de importación ya está completo en el backend. El paso natural es permitir que
-la app Android descargue los datos procesados (personas, operaciones, cuotas) en Room para
-trabajo offline. Implica un endpoint de exportación diferencial y WorkManager en el cliente.
-
-Alternativa si se prioriza operaciones: **Fase 5F — historial y detalle de importaciones en Admin Web**
-(tabla con filtros, panel de errores, re-importación).
+1. Commit: feat(admin): implementar carteras y supervision fase 6a
+2. Push branch feature/fase-6a-carteras-supervision
+3. Merge a main con --ff-only
+4. Tag v0.20.0-carteras-supervision
+5. Actualizar SESSION_HANDOFF.md final
+6. Entregar reporte final

@@ -22,4 +22,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID>, JpaSpec
     boolean existsByNombreUsuarioAndIdNot(String nombreUsuario, UUID id);
 
     boolean existsByCorreoAndIdNot(String correo, UUID id);
+
+    boolean existsByCodigoEjecutivoOrigenAndIdNot(String codigoEjecutivoOrigen, UUID id);
+
+    Optional<Usuario> findByCodigoEjecutivoOrigen(String codigoEjecutivoOrigen);
 }

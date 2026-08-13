@@ -46,6 +46,9 @@ public class Usuario {
     @Column(name = "bloqueado_hasta")
     private Instant bloqueadoHasta;
 
+    @Column(name = "codigo_ejecutivo_origen", length = 50)
+    private String codigoEjecutivoOrigen;
+
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private Instant fechaCreacion;
 
@@ -122,6 +125,10 @@ public class Usuario {
     public Instant getFechaUltimoAcceso() { return fechaUltimoAcceso; }
     public Instant getBloqueadoHasta() { return bloqueadoHasta; }
     public void setBloqueadoHasta(Instant bloqueadoHasta) { this.bloqueadoHasta = bloqueadoHasta; }
+    public String getCodigoEjecutivoOrigen() { return codigoEjecutivoOrigen; }
+    public void setCodigoEjecutivoOrigen(String codigo) {
+        this.codigoEjecutivoOrigen = (codigo != null && !codigo.isBlank()) ? codigo.strip() : null;
+    }
     public Instant getFechaCreacion() { return fechaCreacion; }
     public Instant getFechaActualizacion() { return fechaActualizacion; }
     public long getVersion() { return version; }

@@ -5,6 +5,32 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-13 — Fase 6A: Carteras y Supervisión — EN CURSO
+
+### Añadido
+
+- `V015__carteras_supervision_permisos.sql` — 3 nuevos permisos: CARTERAS_VER, SUPERVISION_VER, SUPERVISION_ADMINISTRAR; asignados a roles JEFE_SUPERVISORES, TECNOLOGIA, SUPERVISOR
+- `CarterasService.listarTodas()` — lista catálogo de carteras con Sort
+- `CarteraAdminController GET /api/v1/admin/carteras` — nuevo endpoint con permiso CARTERAS_VER
+- `SupervisionAdminController` — REST completo de supervisión: GET ejecutivos/supervisores, POST asignar/reasignar, DELETE quitar, PATCH código
+- `SupervisionAdminQueryService` — consultas de ejecución: lista ejecutivos con supervisor actual, lista supervisores activos
+- `CodigoEjecutivoDuplicadoException` — excepción de dominio para código duplicado
+- Angular: `CartesrasModule` — servicio, componente lista, rutas, route en app.routes.ts
+- Angular: `SupervisionModule` — servicio, componente lista, diálogos AsignarSupervisor y ActualizarCodigo, rutas
+- Angular: menú lateral actualizado con Carteras (CARTERAS_VER) y Supervisión (SUPERVISION_VER)
+- Tests: `CarterasSupervisionRestTest.java` — 22 escenarios de integración API; 4 specs Angular
+
+### Modificado
+
+- `Cartera.java` — añadido campo `codigoOrigen` mapeado a columna `codigo_origen`
+- `Usuario.java` — añadido campo `codigoEjecutivoOrigen` con setter normalizado (strip)
+- `UsuarioRepository` — 2 nuevos query methods: `existsByCodigoEjecutivoOrigenAndIdNot`, `findByCodigoEjecutivoOrigen`
+- `UsuarioRolRepository` — nuevo método `findAllByRolIdAndActivoTrue`
+- `SupervisionService` — reescritura: `reasignarEjecutivo` (atómico), `validarUsuarioOperativo`, `actualizarCodigoEjecutivo`, `obtenerSupervisionActiva`, `obtenerEjecutivosDeSupervision`; `saveAndFlush` para evitar violación de índice único en reasignación
+- `SeguridadIntegracionTest` — actualizado conteo de permisos (8 → 11) y permisos de jefe_supervisores (8 → 11)
+
+---
+
 ## [Sin versión] — 2026-08-12 — Fase 5E: Importación real validada (encoding Win-1252, periodo, V014) — COMPLETADA
 
 ### Añadido

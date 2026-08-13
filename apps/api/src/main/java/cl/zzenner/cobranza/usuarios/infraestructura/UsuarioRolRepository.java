@@ -16,6 +16,8 @@ public interface UsuarioRolRepository extends JpaRepository<UsuarioRol, UUID> {
 
     List<UsuarioRol> findAllByUsuarioIdInAndActivoTrue(Collection<UUID> usuarioIds);
 
+    List<UsuarioRol> findAllByRolIdAndActivoTrue(UUID rolId);
+
     @Query("SELECT COUNT(DISTINCT ur.usuarioId) FROM UsuarioRol ur " +
            "JOIN Rol r ON r.id = ur.rolId " +
            "JOIN RolPermiso rp ON rp.id.rolId = r.id " +

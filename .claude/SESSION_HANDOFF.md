@@ -1,61 +1,89 @@
-# Handoff de sesión — Fase 5E PUBLICADA Y CERRADA ✅
+# Estado de sesión — Fase 6A Carteras y Supervisión
 
-**Fecha:** 2026-08-12
-**Rama activa:** `main`
+**Fecha:** 2026-08-13
+**Rama:** feature/fase-6a-carteras-supervision
+**Estado:** IMPLEMENTACIÓN COMPLETA — Pendiente commit y push
 
----
+## Árbol de cambios realizados en esta sesión
 
-## Estado de Git
+### Nuevos archivos
+```
+apps/api/src/main/resources/db/migration/V015__carteras_supervision_permisos.sql
+apps/api/src/main/java/cl/zzenner/cobranza/usuarios/dominio/CodigoEjecutivoDuplicadoException.java
+apps/api/src/main/java/cl/zzenner/cobranza/usuarios/aplicacion/SupervisionAdminQueryService.java
+apps/api/src/main/java/cl/zzenner/cobranza/usuarios/web/SupervisionAdminController.java
+apps/api/src/test/java/cl/zzenner/cobranza/CarterasSupervisionRestTest.java
+apps/admin-web/src/app/features/carteras/models/cartera.models.ts
+apps/admin-web/src/app/features/carteras/services/carteras.service.ts
+apps/admin-web/src/app/features/carteras/services/carteras.service.spec.ts
+apps/admin-web/src/app/features/carteras/components/carteras-list/carteras-list.component.ts
+apps/admin-web/src/app/features/carteras/components/carteras-list/carteras-list.component.spec.ts
+apps/admin-web/src/app/features/carteras/carteras.routes.ts
+apps/admin-web/src/app/features/supervision/models/supervision.models.ts
+apps/admin-web/src/app/features/supervision/services/supervision.service.ts
+apps/admin-web/src/app/features/supervision/services/supervision.service.spec.ts
+apps/admin-web/src/app/features/supervision/components/supervision-list/supervision-list.component.ts
+apps/admin-web/src/app/features/supervision/components/supervision-list/supervision-list.component.spec.ts
+apps/admin-web/src/app/features/supervision/components/asignar-supervisor-dialog/asignar-supervisor-dialog.component.ts
+apps/admin-web/src/app/features/supervision/components/actualizar-codigo-dialog/actualizar-codigo-dialog.component.ts
+apps/admin-web/src/app/features/supervision/supervision.routes.ts
+```
 
-| Referencia | Hash | Descripción |
-|---|---|---|
-| `origin/main` = `HEAD` | `2c82f84` | docs: actualizar handoff y task para fase 5e completada |
-| Tag publicado | `v0.19.0-importacion-real` | Fase 5E completa |
-| Árbol de trabajo | limpio | Sin cambios sin commitear |
+### Archivos modificados
+```
+apps/api/src/main/java/cl/zzenner/cobranza/carteras/dominio/Cartera.java
+apps/api/src/main/java/cl/zzenner/cobranza/carteras/web/CarteraAdminController.java
+apps/api/src/main/java/cl/zzenner/cobranza/carteras/aplicacion/CarteraService.java
+apps/api/src/main/java/cl/zzenner/cobranza/usuarios/dominio/Usuario.java
+apps/api/src/main/java/cl/zzenner/cobranza/usuarios/infraestructura/UsuarioRepository.java
+apps/api/src/main/java/cl/zzenner/cobranza/usuarios/infraestructura/UsuarioRolRepository.java
+apps/api/src/main/java/cl/zzenner/cobranza/usuarios/aplicacion/SupervisionService.java
+apps/api/src/test/java/cl/zzenner/cobranza/SeguridadIntegracionTest.java
+apps/admin-web/src/app/app.routes.ts
+apps/admin-web/src/app/core/layout/layout.component.ts
+docs/gestion/STATUS.md
+docs/gestion/CHANGELOG.md
+.claude/TASK_CURRENT.md
+.claude/SESSION_HANDOFF.md
+```
 
-**Pendientes:** ninguno. `origin/main` y `HEAD` sincronizados.
+## Resultados de tests
 
----
-
-## Resultado de validación Fase 5E — IMPORTACIÓN REAL COMPLETADA
-
-### Archivo real probado
-- `docs/pruebas/importar_completa.csv` (NO commiteado — excluido en .gitignore)
-- 9839 filas, período 2026-08, encoding Windows-1252, CRLF, 2,5 MB
-
-### Flujo completo ejecutado
-| Etapa | Estado | Detalle |
-|---|---|---|
-| Upload (202 Accepted) | ✅ | RECIBIDA en 67 ms |
-| Validación | ✅ | VALIDADA en ~5 s, `periodo=2026-08` persistido |
-| Confirmación | ✅ | 202 Accepted |
-| Procesamiento | ✅ | **COMPLETADA** en ~45 s |
-| Filas procesadas | ✅ | 9839/9839, 0 rechazadas, 0 advertencias |
-
-### Conteos en BD (anónimos)
-- Personas: 3592
-- Operaciones: 4198
-- Cuotas: 9839
-- Importaciones COMPLETADA: 1
-
----
-
-## Cambios incluidos en commit `0e5719e`
-
-- `CsvImportacionParser.java` — detección automática UTF-8 / Windows-1252; stripBomBytes()
-- `ValidadorIntraArchivo.java` — PERIODOS_MULTIPLES_ARCHIVO
-- `ImportacionMensual.java` — registrarPeriodo(String)
-- `ImportacionValidacionWorker.java` — extrae y persiste período
-- `V014__ampliar_columnas_importacion.sql` — tipo_operacion VARCHAR(50)→VARCHAR(200)
-- `ImportacionNuevaComponent.ts` — mensajes de error HTTP específicos
-- Tests actualizados (CsvImportacionParserTest 16/16b/16c, ValidadorIntraArchivoTest 31/32, Angular 4 nuevos)
-- `.gitignore` — excluye `docs/pruebas/importar_completa.csv`
-- Documentación: CHANGELOG, STATUS, FORMATO_IMPORTACION_MENSUAL
-
----
+- API: `./mvnw test` → 461 tests, 0 fallos ✅
+- Angular: `npm run test:ci` → 176 tests, 0 fallos ✅
+- Docker: Smoke test GET /api/v1/admin/carteras → 200 + 4 carteras ✅
 
 ## Siguiente acción exacta
 
-No hay acción técnica pendiente. El árbol está limpio y `origin/main` está sincronizado.
+```bash
+# 1. Verificar estado antes de commit
+git status --short
 
-La próxima sesión debe decidir qué fase iniciar. Ver recomendación en TASK_CURRENT.md.
+# 2. Commit backend + Angular
+git add \
+  apps/api/src/main/resources/db/migration/V015__carteras_supervision_permisos.sql \
+  apps/api/src/main/java/cl/zzenner/cobranza/carteras/ \
+  apps/api/src/main/java/cl/zzenner/cobranza/usuarios/ \
+  apps/api/src/test/java/cl/zzenner/cobranza/CarterasSupervisionRestTest.java \
+  apps/api/src/test/java/cl/zzenner/cobranza/SeguridadIntegracionTest.java \
+  apps/admin-web/src/app/ \
+  docs/gestion/ \
+  .claude/
+
+git commit -m "feat(admin): implementar carteras y supervision fase 6a
+
+- V015: 3 nuevos permisos CARTERAS_VER/SUPERVISION_VER/SUPERVISION_ADMINISTRAR
+- API: CarteraAdminController GET /carteras, SupervisionAdminController 5 endpoints
+- API: SupervisionService reescrito (reasignar atómico, saveAndFlush)
+- Angular: módulos Carteras y Supervisión con diálogos y menú
+- Tests: 461 API + 176 Angular, 0 fallos"
+
+# 3. Push y merge
+git push origin feature/fase-6a-carteras-supervision
+git checkout main && git merge --ff-only feature/fase-6a-carteras-supervision
+git push origin main
+
+# 4. Tag
+git tag -a v0.20.0-carteras-supervision -m "Fase 6A: Carteras y Supervisión operativas"
+git push origin v0.20.0-carteras-supervision
+```

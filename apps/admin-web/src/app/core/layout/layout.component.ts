@@ -39,6 +39,18 @@ import { AuthService } from '../auth/auth.service';
               <span matListItemTitle>Importaciones</span>
             </a>
           }
+          @if (tienePermisoCarteras()) {
+            <a mat-list-item routerLink="/carteras" data-testid="menu-carteras">
+              <mat-icon matListItemIcon>folder_special</mat-icon>
+              <span matListItemTitle>Carteras</span>
+            </a>
+          }
+          @if (tienePermisoSupervision()) {
+            <a mat-list-item routerLink="/supervision" data-testid="menu-supervision">
+              <mat-icon matListItemIcon>supervisor_account</mat-icon>
+              <span matListItemTitle>Supervisión</span>
+            </a>
+          }
         </mat-nav-list>
       </mat-sidenav>
 
@@ -79,6 +91,12 @@ export class LayoutComponent {
   );
   readonly tienePermisoImportacion = computed(() =>
     this.authService.profile()?.permisos?.includes('DATOS_IMPORTAR') ?? false,
+  );
+  readonly tienePermisoCarteras = computed(() =>
+    this.authService.profile()?.permisos?.includes('CARTERAS_VER') ?? false,
+  );
+  readonly tienePermisoSupervision = computed(() =>
+    this.authService.profile()?.permisos?.includes('SUPERVISION_VER') ?? false,
   );
 
   logout(): void {

@@ -3,6 +3,7 @@ package cl.zzenner.cobranza.carteras.aplicacion;
 import cl.zzenner.cobranza.carteras.api.CarteraNoEncontradaException;
 import cl.zzenner.cobranza.carteras.dominio.Cartera;
 import cl.zzenner.cobranza.carteras.infraestructura.CarteraRepository;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,11 @@ public class CarteraService {
                 .orElseThrow(() -> new CarteraNoEncontradaException(id));
         cartera.activar();
         return carteraRepository.save(cartera);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Cartera> listarTodas() {
+        return carteraRepository.findAll(Sort.by(Sort.Order.asc("nombre")));
     }
 
     @Transactional(readOnly = true)

@@ -19,6 +19,9 @@ public class Cartera {
     @Column(name = "descripcion")
     private String descripcion;
 
+    @Column(name = "codigo_origen", length = 10)
+    private String codigoOrigen;
+
     @Column(name = "activa", nullable = false)
     private boolean activa = true;
 
@@ -66,6 +69,7 @@ public class Cartera {
     public UUID getId() { return id; }
     public String getNombre() { return nombre; }
     public String getDescripcion() { return descripcion; }
+    public String getCodigoOrigen() { return codigoOrigen; }
     public boolean isActiva() { return activa; }
     public Instant getFechaCreacion() { return fechaCreacion; }
     public Instant getFechaActualizacion() { return fechaActualizacion; }
