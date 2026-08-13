@@ -1,21 +1,23 @@
 # Tarea activa
 
 **Fase:** 5E — Importación real validada
-**Estado:** COMPLETADA ✅ — Commit local `0e5719e` listo para push
-
-## Objetivo
-
-Completar el flujo real de importación mensual con el archivo de producción:
-RECIBIDA → VALIDANDO → VALIDADA → PROCESANDO → COMPLETADA
+**Estado:** PUBLICADA Y CERRADA ✅ — tag v0.19.0-importacion-real
 
 ## Resultado
 
 IMPORTACIÓN REAL VALIDADA — FLUJO COMPLETO OPERATIVO
 
 - 9839 filas procesadas, 0 errores, período 2026-08 persistido
-- Defectos corregidos: encoding Win-1252, periodo null, tipo_operacion VARCHAR(50)
-- Tests: 439/439 API, 164/164 Angular
+- 3 commits publicados en origin/main: menú admin, importación real, docs
+- origin/main sincronizado con HEAD en 2c82f84
 
-## Pendiente
+## Próxima fase recomendada
 
-- [ ] Push al repositorio remoto (requiere autorización del usuario)
+**Fase 6A — App Android sincronización de importaciones (offline-first)**
+
+El módulo de importación ya está completo en el backend. El paso natural es permitir que
+la app Android descargue los datos procesados (personas, operaciones, cuotas) en Room para
+trabajo offline. Implica un endpoint de exportación diferencial y WorkManager en el cliente.
+
+Alternativa si se prioriza operaciones: **Fase 5F — historial y detalle de importaciones en Admin Web**
+(tabla con filtros, panel de errores, re-importación).

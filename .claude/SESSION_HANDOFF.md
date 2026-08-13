@@ -1,4 +1,4 @@
-# Handoff de sesión — Fase 5E COMPLETADA ✅ COMMIT LOCAL LISTO PARA PUSH
+# Handoff de sesión — Fase 5E PUBLICADA Y CERRADA ✅
 
 **Fecha:** 2026-08-12
 **Rama activa:** `main`
@@ -9,12 +9,11 @@
 
 | Referencia | Hash | Descripción |
 |---|---|---|
-| `origin/main` | `4b47f7a` | feat(importacion): implementar importacion mensual fase 5c |
-| Commits locales pendientes de push | `9133f49` | feat(importacion): cerrar contrato csv definitivo fase 5d |
-| | `0e5719e` | fix(importacion): soportar archivo real y mejorar diagnostico (Fase 5E) |
+| `origin/main` = `HEAD` | `2c82f84` | docs: actualizar handoff y task para fase 5e completada |
+| Tag publicado | `v0.19.0-importacion-real` | Fase 5E completa |
 | Árbol de trabajo | limpio | Sin cambios sin commitear |
 
-**Pendientes:** solo hay que hacer `git push` con autorización explícita del usuario. No hay más cambios pendientes.
+**Pendientes:** ninguno. `origin/main` y `HEAD` sincronizados.
 
 ---
 
@@ -57,12 +56,6 @@
 
 ## Siguiente acción exacta
 
-**Solo queda hacer push** (requiere autorización explícita del usuario):
+No hay acción técnica pendiente. El árbol está limpio y `origin/main` está sincronizado.
 
-```bash
-git push
-```
-
-Commits pendientes de push: `9133f49` (Fase 5D) y `0e5719e` (Fase 5E).
-
-No hay archivos pendientes de commitear. El árbol está limpio.
+La próxima sesión debe decidir qué fase iniciar. Ver recomendación en TASK_CURRENT.md.
