@@ -33,6 +33,12 @@ import { AuthService } from '../auth/auth.service';
               <span matListItemTitle>Usuarios</span>
             </a>
           }
+          @if (tienePermisoImportacion()) {
+            <a mat-list-item routerLink="/importacion" data-testid="menu-importacion">
+              <mat-icon matListItemIcon>upload_file</mat-icon>
+              <span matListItemTitle>Importaciones</span>
+            </a>
+          }
         </mat-nav-list>
       </mat-sidenav>
 
@@ -70,6 +76,9 @@ export class LayoutComponent {
   readonly profile = this.authService.profile;
   readonly tienePermissoUsuariosVer = computed(() =>
     this.authService.profile()?.permisos?.includes('USUARIOS_VER') ?? false,
+  );
+  readonly tienePermisoImportacion = computed(() =>
+    this.authService.profile()?.permisos?.includes('DATOS_IMPORTAR') ?? false,
   );
 
   logout(): void {
