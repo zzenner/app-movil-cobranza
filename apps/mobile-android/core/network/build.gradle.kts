@@ -15,6 +15,22 @@ android {
         consumerProguardFiles("consumer-rules.pro")
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
+    buildTypes {
+        debug {
+            // Emulador Android: 10.0.2.2 es el localhost del host.
+            // Puerto 8081: API Spring Boot (host → contenedor Docker).
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8081/\"")
+        }
+        release {
+            // Configurar antes de compilar para producción.
+            buildConfigField("String", "BASE_URL", "\"\"")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

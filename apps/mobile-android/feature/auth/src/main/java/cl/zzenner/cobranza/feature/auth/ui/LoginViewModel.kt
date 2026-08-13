@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import java.io.IOException
+import java.net.ConnectException
 import java.net.SocketTimeoutException
 import javax.inject.Inject
 
@@ -114,6 +115,8 @@ class LoginViewModel @Inject constructor(
                 }
             } catch (e: SocketTimeoutException) {
                 sessionRepository.setError(ErrorTipo.TIMEOUT)
+            } catch (e: ConnectException) {
+                sessionRepository.setError(ErrorTipo.ERROR_SERVIDOR)
             } catch (e: IOException) {
                 sessionRepository.setError(ErrorTipo.SIN_CONEXION)
             } catch (e: Exception) {

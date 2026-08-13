@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Configuración de seguridad de red para builds de RELEASE (y cualquier build no-debug).
+    No se permite tráfico HTTP cleartext. Solo HTTPS.
+    Para debug, el source set src/debug/res/xml/network_security_config.xml reemplaza este archivo.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

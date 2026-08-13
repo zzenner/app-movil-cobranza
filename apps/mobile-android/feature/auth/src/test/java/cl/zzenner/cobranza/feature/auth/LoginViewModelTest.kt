@@ -194,6 +194,19 @@ class LoginViewModelTest {
         assertEquals(ErrorTipo.SIN_CONEXION, estado?.tipo)
     }
 
+    @Test
+    fun `servidor inaccesible devuelve estado Error ERROR_SERVIDOR`() = runTest {
+        coEvery { api.login(any()) } throws java.net.ConnectException("Connection refused")
+
+        viewModel.onUsuarioChanged("usuario")
+        viewModel.onContrasenaChanged("Clave.123!")
+        viewModel.login()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val estado = viewModel.authState.value as? AuthState.Error
+        assertEquals(ErrorTipo.ERROR_SERVIDOR, estado?.tipo)
+    }
+
     // ── Logout ─────────────────────────────────────────────────────────────────
 
     @Test

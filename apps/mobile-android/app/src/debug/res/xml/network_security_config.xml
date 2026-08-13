@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Configuración de seguridad de red para builds de DEBUG.
+    Permite tráfico HTTP (cleartext) hacia las IPs del host local del emulador.
+    10.0.2.2 = dirección del host del emulador Android (equivalente a localhost desde la VM).
+    Este archivo REEMPLAZA al de src/main en builds debug gracias al source set debug.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+
+    <!-- Permite certificados de CA de usuario para Charles Proxy, mitmproxy, etc. -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

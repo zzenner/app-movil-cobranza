@@ -1,5 +1,6 @@
 package cl.zzenner.cobranza.core.network.client
 
+import cl.zzenner.cobranza.core.network.BuildConfig
 import cl.zzenner.cobranza.core.network.api.AuthApi
 import cl.zzenner.cobranza.core.network.api.GestionApi
 import dagger.Module
@@ -20,7 +21,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "http://10.0.2.2:8080/"
+    private val BASE_URL = BuildConfig.BASE_URL
     private val CONTENT_TYPE = "application/json".toMediaType()
 
     @Provides
