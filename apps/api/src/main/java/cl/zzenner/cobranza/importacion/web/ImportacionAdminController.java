@@ -28,16 +28,15 @@ class ImportacionAdminController {
         this.service = service;
     }
 
+    // Contrato v2: carteraId y periodo provienen del CSV por fila
     @PostMapping(consumes = "multipart/form-data")
     ResponseEntity<RespuestaCrearImportacion> crear(
-            @RequestParam UUID carteraId,
-            @RequestParam String periodo,
             @RequestParam(defaultValue = "LEGADO") String sistemaOrigen,
             @RequestParam("archivo") MultipartFile archivo,
             @AuthenticationPrincipal Jwt jwt) {
 
         UUID actorId = UUID.fromString(jwt.getSubject());
-        UUID importacionId = service.recibirImportacion(carteraId, periodo, sistemaOrigen, archivo, actorId);
+        UUID importacionId = service.recibirImportacion(sistemaOrigen, archivo, actorId);
 
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
@@ -47,7 +46,7 @@ class ImportacionAdminController {
         return ResponseEntity.accepted()
                 .location(location)
                 .body(new RespuestaCrearImportacion(importacionId, "RECIBIDA",
-                        periodo, archivo.getOriginalFilename()));
+                        null, archivo.getOriginalFilename()));
     }
 
     @GetMapping

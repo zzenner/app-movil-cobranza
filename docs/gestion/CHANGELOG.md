@@ -5,6 +5,65 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-12/13 — Fase 5D: Contrato CSV definitivo (26 columnas, UTF-8, YYYY-MM-DD) — CERRADA
+
+### Añadido
+
+- `V013__contrato_csv_v2.sql` (reescrito completo):
+  - `codigo_origen VARCHAR(10)` en `carteras` + índice único parcial
+  - Siembra 4 carteras estándar con UUIDs fijos: Temprana(1), Vigente(2), Vigente Judicial(3), Castigada(4)
+  - `codigo_ejecutivo_origen VARCHAR(50)` en `usuarios` + índice único parcial
+  - `marca_judicial CHAR(1)` en `carteras_personas` + CHECK `IN ('S','N')`
+  - `cartera_id` y `periodo` pasan a nullable en `importaciones_mensuales`
+  - Índice único `(sistema_origen, numero_operacion)` en `operaciones`
+- `CsvImportacionParserTest.java` — 23 tests unitarios (encoding UTF-8 estricto, YYYY-MM-DD, YYYY-MM, CODIGO_CARTERA, MARCA_JUDICIAL, filas vacías, notación científica, etc.)
+- `ValidadorIntraArchivoTest.java` — 8 tests unitarios (clave posición, ejecutivo múltiple, POSICION_DUPLICADA, RUT módulo 11, dimensión temporal)
+- `importacion_valida_2026-09.csv` — fixture para test de sucesión de períodos (Order 91)
+- `not_a_csv.txt` — fixture para test de extensión inválida (Order 21)
+- `importar_valido.csv`, `importar_error_operacion_cientifica.csv`, `importar_error_ejecutivo_inconsistente.csv` — fixtures unitarios 26 columnas
+
+### Modificado
+
+- `FilaCsv.java` — record con 27 campos: `periodo`, `codigoCartera`, `marcaJudicial`, `codigoEjecutivo` nuevos; eliminados `ejecutivoUsername`, `nombreEjecutivo`; renombrados `dirParticular`, `dirComercial`
+- `CsvImportacionParser.java` — UTF-8 `CodingErrorAction.REPORT`, fechas YYYY-MM-DD, PERIODO YYYY-MM, `CARTERAS_VALIDAS = {1,2,3,4}`, `setIgnoreEmptyLines(false)` + `esFilaTotalmenteVacia()`
+- `ValidadorIntraArchivo.java` — clave posición `PERIODO+RUT+OP+CUOTA+CARTERA`; clave ejecutivo `PERIODO+RUT+CARTERA`; error `POSICION_DUPLICADA`
+- `ImportacionMensual.java` — `carteraId` y `periodo` sin `nullable=false`/`updatable=false`
+- `ImportacionMensualRepository.java` — `findByHashArchivoAndSistemaOrigenAndEstado`, `findBySistemaOrigenAndEstado`, `findEnProgresoByOrigen`
+- `ImportacionService.java` — endpoint sin `carteraId`/`periodo`; idempotencia por `hash+sistemaOrigen`
+- `ImportacionPersistenciaService.java` — `resolverCarteras()`, `resolverEjecutivos()`, `upsertCarteraPersona()` con marca_judicial, eliminado carteraId/periodo de parámetros
+- `ImportacionProcesamientoWorker.java` — `procesarFilas(filas, sistemaOrigen, importacionId)` sin carteraId/periodo
+- `ImportacionValidacionWorker.java` — `findBySistemaOrigenAndEstado` en lugar de búsqueda por cartera
+- `ImportacionAdminController.java` — `crear()` sin carteraId/periodo
+- `ImportacionAdminRestTest.java` — `subirCsv()` sin carteraId/periodo; `prepararDatos()` con `codigo_ejecutivo_origen`; Order(21) extensión inválida; Order(70) INSERT sin cartera_id/periodo; Order(91) sucesión de períodos; Order(84) verifica jlopez por nombre_usuario
+- `importacion_valida_2026-08.csv` y `importacion_con_errores.csv` — actualizados a 26 columnas, UTF-8, YYYY-MM-DD
+- `FORMATO_IMPORTACION_MENSUAL.md` — reescrito completo para contrato v2
+
+- `apps/admin-web/importacion.service.ts` — `crear()` sin `carteraId`/`periodo` (contrato v2); solo `sistemaOrigen` + `archivo`
+- `apps/admin-web/importacion-nueva.component.ts` — eliminado selector de cartera y campo de período del formulario; solo archivo CSV
+- `apps/admin-web/importacion.service.spec.ts` — 3 tests explícitos sobre contrato v2 (incluye archivo, NO incluye carteraId, NO incluye periodo)
+- `apps/admin-web/importacion-nueva.component.spec.ts` — 14 tests: 3 que verifican ausencia de campos v1, otros que verifican subida correcta
+- `apps/admin-web/e2e/importacion.spec.ts` — 14 tests Playwright; eliminados tests de selector-cartera y input-periodo en nueva importacion; test 13 (ARCHIVO_YA_IMPORTADO) sin pasos v1
+- `contracts/openapi/cobranza-api.yaml` — 5 endpoints de importacion documentados: POST crear, GET listar, GET detalle, GET errores, POST confirmar; 7 nuevos schemas de importacion
+
+### Validado
+
+- Maven clean verify — 435/435 — 0 failures — 2 ejecuciones consecutivas
+- 23 tests `CsvImportacionParserTest` — PASS
+- 8 tests `ValidadorIntraArchivoTest` — PASS
+- 33 tests `ImportacionAdminRestTest` — PASS
+- `DominioAsignacionesIntegracionTest` — 21 tests — PASS
+- `InfraestructuraTest` — 5 tests — PASS
+- Angular build — BUILD SUCCESS
+- Angular tests — 148/148 — 0 failures
+- Angular coverage — 85.35% statements
+- Angular audit — 0 vulnerabilidades high/critical
+- Playwright importacion — 14/14 — PASS
+- Docker stack — postgres/api/admin-web healthy
+- Smoke-test — 69/69 OK
+- OpenAPI YAML válido (python yaml.safe_load) — 23 rutas, 24 schemas, referencias de importacion resuelven
+
+---
+
 ## [Sin versión] — 2026-08-10 — Fase 5C: Validación final
 
 ### Añadido

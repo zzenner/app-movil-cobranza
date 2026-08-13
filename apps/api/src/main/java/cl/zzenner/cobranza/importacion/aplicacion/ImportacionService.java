@@ -1,6 +1,5 @@
 package cl.zzenner.cobranza.importacion.aplicacion;
 
-import cl.zzenner.cobranza.carteras.api.CarteraConsultaApi;
 import cl.zzenner.cobranza.importacion.dominio.*;
 import cl.zzenner.cobranza.importacion.infraestructura.ErrorImportacionRepository;
 import cl.zzenner.cobranza.importacion.infraestructura.ImportacionMensualRepository;
@@ -36,7 +35,6 @@ public class ImportacionService {
     private final ImportacionMensualRepository repository;
     private final ErrorImportacionRepository errorRepository;
     private final ArchivoImportacionStorage storage;
-    private final CarteraConsultaApi carteraApi;
     private final UsuarioConsultaApi usuarioApi;
     private final ApplicationEventPublisher eventos;
     private final Clock clock;
@@ -44,45 +42,33 @@ public class ImportacionService {
     public ImportacionService(ImportacionMensualRepository repository,
                                ErrorImportacionRepository errorRepository,
                                ArchivoImportacionStorage storage,
-                               CarteraConsultaApi carteraApi,
                                UsuarioConsultaApi usuarioApi,
                                ApplicationEventPublisher eventos,
                                Clock clock) {
         this.repository = repository;
         this.errorRepository = errorRepository;
         this.storage = storage;
-        this.carteraApi = carteraApi;
         this.usuarioApi = usuarioApi;
         this.eventos = eventos;
         this.clock = clock;
     }
 
-    public UUID recibirImportacion(UUID carteraId, String periodo, String sistemaOrigen,
-                                    MultipartFile archivo, UUID actorId) {
+    // Contrato v2: carteraId y periodo provienen del CSV, no del request HTTP
+    public UUID recibirImportacion(String sistemaOrigen, MultipartFile archivo, UUID actorId) {
         Instant ahora = clock.instant();
         validarActor(actorId, ahora);
-        validarCartera(carteraId);
-        validarPeriodo(periodo);
         validarArchivo(archivo);
 
         String nombreOriginal = sanitizarNombreArchivo(archivo.getOriginalFilename());
         String hashArchivo = calcularHash(archivo);
 
-        // Verificar periodo anterior
-        repository.findMaxPeriodoCompletado(carteraId, sistemaOrigen).ifPresent(maxPeriodo -> {
-            if (periodo.compareTo(maxPeriodo) < 0) {
-                throw new PeriodoAnteriorNoPermitidoException(periodo, maxPeriodo);
-            }
-        });
-
-        // Idempotencia: mismo archivo ya importado completado
-        repository.findByHashArchivoAndPeriodoAndCarteraIdAndSistemaOrigenAndEstado(
-                hashArchivo, periodo, carteraId, sistemaOrigen, EstadoImportacion.COMPLETADA)
+        // Idempotencia: mismo archivo ya importado y completado
+        repository.findByHashArchivoAndSistemaOrigenAndEstado(
+                hashArchivo, sistemaOrigen, EstadoImportacion.COMPLETADA)
                 .ifPresent(existente -> {
                     throw new ArchivoYaImportadoException(existente.getId());
                 });
 
-        // Guardar archivo primero
         UUID importacionId = UUID.randomUUID();
         String ruta;
         try (InputStream is = archivo.getInputStream()) {
@@ -91,10 +77,9 @@ public class ImportacionService {
             throw new UncheckedIOException("Error al guardar el archivo de importación", e);
         }
 
-        // Crear registro en BD
         ImportacionMensual importacion;
         try {
-            importacion = new ImportacionMensual(importacionId, carteraId, actorId, periodo,
+            importacion = new ImportacionMensual(importacionId, actorId,
                     sistemaOrigen, hashArchivo, nombreOriginal, ruta);
             repository.save(importacion);
         } catch (Exception e) {
@@ -102,10 +87,9 @@ public class ImportacionService {
             throw e;
         }
 
-        // Publicar evento AFTER_COMMIT para trigger async
         eventos.publishEvent(new ValidarImportacionEvento(importacionId));
 
-        log.info("[IMPORTACION] Recibida importacion={} periodo={} cartera={}", importacionId, periodo, carteraId);
+        log.info("[IMPORTACION] Recibida importacion={} sistema={}", importacionId, sistemaOrigen);
         return importacionId;
     }
 
@@ -120,9 +104,7 @@ public class ImportacionService {
             throw new EstadoInvalidoParaConfirmarException(importacionId, im.getEstado());
         }
 
-        // Verificar si hay otra PROCESANDO para el mismo periodo/cartera
-        List<ImportacionMensual> enProgreso = repository.findEnProgreso(
-                im.getCarteraId(), im.getPeriodo(), im.getSistemaOrigen());
+        List<ImportacionMensual> enProgreso = repository.findEnProgresoByOrigen(im.getSistemaOrigen());
         if (!enProgreso.isEmpty()) {
             throw new ImportacionEnProgresoException(enProgreso.get(0).getId());
         }
@@ -172,19 +154,6 @@ public class ImportacionService {
         }
     }
 
-    private void validarCartera(UUID carteraId) {
-        if (!carteraApi.existeActiva(carteraId)) {
-            throw new CarteraNoActivaException(carteraId);
-        }
-    }
-
-    private void validarPeriodo(String periodo) {
-        if (periodo == null || !periodo.matches("^\\d{4}-(0[1-9]|1[0-2])$")) {
-            throw new IllegalArgumentException(
-                    "El periodo debe tener formato YYYY-MM (ej: 2026-08)");
-        }
-    }
-
     private void validarArchivo(MultipartFile archivo) {
         if (archivo == null || archivo.isEmpty()) {
             throw new IllegalArgumentException("El archivo CSV es requerido");
@@ -197,9 +166,7 @@ public class ImportacionService {
 
     private String sanitizarNombreArchivo(String nombre) {
         if (nombre == null || nombre.isBlank()) return "importacion.csv";
-        // Solo conservar el nombre del archivo sin path
         String base = nombre.replaceAll(".*[/\\\\]", "");
-        // Remover caracteres peligrosos
         return base.replaceAll("[^a-zA-Z0-9._\\-]", "_");
     }
 

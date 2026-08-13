@@ -12,13 +12,13 @@ public class ImportacionMensual {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "cartera_id", nullable = false, updatable = false)
+    @Column(name = "cartera_id")
     private UUID carteraId;
 
     @Column(name = "usuario_id", nullable = false, updatable = false)
     private UUID usuarioId;
 
-    @Column(name = "periodo", nullable = false, updatable = false, length = 7)
+    @Column(name = "periodo", length = 7)
     private String periodo;
 
     @Column(name = "sistema_origen", nullable = false, updatable = false, length = 50)
@@ -82,13 +82,14 @@ public class ImportacionMensual {
 
     protected ImportacionMensual() {}
 
-    public ImportacionMensual(UUID id, UUID carteraId, UUID usuarioId, String periodo,
+    // Contrato v2: carteraId y periodo son opcionales en recepción (provienen del CSV)
+    public ImportacionMensual(UUID id, UUID usuarioId,
                                String sistemaOrigen, String hashArchivo,
                                String nombreArchivoOriginal, String rutaArchivo) {
         this.id = id;
-        this.carteraId = carteraId;
+        this.carteraId = null;
         this.usuarioId = usuarioId;
-        this.periodo = periodo;
+        this.periodo = null;
         this.sistemaOrigen = sistemaOrigen;
         this.hashArchivo = hashArchivo;
         this.nombreArchivoOriginal = nombreArchivoOriginal;

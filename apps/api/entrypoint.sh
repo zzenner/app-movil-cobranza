@@ -13,4 +13,9 @@ if [ -f /keys/private.pem ]; then
     export JWT_RSA_PUBLICA_PATH="$KEY_DIR/public.pem"
 fi
 
+# Asegurar que appuser puede escribir en el volumen de importaciones
+if [ -d /var/cobranza/importaciones ]; then
+    chown appuser:appgroup /var/cobranza/importaciones
+fi
+
 exec su-exec appuser java $JAVA_OPTS -jar /app/app.jar

@@ -20,15 +20,12 @@ export class ImportacionService {
     return this.http.get<ItemCartera[]>(`${this.baseCarteras}/activas`);
   }
 
+  // Contrato v2: carteraId y periodo provienen del CSV, no del request
   crear(
-    carteraId: string,
-    periodo: string,
     sistemaOrigen: string,
     archivo: File
   ): Observable<RespuestaCrearImportacion> {
     const formData = new FormData();
-    formData.append('carteraId', carteraId);
-    formData.append('periodo', periodo);
     formData.append('sistemaOrigen', sistemaOrigen);
     formData.append('archivo', archivo, archivo.name);
     return this.http.post<RespuestaCrearImportacion>(this.base, formData);

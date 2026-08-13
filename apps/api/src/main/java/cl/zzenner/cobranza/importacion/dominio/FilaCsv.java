@@ -6,22 +6,16 @@ import java.time.LocalDate;
 public record FilaCsv(
         int numeroFila,
 
+        // Temporal — período de cobranza (YYYY-MM)
+        String periodo,
+
         // Persona
         String rutNumero,
         String rutDv,
         String nombrePersona,
-        String codigoExtPersona,
-
-        // Dirección
-        String direccionTexto,
-        String direccionTipo,
-        String direccionComuna,
-        String direccionCiudad,
-        String codigoExtDireccion,
 
         // Operación
         String operacionNumero,
-        String operacionIdExt,
         String operacionTipo,
         String operacionEstado,
         BigDecimal operacionCapital,
@@ -32,7 +26,6 @@ public record FilaCsv(
 
         // Cuota
         Integer cuotaNumero,
-        String cuotaIdExt,
         String cuotaEstado,
         BigDecimal cuotaMontoTotal,
         BigDecimal cuotaCapital,
@@ -42,6 +35,15 @@ public record FilaCsv(
         BigDecimal cuotaSaldo,
         LocalDate cuotaFechaVto,
 
-        // Asignación
-        String ejecutivoUsername
+        // Ejecutivo — identificador en el sistema origen (ej: '2127')
+        // No es el nombre_usuario de la plataforma
+        String codigoEjecutivo,
+
+        // Direcciones del sistema origen
+        String dirParticular,
+        String dirComercial,
+
+        // Clasificación de cartera y estado judicial
+        String codigoCartera,
+        String marcaJudicial
 ) {}

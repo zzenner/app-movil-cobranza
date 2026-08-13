@@ -565,7 +565,7 @@ class DominioAsignacionesIntegracionTest {
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), null);
 
         asignacionService.agregarPersonaAMensual(amId, persona.getId());
-        asignacionService.removerPersonaDeMensual(amId, persona.getId(), LocalDate.of(2026, 8, 10));
+        asignacionService.removerPersonaDeMensual(amId, persona.getId(), LocalDate.now());
         asignacionService.agregarPersonaAMensual(amId, persona.getId());
 
         // Deben existir dos filas históricas: una cerrada y una activa

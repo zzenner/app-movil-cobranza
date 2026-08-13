@@ -116,9 +116,7 @@ class ImportacionValidacionWorker {
 
     private void expirarValidadasAnteriores(ImportacionMensual nueva) {
         List<ImportacionMensual> anteriores = repository
-                .findByPeriodoAndCarteraIdAndSistemaOrigenAndEstado(
-                        nueva.getPeriodo(), nueva.getCarteraId(),
-                        nueva.getSistemaOrigen(), EstadoImportacion.VALIDADA);
+                .findBySistemaOrigenAndEstado(nueva.getSistemaOrigen(), EstadoImportacion.VALIDADA);
         for (ImportacionMensual ant : anteriores) {
             if (!ant.getId().equals(nueva.getId())) {
                 String ruta = ant.getRutaArchivo();

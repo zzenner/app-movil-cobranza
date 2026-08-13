@@ -1,8 +1,8 @@
 # Estado del proyecto
 
-**Última actualización:** 2026-08-10
-**Fase actual:** Fase 5C — Importación mensual de datos de cobranza — VALIDADA ✅ LISTA PARA CIERRE
-**Fase anterior:** Fase 5B-2 — Gestión administrativa de usuarios (escritura) — VALIDADA ✅
+**Última actualización:** 2026-08-13
+**Fase actual:** Fase 5D — Contrato CSV definitivo de importación mensual — CERRADA ✅ COMMIT 9133f49
+**Fase anterior:** Fase 5C — Importación mensual de datos de cobranza — VALIDADA ✅
 
 ## Resumen
 
@@ -32,6 +32,7 @@
 | **App Android + API — Fase 4C-B (búsqueda directa por RUT)**       | **Implementada ✅ — pendiente commit** |
 | **Admin Web — Fase 5B-2 gestión usuarios (escritura)**             | **VALIDADA ✅ — LISTA PARA CIERRE** |
 | **API + Admin Web — Fase 5C importación mensual**                  | **VALIDADA ✅ — 404/404 tests** |
+| **API + Admin Web + OpenAPI — Fase 5D contrato CSV v2 (26 columnas)** | **CERRADA ✅ — commit 9133f49 (pendiente push)** |
 | Despliegue en VPS                                                  | No iniciado           |
 
 ## Resultado de auditoría Fase 1A (2026-07-26)
@@ -624,9 +625,40 @@ Las siguientes decisiones fueron confirmadas y están documentadas:
 | DevSeedRunner — usuario admin.local creado | ✅ |
 | Smoke tests automatizados | ✅ **15/15 OK** |
 
+## Fase 5D — Contrato CSV v2 definitivo (2026-08-12/13) — CERRADA ✅ COMMIT 9133f49
+
+**Resultado: 435/435 tests API, 148/148 tests Angular, 14/14 Playwright importacion, 69/69 smoke, Docker healthy, OpenAPI documentado.**
+
+| Item | Resultado |
+|---|---|
+| V013 — `codigo_origen` en `carteras` + siembra 4 carteras con UUIDs fijos | ✅ |
+| V013 — `codigo_ejecutivo_origen` en `usuarios` | ✅ |
+| V013 — `marca_judicial` en `carteras_personas` | ✅ |
+| V013 — `cartera_id` y `periodo` nullable en `importaciones_mensuales` | ✅ |
+| V013 — índice único `(sistema_origen, numero_operacion)` en `operaciones` | ✅ |
+| `FilaCsv.java` — 27 campos (26 CSV + numeroFila); incluye `periodo`, `codigoCartera`, `marcaJudicial`, `codigoEjecutivo` | ✅ |
+| `CsvImportacionParser.java` — UTF-8 estricto (`CodingErrorAction.REPORT`), fechas YYYY-MM-DD, PERIODO YYYY-MM, `CARTERAS_VALIDAS` | ✅ |
+| `ValidadorIntraArchivo.java` — clave posición: PERIODO+RUT+OP+CUOTA+CARTERA | ✅ |
+| `ImportacionService.java` — eliminado `carteraId`/`periodo` del endpoint; idempotencia por hash | ✅ |
+| `ImportacionPersistenciaService.java` — `resolverCarteras()`, `resolverEjecutivos()`, `upsertCarteraPersona()` con marca_judicial | ✅ |
+| `ImportacionAdminController.java` — endpoint sin `carteraId`/`periodo` | ✅ |
+| `ImportacionAdminRestTest.java` — 33 tests incluyendo sucesión de períodos (Order 91) | ✅ |
+| Fixtures: todos en UTF-8, 26 columnas, YYYY-MM-DD | ✅ |
+| Angular `importacion.service.ts` — `crear()` sin `carteraId`/`periodo` (contrato v2) | ✅ |
+| Angular `importacion-nueva.component.ts` — formulario sin selector cartera ni campo período | ✅ |
+| Angular tests — 148/148 — 0 failures | ✅ |
+| Playwright importacion — 14/14 — todos verdes | ✅ |
+| `contracts/openapi/cobranza-api.yaml` — 5 endpoints de importacion documentados (contrato v2) | ✅ |
+| `FORMATO_IMPORTACION_MENSUAL.md` — reescrito para contrato v2 de 26 columnas | ✅ |
+| Maven clean verify — 435/435 — 0 failures — 2 ejecuciones consecutivas | ✅ |
+| Docker stack — postgres/api/admin-web healthy | ✅ |
+| Smoke-test — 69/69 OK | ✅ |
+
 ## Próximo paso recomendado
 
-Commit del entorno Docker local (requiere autorización explícita), luego Fase 5B-2 — gestión de usuarios (escritura).
+1. `git push origin main` para publicar el commit `9133f49` (requiere autorización explícita).
+2. Crear tag `v0.17.0-importacion-mensual` (requiere autorización explícita).
+3. Iniciar Fase 6 (por definir en ROADMAP).
 
 ## Historial de fases
 

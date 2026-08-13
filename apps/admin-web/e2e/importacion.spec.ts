@@ -124,15 +124,17 @@ test('[PLAYWRIGHT INTERCEPTADO] historial: listado carga importaciones del histo
   await expect(page.getByText('COMPLETADA').first()).toBeVisible();
 });
 
-// ─── 2. Nueva importación — formulario se carga ────────────────────────────────
+// ─── 2. Nueva importación — formulario se carga (contrato v2) ────────────────
 
 test('[PLAYWRIGHT INTERCEPTADO] nueva importacion: formulario de carga se muestra correctamente', async ({ page }) => {
   await mockSesionConPermiso(page);
-  await page.route(API_CARTERAS, (r) => r.fulfill({ status: 200, json: carteras }));
   await page.goto('/importacion/nueva');
   await page.waitForLoadState('networkidle');
   await expect(page.getByTestId('btn-subir')).toBeVisible();
   await expect(page.getByTestId('btn-subir')).toContainText('Subir y validar');
+  // Contrato v2: no hay selector de cartera ni campo de período
+  await expect(page.getByTestId('selector-cartera')).not.toBeVisible().catch(() => {});
+  await expect(page.getByTestId('input-periodo')).not.toBeVisible().catch(() => {});
 });
 
 // ─── 3. Acceso sin permiso DATOS_IMPORTAR ─────────────────────────────────────
@@ -143,38 +145,41 @@ test('[PLAYWRIGHT INTERCEPTADO] acceso sin DATOS_IMPORTAR redirige a /forbidden'
   await expect(page).toHaveURL(/\/forbidden/);
 });
 
-// ─── 4. Seleccionar cartera en formulario ─────────────────────────────────────
+// ─── 4. Historial: filtro de cartera carga opciones (contrato v2) ────────────
 
-test('[PLAYWRIGHT INTERCEPTADO] nueva importacion: dropdown de carteras carga opciones disponibles', async ({ page }) => {
+test('[PLAYWRIGHT INTERCEPTADO] historial: dropdown de carteras permite filtrar el listado', async ({ page }) => {
   await mockSesionConPermiso(page);
   await page.route(API_CARTERAS, (r) => r.fulfill({ status: 200, json: carteras }));
-  await page.goto('/importacion/nueva');
+  await page.route(API_IMPORTACIONES, (r) => r.fulfill({ status: 200, json: paginaImportaciones }));
+  await page.goto('/importacion');
   await page.waitForLoadState('networkidle');
-  // Abrir el mat-select para ver las opciones
-  const selectCartera = page.getByTestId('selector-cartera');
+  // El filtro de cartera está en el listado, no en el formulario de nueva importación
+  const selectCartera = page.locator('mat-select').first();
   await selectCartera.click();
   await expect(page.getByRole('option', { name: 'Cartera Norte' })).toBeVisible();
   await expect(page.getByRole('option', { name: 'Cartera Sur' })).toBeVisible();
 });
 
-// ─── 5. Campo período acepta formato YYYY-MM ──────────────────────────────────
+// ─── 5. Nueva importación: solo requiere archivo CSV (contrato v2) ────────────
 
-test('[PLAYWRIGHT INTERCEPTADO] nueva importacion: campo periodo acepta formato YYYY-MM', async ({ page }) => {
+test('[PLAYWRIGHT INTERCEPTADO] nueva importacion: solo requiere archivo CSV, sin cartera ni periodo', async ({ page }) => {
   await mockSesionConPermiso(page);
-  await page.route(API_CARTERAS, (r) => r.fulfill({ status: 200, json: carteras }));
   await page.goto('/importacion/nueva');
   await page.waitForLoadState('networkidle');
-  const campoPeriodo = page.getByTestId('input-periodo');
-  await expect(campoPeriodo).toBeVisible();
-  await campoPeriodo.fill('2026-08');
-  await expect(campoPeriodo).toHaveValue('2026-08');
+  // El formulario tiene selector de archivo y botón de subir
+  const inputArchivo = page.locator('input[type="file"]');
+  await expect(inputArchivo).toBeAttached();
+  await expect(page.getByTestId('btn-subir')).toBeVisible();
+  // No hay selector de cartera en la página de nueva importación
+  await expect(page.getByTestId('selector-cartera')).toHaveCount(0);
+  // No hay campo de período en la página de nueva importación
+  await expect(page.getByTestId('input-periodo')).toHaveCount(0);
 });
 
 // ─── 6. Seleccionar archivo CSV ───────────────────────────────────────────────
 
 test('[PLAYWRIGHT INTERCEPTADO] nueva importacion: archivo CSV puede ser seleccionado en el formulario', async ({ page }) => {
   await mockSesionConPermiso(page);
-  await page.route(API_CARTERAS, (r) => r.fulfill({ status: 200, json: carteras }));
   await page.goto('/importacion/nueva');
   await page.waitForLoadState('networkidle');
   const inputArchivo = page.locator('input[type="file"]');
@@ -302,7 +307,7 @@ test('[PLAYWRIGHT INTERCEPTADO] detalle CON_ERRORES: muestra tabla de errores co
 
 test('[PLAYWRIGHT INTERCEPTADO] nueva importacion: ARCHIVO_YA_IMPORTADO muestra error al usuario', async ({ page }) => {
   await mockSesionConPermiso(page);
-  await page.route(API_CARTERAS, (r) => r.fulfill({ status: 200, json: carteras }));
+  // Contrato v2: la nueva importación no consulta carteras/activas
   await page.route('**/api/v1/admin/importaciones/mensuales', (r) => {
     if (r.request().method() === 'POST') {
       r.fulfill({
@@ -315,12 +320,7 @@ test('[PLAYWRIGHT INTERCEPTADO] nueva importacion: ARCHIVO_YA_IMPORTADO muestra 
   });
   await page.goto('/importacion/nueva');
   await page.waitForLoadState('networkidle');
-  // Seleccionar cartera
-  await page.getByTestId('selector-cartera').click();
-  await page.getByRole('option', { name: 'Cartera Norte' }).click();
-  // Llenar período
-  await page.getByTestId('input-periodo').fill('2026-08');
-  // Adjuntar archivo (input oculto — usar setInputFiles directamente)
+  // Contrato v2: solo se adjunta el archivo CSV (sin cartera ni período)
   await page.locator('input[type="file"]').setInputFiles({
     name: 'importacion_2026-08.csv',
     mimeType: 'text/csv',

@@ -7,7 +7,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -18,36 +17,25 @@ import java.util.UUID;
 
 public interface ImportacionMensualRepository extends JpaRepository<ImportacionMensual, UUID> {
 
-    Optional<ImportacionMensual> findByHashArchivoAndPeriodoAndCarteraIdAndSistemaOrigenAndEstado(
-            String hashArchivo, String periodo, UUID carteraId, String sistemaOrigen, EstadoImportacion estado);
+    // Idempotencia: mismo archivo + mismo sistema ya está COMPLETADA
+    Optional<ImportacionMensual> findByHashArchivoAndSistemaOrigenAndEstado(
+            String hashArchivo, String sistemaOrigen, EstadoImportacion estado);
 
-    List<ImportacionMensual> findByPeriodoAndCarteraIdAndSistemaOrigenAndEstado(
-            String periodo, UUID carteraId, String sistemaOrigen, EstadoImportacion estado);
-
-    @Query("""
-            SELECT MAX(im.periodo)
-            FROM ImportacionMensual im
-            WHERE im.carteraId = :carteraId
-              AND im.sistemaOrigen = :sistemaOrigen
-              AND im.estado = 'COMPLETADA'
-            """)
-    Optional<String> findMaxPeriodoCompletado(@Param("carteraId") UUID carteraId,
-                                               @Param("sistemaOrigen") String sistemaOrigen);
-
-    @Query("""
-            SELECT im FROM ImportacionMensual im
-            WHERE im.carteraId = :carteraId
-              AND im.periodo = :periodo
-              AND im.sistemaOrigen = :sistemaOrigen
-              AND im.estado IN ('VALIDANDO', 'PROCESANDO')
-            """)
-    List<ImportacionMensual> findEnProgreso(@Param("carteraId") UUID carteraId,
-                                             @Param("periodo") String periodo,
-                                             @Param("sistemaOrigen") String sistemaOrigen);
+    // Para expirar validadas anteriores del mismo sistema
+    List<ImportacionMensual> findBySistemaOrigenAndEstado(
+            String sistemaOrigen, EstadoImportacion estado);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT im FROM ImportacionMensual im WHERE im.id = :id")
     Optional<ImportacionMensual> findByIdConBloqueo(@Param("id") UUID id);
+
+    // Detectar importaciones en vuelo para evitar confirmaciones concurrentes
+    @Query("""
+            SELECT im FROM ImportacionMensual im
+            WHERE im.sistemaOrigen = :sistemaOrigen
+              AND im.estado IN ('VALIDANDO', 'PROCESANDO')
+            """)
+    List<ImportacionMensual> findEnProgresoByOrigen(@Param("sistemaOrigen") String sistemaOrigen);
 
     Page<ImportacionMensual> findByCarteraIdOrderByFechaCreacionDesc(UUID carteraId, Pageable pageable);
 
@@ -66,7 +54,4 @@ public interface ImportacionMensualRepository extends JpaRepository<ImportacionM
               AND im.fechaActualizacion < :umbral
             """)
     List<ImportacionMensual> findValidadasExpiradas(@Param("umbral") Instant umbral);
-
-    boolean existsByPeriodoAndCarteraIdAndSistemaOrigenAndEstado(
-            String periodo, UUID carteraId, String sistemaOrigen, EstadoImportacion estado);
 }

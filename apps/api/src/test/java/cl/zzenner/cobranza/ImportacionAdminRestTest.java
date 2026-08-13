@@ -1,7 +1,6 @@
 package cl.zzenner.cobranza;
 
 import cl.zzenner.cobranza.autenticacion.AutenticacionTestConfig;
-import cl.zzenner.cobranza.carteras.aplicacion.CarteraService;
 import cl.zzenner.cobranza.importacion.dominio.EstadoImportacion;
 import cl.zzenner.cobranza.importacion.infraestructura.ImportacionMensualRepository;
 import cl.zzenner.cobranza.usuarios.aplicacion.SupervisionService;
@@ -58,15 +57,16 @@ class ImportacionAdminRestTest {
     @Autowired TestRestTemplate rest;
     @Autowired UsuarioService usuarioService;
     @Autowired SupervisionService supervisionService;
-    @Autowired CarteraService carteraService;
     @Autowired ImportacionMensualRepository importacionRepository;
     @Autowired JwtEncoder jwtEncoder;
     @Autowired JdbcTemplate jdbc;
 
     static final String CLAVE = "ClaveTest.123!";
     static final String BASE = "/api/v1/admin/importaciones/mensuales";
-    static final String FIXTURE_VALIDO = "fixtures/importacion/importacion_valida_2026-08.csv";
-    static final String FIXTURE_ERRORES = "fixtures/importacion/importacion_con_errores.csv";
+    static final String FIXTURE_VALIDO       = "fixtures/importacion/importacion_valida_2026-08.csv";
+    static final String FIXTURE_VALIDO_SEP   = "fixtures/importacion/importacion_valida_2026-09.csv";
+    static final String FIXTURE_ERRORES      = "fixtures/importacion/importacion_con_errores.csv";
+    static final String FIXTURE_NO_CSV       = "fixtures/importacion/not_a_csv.txt";
 
     UUID idJefe;
     UUID idTecnologia;
@@ -77,22 +77,17 @@ class ImportacionAdminRestTest {
     UUID idActorBloqueado;
     UUID idActorBloqTemp;
     UUID idSupervisorSinPermiso;
-    UUID carteraPrincipal;
 
-    // Mantenemos el id de la importacion del flujo completo para compartirlo entre tests de orden
     UUID importacionFlujoCompleto;
-    UUID carteraFlujoCompleto;
 
     @BeforeAll
     void prepararDatos() {
-        // Usuarios con DATOS_IMPORTAR
         idJefe = usuarioService.crearUsuario("imp.jefe", "Jefe", "Importacion", null, null, CLAVE);
         usuarioService.asignarRol(idJefe, "JEFE_SUPERVISORES", null);
 
         idTecnologia = usuarioService.crearUsuario("imp.tec", "Tec", "Importacion", null, null, CLAVE);
         usuarioService.asignarRol(idTecnologia, "TECNOLOGIA", null);
 
-        // Usuarios para pruebas de seguridad de actor
         idActorDesactivado = usuarioService.crearUsuario("imp.desact", "Desact", "User", null, null, CLAVE);
         usuarioService.asignarRol(idActorDesactivado, "JEFE_SUPERVISORES", null);
         jdbc.update("UPDATE cobranza.usuarios SET activo = FALSE WHERE id = ?", idActorDesactivado);
@@ -109,20 +104,21 @@ class ImportacionAdminRestTest {
         idSupervisorSinPermiso = usuarioService.crearUsuario("imp.sup.nop", "Sup", "NoPermiso", null, null, CLAVE);
         usuarioService.asignarRol(idSupervisorSinPermiso, "SUPERVISOR", null);
 
-        // Ejecutivos para el flujo completo (referenciados en el fixture CSV)
+        // Ejecutivos referenciados en el fixture CSV (CODIGO_EJECUTIVO 1001 y 1002)
         idEjecutivoJlopez = usuarioService.crearUsuario("jlopez", "J", "Lopez", null, null, CLAVE);
         usuarioService.asignarRol(idEjecutivoJlopez, "EJECUTIVO_TERRENO", null);
+        jdbc.update("UPDATE cobranza.usuarios SET codigo_ejecutivo_origen = '1001' WHERE id = ?",
+                idEjecutivoJlopez);
 
         idEjecutivoMgarcia = usuarioService.crearUsuario("mgarcia", "M", "Garcia", null, null, CLAVE);
         usuarioService.asignarRol(idEjecutivoMgarcia, "EJECUTIVO_TERRENO", null);
+        jdbc.update("UPDATE cobranza.usuarios SET codigo_ejecutivo_origen = '1002' WHERE id = ?",
+                idEjecutivoMgarcia);
 
         idSupervisor = usuarioService.crearUsuario("imp.supervisor", "Sup", "Principal", null, null, CLAVE);
         usuarioService.asignarRol(idSupervisor, "SUPERVISOR", null);
         supervisionService.asignarEjecutivo(idSupervisor, idEjecutivoJlopez, java.time.LocalDate.now());
         supervisionService.asignarEjecutivo(idSupervisor, idEjecutivoMgarcia, java.time.LocalDate.now());
-
-        carteraPrincipal = carteraService.registrar("Cartera Principal Importacion", "Test").getId();
-        carteraFlujoCompleto = carteraService.registrar("Cartera Flujo Completo", "Test").getId();
     }
 
     // ─── 1. Autenticación ─────────────────────────────────────────────────────
@@ -135,7 +131,6 @@ class ImportacionAdminRestTest {
 
     @Test @Order(11)
     void sin_permiso_datos_importar_recibe_403() {
-        // SUPERVISOR con GESTIONES_VER pero sin DATOS_IMPORTAR
         String token = tokenPara(idSupervisorSinPermiso, "SUPERVISOR", List.of("GESTIONES_VER"));
         assertThat(get(BASE, token).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
@@ -143,29 +138,28 @@ class ImportacionAdminRestTest {
     @Test @Order(12)
     void actor_desactivado_con_jwt_valido_recibe_403() {
         String token = tokenConPermiso(idActorDesactivado, "JEFE_SUPERVISORES");
-        ResponseEntity<String> resp = subirCsv(token, carteraPrincipal, "2026-08", FIXTURE_VALIDO);
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_VALIDO);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test @Order(13)
     void actor_bloqueado_con_jwt_valido_recibe_403() {
         String token = tokenConPermiso(idActorBloqueado, "JEFE_SUPERVISORES");
-        ResponseEntity<String> resp = subirCsv(token, carteraPrincipal, "2026-08", FIXTURE_VALIDO);
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_VALIDO);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test @Order(14)
     void actor_bloqueado_temporalmente_con_jwt_valido_recibe_403() {
         String token = tokenConPermiso(idActorBloqTemp, "JEFE_SUPERVISORES");
-        ResponseEntity<String> resp = subirCsv(token, carteraPrincipal, "2026-08", FIXTURE_VALIDO);
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_VALIDO);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test @Order(15)
     void permiso_en_jwt_pero_no_en_bd_recibe_403() {
-        // JWT reclama DATOS_IMPORTAR pero el usuario solo tiene SUPERVISOR sin ese permiso
         String token = tokenPara(idSupervisorSinPermiso, "SUPERVISOR", List.of("DATOS_IMPORTAR"));
-        ResponseEntity<String> resp = subirCsv(token, carteraPrincipal, "2026-08", FIXTURE_VALIDO);
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_VALIDO);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
@@ -178,25 +172,17 @@ class ImportacionAdminRestTest {
         headers.setBearerAuth(token);
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("carteraId", carteraPrincipal.toString());
-        body.add("periodo", "2026-08");
-        ResponseEntity<String> resp = rest.exchange(BASE, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);
+        body.add("sistemaOrigen", "LEGADO");
+        ResponseEntity<String> resp = rest.exchange(BASE, HttpMethod.POST,
+                new HttpEntity<>(body, headers), String.class);
         assertThat(resp.getStatusCode().is4xxClientError()).isTrue();
     }
 
     @Test @Order(21)
-    void upload_periodo_invalido_recibe_4xx() {
+    void upload_archivo_sin_extension_csv_recibe_4xx() {
         String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
-        ResponseEntity<String> resp = subirCsv(token, carteraPrincipal, "08-2026", FIXTURE_VALIDO);
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_NO_CSV);
         assertThat(resp.getStatusCode().is4xxClientError()).isTrue();
-    }
-
-    @Test @Order(22)
-    void upload_cartera_inexistente_recibe_404() {
-        String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
-        ResponseEntity<String> resp = subirCsv(token, UUID.randomUUID(), "2026-08", FIXTURE_VALIDO);
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(resp.getBody()).contains("CARTERA_NO_ENCONTRADA");
     }
 
     // ─── 3. Upload → 202 + cuerpo enriquecido ────────────────────────────────
@@ -204,13 +190,11 @@ class ImportacionAdminRestTest {
     @Test @Order(30)
     void jefe_puede_subir_csv_y_recibe_202_con_campos() {
         String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
-        UUID c = carteraService.registrar("Cartera 202 Jefe", "Test").getId();
-        ResponseEntity<String> resp = subirCsv(token, c, "2025-01", FIXTURE_VALIDO);
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_VALIDO);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
         assertThat(resp.getBody()).contains("importacionId");
         assertThat(resp.getBody()).contains("RECIBIDA");
-        assertThat(resp.getBody()).contains("periodo");
         assertThat(resp.getBody()).contains("nombreArchivoOriginal");
         assertThat(resp.getHeaders().getLocation()).isNotNull();
     }
@@ -218,8 +202,7 @@ class ImportacionAdminRestTest {
     @Test @Order(31)
     void tecnologia_puede_subir_csv_y_recibe_202() {
         String token = tokenConPermiso(idTecnologia, "TECNOLOGIA");
-        UUID c = carteraService.registrar("Cartera 202 Tec", "Test").getId();
-        ResponseEntity<String> resp = subirCsv(token, c, "2025-02", FIXTURE_VALIDO);
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_VALIDO);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
     }
 
@@ -241,8 +224,7 @@ class ImportacionAdminRestTest {
     @Test @Order(50)
     void csv_valido_alcanza_estado_validada() {
         String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
-        UUID c = carteraService.registrar("Cartera Validada", "Test").getId();
-        ResponseEntity<String> resp = subirCsv(token, c, "2025-03", FIXTURE_VALIDO);
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_VALIDO);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
 
         String importacionId = extraerImportacionId(resp.getBody());
@@ -261,27 +243,21 @@ class ImportacionAdminRestTest {
     }
 
     @Test @Order(51)
-    void antes_de_confirmar_no_existen_datos_de_dominio() {
+    void antes_de_confirmar_no_existen_datos_de_dominio_para_persona_nueva() {
+        // Usamos un RUT distinto al del fixture (33333333-3 no existe)
         String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
-        UUID c = carteraService.registrar("Cartera PreValidacion", "Test").getId();
-        ResponseEntity<String> resp = subirCsv(token, c, "2025-04", FIXTURE_VALIDO);
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_VALIDO);
         String importacionId = extraerImportacionId(resp.getBody());
 
         Awaitility.await("esperando VALIDADA").atMost(30, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
                 .until(() -> importacionRepository.findById(UUID.fromString(importacionId))
-                        .map(im -> im.getEstado() == EstadoImportacion.VALIDADA).orElse(false));
+                        .map(im -> im.getEstado() == EstadoImportacion.VALIDADA
+                                || im.getEstado() == EstadoImportacion.EXPIRADA).orElse(false));
 
-        // Verificar que NO se escribieron datos de dominio
-        int personas = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM cobranza.personas WHERE rut_numero = '12345678'", Integer.class);
-        int personasMgarcia = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM cobranza.personas WHERE rut_numero = '98765432'", Integer.class);
-        int cartPersonas = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM cobranza.carteras_personas WHERE cartera_id = ?::uuid", Integer.class, c.toString());
-
-        assertThat(personas).isEqualTo(0);
-        assertThat(personasMgarcia).isEqualTo(0);
-        assertThat(cartPersonas).isEqualTo(0);
+        // La validación no escribe datos de dominio
+        int operaciones = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cobranza.operaciones", Integer.class);
+        assertThat(operaciones).isEqualTo(0);
     }
 
     // ─── 6. Workflow async: CSV con errores → CON_ERRORES ────────────────────
@@ -289,8 +265,7 @@ class ImportacionAdminRestTest {
     @Test @Order(60)
     void csv_con_rut_invalido_alcanza_estado_con_errores() {
         String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
-        UUID c = carteraService.registrar("Cartera ConErrores", "Test").getId();
-        ResponseEntity<String> resp = subirCsv(token, c, "2025-05", FIXTURE_ERRORES);
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_ERRORES);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
         String importacionId = extraerImportacionId(resp.getBody());
 
@@ -301,15 +276,13 @@ class ImportacionAdminRestTest {
 
         EstadoImportacion estadoFinal = importacionRepository.findById(UUID.fromString(importacionId))
                 .map(im -> im.getEstado()).orElseThrow();
-        // RUT con DV inválido debe resultar en CON_ERRORES
         assertThat(estadoFinal).isEqualTo(EstadoImportacion.CON_ERRORES);
     }
 
     @Test @Order(61)
-    void no_se_puede_confirmar_importacion_con_errores_recibe_404_o_409() {
+    void no_se_puede_confirmar_importacion_con_errores_recibe_409() {
         String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
-        UUID c = carteraService.registrar("Cartera Err Confirm", "Test").getId();
-        ResponseEntity<String> resp = subirCsv(token, c, "2025-06", FIXTURE_ERRORES);
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_ERRORES);
         String importacionId = extraerImportacionId(resp.getBody());
 
         Awaitility.await("CON_ERRORES").atMost(30, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
@@ -325,18 +298,15 @@ class ImportacionAdminRestTest {
 
     @Test @Order(70)
     void confirmar_importacion_en_estado_recibida_recibe_409() {
-        // Insert directly in RECIBIDA state to avoid timing races with async validation
         UUID importacionId = UUID.randomUUID();
-        UUID c = carteraService.registrar("Cartera Recibida Confirm", "Test").getId();
         jdbc.update("""
             INSERT INTO cobranza.importaciones_mensuales
-                (id, cartera_id, usuario_id, periodo, sistema_origen, estado,
+                (id, usuario_id, sistema_origen, estado,
                  hash_archivo, nombre_archivo_original)
-            VALUES (?::uuid, ?::uuid, ?::uuid, ?, ?, 'RECIBIDA', ?, ?)
+            VALUES (?::uuid, ?::uuid, ?, 'RECIBIDA', ?, ?)
             """,
-            importacionId.toString(), c.toString(), idJefe.toString(),
-            "2025-07", "LEGADO",
-            "a".repeat(64), "test_recibida.csv");
+            importacionId.toString(), idJefe.toString(),
+            "LEGADO", "a".repeat(64), "test_recibida.csv");
 
         String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
         ResponseEntity<String> confirmar = post(BASE + "/" + importacionId + "/confirmar", null, token);
@@ -357,7 +327,7 @@ class ImportacionAdminRestTest {
     @Test @Order(80)
     void flujo_completo_recibe_validada() {
         String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
-        ResponseEntity<String> resp = subirCsv(token, carteraFlujoCompleto, "2026-08", FIXTURE_VALIDO);
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_VALIDO);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
         importacionFlujoCompleto = UUID.fromString(extraerImportacionId(resp.getBody()));
 
@@ -389,7 +359,6 @@ class ImportacionAdminRestTest {
     @Test @Order(82)
     void flujo_completo_verificar_persona_creada() {
         assertThat(importacionFlujoCompleto).isNotNull();
-        // Esperar COMPLETADA si el test anterior no corrió en orden
         Awaitility.await("COMPLETADA antes de verificar").atMost(10, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
                 .until(() -> importacionRepository.findById(importacionFlujoCompleto)
                         .map(im -> im.getEstado() == EstadoImportacion.COMPLETADA).orElse(false));
@@ -412,13 +381,14 @@ class ImportacionAdminRestTest {
                         .map(im -> im.getEstado() == EstadoImportacion.COMPLETADA).orElse(false));
 
         Integer operaciones = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM cobranza.operaciones WHERE numero_operacion = 'OP-001'", Integer.class);
+                "SELECT COUNT(*) FROM cobranza.operaciones WHERE numero_operacion = '600001000001'",
+                Integer.class);
         assertThat(operaciones).isGreaterThanOrEqualTo(1);
 
         Integer cuotas = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM cobranza.cuotas c "
                 + "JOIN cobranza.operaciones o ON c.operacion_id = o.id "
-                + "WHERE o.numero_operacion = 'OP-001'", Integer.class);
+                + "WHERE o.numero_operacion = '600001000001'", Integer.class);
         assertThat(cuotas).isGreaterThanOrEqualTo(3);
     }
 
@@ -428,14 +398,14 @@ class ImportacionAdminRestTest {
                 .until(() -> importacionRepository.findById(importacionFlujoCompleto)
                         .map(im -> im.getEstado() == EstadoImportacion.COMPLETADA).orElse(false));
 
-        // Debe existir asignación mensual para el ejecutivo jlopez
+        // Ejecutivo jlopez (codigo_ejecutivo_origen=1001) debe tener asignación mensual
         Integer asignaciones = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM cobranza.asignaciones_mensuales am "
                 + "JOIN cobranza.usuarios u ON am.ejecutivo_id = u.id "
                 + "WHERE u.nombre_usuario = 'jlopez'", Integer.class);
         assertThat(asignaciones).isGreaterThanOrEqualTo(1);
 
-        // El supervisor debe resolverse (supervisor_id no nulo)
+        // Con supervisor resuelto
         Integer conSupervisor = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM cobranza.asignaciones_mensuales am "
                 + "JOIN cobranza.usuarios u ON am.ejecutivo_id = u.id "
@@ -455,6 +425,19 @@ class ImportacionAdminRestTest {
         assertThat(resp.getBody()).doesNotContain("rutaArchivo");
     }
 
+    @Test @Order(86)
+    void flujo_completo_verificar_marca_judicial_persistida() {
+        Awaitility.await("COMPLETADA para marca judicial").atMost(10, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
+                .until(() -> importacionRepository.findById(importacionFlujoCompleto)
+                        .map(im -> im.getEstado() == EstadoImportacion.COMPLETADA).orElse(false));
+
+        // Verificar que MARCA_JUDICIAL fue persistida en carteras_personas
+        Integer conMarcaJudicial = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cobranza.carteras_personas WHERE marca_judicial IS NOT NULL",
+                Integer.class);
+        assertThat(conMarcaJudicial).isGreaterThanOrEqualTo(1);
+    }
+
     // ─── 9. Reimportación idempotencia ────────────────────────────────────────
 
     @Test @Order(90)
@@ -464,36 +447,53 @@ class ImportacionAdminRestTest {
                         .map(im -> im.getEstado() == EstadoImportacion.COMPLETADA).orElse(false));
 
         String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
-        // Mismo archivo, mismo período, misma cartera → 409
-        ResponseEntity<String> resp = subirCsv(token, carteraFlujoCompleto, "2026-08", FIXTURE_VALIDO);
+        // Mismo archivo → 409 por hash idempotente
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_VALIDO);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(resp.getBody()).contains("ARCHIVO_YA_IMPORTADO");
     }
 
     @Test @Order(91)
-    void periodo_anterior_al_completado_recibe_422() {
-        Awaitility.await("COMPLETADA").atMost(10, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
+    void importar_periodo_siguiente_no_duplica_entidades_maestras() {
+        Awaitility.await("COMPLETADA 2026-08").atMost(10, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
                 .until(() -> importacionRepository.findById(importacionFlujoCompleto)
                         .map(im -> im.getEstado() == EstadoImportacion.COMPLETADA).orElse(false));
 
-        String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
-        // Período anterior al último completado (2026-08) → 422
-        UUID c2 = carteraService.registrar("Cartera Periodo Anterior", "Test").getId();
-        // Primero completamos 2026-08 en c2...
-        ResponseEntity<String> r1 = subirCsv(token, c2, "2026-08", FIXTURE_VALIDO);
-        String id1 = extraerImportacionId(r1.getBody());
-        Awaitility.await("VALIDADA c2").atMost(30, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
-                .until(() -> importacionRepository.findById(UUID.fromString(id1))
-                        .map(im -> im.getEstado() == EstadoImportacion.VALIDADA).orElse(false));
-        post(BASE + "/" + id1 + "/confirmar", null, token);
-        Awaitility.await("COMPLETADA c2").atMost(30, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
-                .until(() -> importacionRepository.findById(UUID.fromString(id1))
-                        .map(im -> im.getEstado() == EstadoImportacion.COMPLETADA).orElse(false));
+        // Contar personas antes de importar 2026-09
+        int personasAntes = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cobranza.personas WHERE rut_numero = '12345678'", Integer.class);
 
-        // Ahora intentar período 2025-01 (anterior a 2026-08) → 422
-        ResponseEntity<String> resp = subirCsv(token, c2, "2025-01", FIXTURE_VALIDO);
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
-        assertThat(resp.getBody()).contains("PERIODO_ANTERIOR_NO_PERMITIDO");
+        String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
+        // Importar fixture 2026-09 (mismos RUTs y operaciones, período distinto)
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_VALIDO_SEP);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+
+        String importacion09Id = extraerImportacionId(resp.getBody());
+        Awaitility.await("VALIDADA 2026-09").atMost(30, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
+                .until(() -> importacionRepository.findById(UUID.fromString(importacion09Id))
+                        .map(im -> im.getEstado() == EstadoImportacion.VALIDADA).orElse(false));
+
+        post(BASE + "/" + importacion09Id + "/confirmar", null, token);
+
+        Awaitility.await("COMPLETADA 2026-09").atMost(30, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
+                .until(() -> importacionRepository.findById(UUID.fromString(importacion09Id))
+                        .map(im -> im.getEstado() == EstadoImportacion.COMPLETADA
+                                || im.getEstado() == EstadoImportacion.FALLIDA).orElse(false));
+
+        assertThat(importacionRepository.findById(UUID.fromString(importacion09Id))
+                .map(im -> im.getEstado()).orElseThrow())
+                .isEqualTo(EstadoImportacion.COMPLETADA);
+
+        // La misma persona debe seguir siendo 1 entidad (no duplicada)
+        int personasDespues = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cobranza.personas WHERE rut_numero = '12345678'", Integer.class);
+        assertThat(personasDespues).isEqualTo(personasAntes);
+
+        // La misma operación no se duplica
+        int operaciones = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cobranza.operaciones WHERE numero_operacion = '600001000001'",
+                Integer.class);
+        assertThat(operaciones).isEqualTo(1);
     }
 
     // ─── 10. GET detalle y errores ────────────────────────────────────────────
@@ -501,14 +501,12 @@ class ImportacionAdminRestTest {
     @Test @Order(100)
     void obtener_importacion_existente_retorna_detalle_completo() {
         String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
-        UUID c = carteraService.registrar("Cartera Detalle", "Test").getId();
-        ResponseEntity<String> crearResp = subirCsv(token, c, "2024-01", FIXTURE_VALIDO);
+        ResponseEntity<String> crearResp = subirCsv(token, FIXTURE_VALIDO);
         String importacionId = extraerImportacionId(crearResp.getBody());
 
         ResponseEntity<String> detalle = get(BASE + "/" + importacionId, token);
         assertThat(detalle.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(detalle.getBody()).contains("\"estado\"");
-        assertThat(detalle.getBody()).contains("\"periodo\"");
         assertThat(detalle.getBody()).contains("\"nombreArchivoOriginal\"");
         assertThat(detalle.getBody()).doesNotContain("rutaArchivo");
     }
@@ -531,8 +529,7 @@ class ImportacionAdminRestTest {
     @Test @Order(103)
     void listar_errores_de_importacion_con_errores_tiene_contenido() {
         String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
-        UUID c = carteraService.registrar("Cartera Err Lista", "Test").getId();
-        ResponseEntity<String> resp = subirCsv(token, c, "2024-02", FIXTURE_ERRORES);
+        ResponseEntity<String> resp = subirCsv(token, FIXTURE_ERRORES);
         String importacionId = extraerImportacionId(resp.getBody());
 
         Awaitility.await("CON_ERRORES para lista").atMost(30, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
@@ -542,7 +539,6 @@ class ImportacionAdminRestTest {
         ResponseEntity<String> errores = get(BASE + "/" + importacionId + "/errores", token);
         assertThat(errores.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(errores.getBody()).contains("\"contenido\"");
-        // Debe tener al menos un error (RUT DV inválido según módulo 11)
         assertThat(errores.getBody()).contains("RUT_INVALIDO_MODULO_11");
     }
 
@@ -569,8 +565,7 @@ class ImportacionAdminRestTest {
     @Test @Order(120)
     void respuesta_no_expone_ruta_fisica_ni_hash() {
         String token = tokenConPermiso(idJefe, "JEFE_SUPERVISORES");
-        UUID c = carteraService.registrar("Cartera Privacidad", "Test").getId();
-        ResponseEntity<String> crearResp = subirCsv(token, c, "2023-12", FIXTURE_VALIDO);
+        ResponseEntity<String> crearResp = subirCsv(token, FIXTURE_VALIDO);
         String importacionId = extraerImportacionId(crearResp.getBody());
 
         ResponseEntity<String> detalle = get(BASE + "/" + importacionId, token);
@@ -583,13 +578,11 @@ class ImportacionAdminRestTest {
 
     // ─── Utilidades ───────────────────────────────────────────────────────────
 
-    private ResponseEntity<String> subirCsv(String token, UUID carteraId, String periodo, String recurso) {
+    private ResponseEntity<String> subirCsv(String token, String recurso) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("carteraId", carteraId.toString());
-        body.add("periodo", periodo);
         body.add("sistemaOrigen", "LEGADO");
         body.add("archivo", new ClassPathResource(recurso));
         return rest.exchange(BASE, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);

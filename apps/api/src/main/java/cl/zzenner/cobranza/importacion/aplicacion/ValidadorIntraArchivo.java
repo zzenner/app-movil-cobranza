@@ -13,85 +13,53 @@ class ValidadorIntraArchivo {
     List<ErrorImportacion> validar(UUID importacionId, List<FilaCsv> filas) {
         List<ErrorImportacion> errores = new ArrayList<>();
 
-        // Mapas para detectar inconsistencias
-        Map<String, String> rutPorCodigoExtPersona = new HashMap<>();
-        Map<String, String> codigoExtPorRut = new HashMap<>();
-        Map<String, String> personaPorOperacionIdExt = new HashMap<>();
-        Map<String, Set<String>> ejecutivosPorRut = new HashMap<>();
-        Map<String, FilaCsv> ultimaOperacionPorIdExt = new HashMap<>();
-        Map<String, Set<String>> direccionesPorRut = new HashMap<>();
+        // Clave de posición: PERIODO+RUT+OP+CUOTA+CARTERA
+        Set<String> posicionesVistas = new HashSet<>();
+        // Ejecutivo único por PERIODO+RUT+CARTERA
+        Map<String, Set<String>> ejecutivosPorPeriodoRutCartera = new HashMap<>();
+        // Consistencia de tipo por operacion
+        Map<String, String> tipoPorOperacion = new HashMap<>();
 
         for (FilaCsv fila : filas) {
             String rutKey = fila.rutNumero() + "-" + fila.rutDv();
 
             validarRut(fila, importacionId, errores);
 
-            if (fila.codigoExtPersona() != null && !fila.codigoExtPersona().isBlank()) {
-                String rutExistente = rutPorCodigoExtPersona.get(fila.codigoExtPersona());
-                if (rutExistente != null && !rutExistente.equals(rutKey)) {
-                    errores.add(new ErrorImportacion(importacionId, fila.numeroFila(),
-                            "CODIGO_EXT_PERSONA", "EXT_PERSONA_RUT_INCONSISTENTE", NivelError.ERROR,
-                            "Mismo código externo de persona apunta a distintos RUT (filas " +
-                                    fila.numeroFila() + ")"));
-                } else {
-                    rutPorCodigoExtPersona.put(fila.codigoExtPersona(), rutKey);
-                }
-
-                String codigoExistente = codigoExtPorRut.get(rutKey);
-                if (codigoExistente != null && !codigoExistente.equals(fila.codigoExtPersona())) {
-                    errores.add(new ErrorImportacion(importacionId, fila.numeroFila(),
-                            "CODIGO_EXT_PERSONA", "RUT_CODIGO_EXT_INCONSISTENTE", NivelError.ERROR,
-                            "Mismo RUT con distintos códigos externos de persona (fila " +
-                                    fila.numeroFila() + ")"));
-                } else {
-                    codigoExtPorRut.put(rutKey, fila.codigoExtPersona());
-                }
-            }
-
-            // Operación idExt debe pertenecer siempre al mismo RUT
-            String rutOperacion = personaPorOperacionIdExt.get(fila.operacionIdExt());
-            if (rutOperacion != null && !rutOperacion.equals(rutKey)) {
+            // Posición única: no puede haber dos filas con mismo periodo+rut+op+cuota+cartera
+            String clavePos = fila.periodo() + "|" + rutKey + "|" +
+                    fila.operacionNumero() + "|" + fila.cuotaNumero() + "|" + fila.codigoCartera();
+            if (!posicionesVistas.add(clavePos)) {
                 errores.add(new ErrorImportacion(importacionId, fila.numeroFila(),
-                        "OPERACION_ID_EXT", "OPERACION_PERSONA_INCONSISTENTE", NivelError.ERROR,
-                        "Operación externa " + fila.operacionIdExt() +
-                                " aparece con distinta persona (fila " + fila.numeroFila() + ")"));
-            } else {
-                personaPorOperacionIdExt.put(fila.operacionIdExt(), rutKey);
+                        "OPERACION_NUMERO", "POSICION_DUPLICADA", NivelError.ERROR,
+                        "Posición duplicada (PERIODO+RUT+OPERACION+CUOTA+CARTERA) en fila " +
+                                fila.numeroFila() + ": " + clavePos));
             }
 
-            // Operación datos maestros inconsistentes
-            FilaCsv prev = ultimaOperacionPorIdExt.get(fila.operacionIdExt());
-            if (prev != null) {
-                if (!Objects.equals(prev.operacionNumero(), fila.operacionNumero()) ||
-                        !Objects.equals(prev.operacionTipo(), fila.operacionTipo())) {
-                    errores.add(new ErrorImportacion(importacionId, fila.numeroFila(),
-                            "OPERACION_ID_EXT", "OPERACION_DATOS_INCONSISTENTES", NivelError.ERROR,
-                            "Operación " + fila.operacionIdExt() +
-                                    " tiene datos maestros inconsistentes (fila " + fila.numeroFila() + ")"));
-                }
-            } else {
-                ultimaOperacionPorIdExt.put(fila.operacionIdExt(), fila);
-            }
-
-            // Un ejecutivo por persona
-            Set<String> ejecutivos = ejecutivosPorRut.computeIfAbsent(rutKey, k -> new HashSet<>());
-            ejecutivos.add(fila.ejecutivoUsername());
+            // Ejecutivo único por PERIODO+RUT+CARTERA
+            String claveEjec = fila.periodo() + "|" + rutKey + "|" + fila.codigoCartera();
+            Set<String> ejecutivos = ejecutivosPorPeriodoRutCartera
+                    .computeIfAbsent(claveEjec, k -> new LinkedHashSet<>());
+            ejecutivos.add(fila.codigoEjecutivo());
             if (ejecutivos.size() > 1) {
                 errores.add(new ErrorImportacion(importacionId, fila.numeroFila(),
-                        "EJECUTIVO_USERNAME", "PERSONA_EJECUTIVOS_MULTIPLES", NivelError.ERROR,
-                        "La persona " + rutKey + " tiene más de un ejecutivo asignado (fila " +
-                                fila.numeroFila() + ")"));
+                        "CODIGO_EJECUTIVO", "PERSONA_EJECUTIVOS_MULTIPLES", NivelError.ERROR,
+                        "La persona " + rutKey + " tiene más de un ejecutivo en PERIODO=" +
+                                fila.periodo() + " CARTERA=" + fila.codigoCartera() +
+                                ": " + String.join(", ", ejecutivos)));
             }
 
-            // Dirección incompatible por tipo
-            String dirKey = fila.direccionTipo();
-            Set<String> dirs = direccionesPorRut.computeIfAbsent(rutKey + "|" + dirKey, k -> new HashSet<>());
-            dirs.add(fila.direccionTexto());
-            if (dirs.size() > 1) {
-                errores.add(new ErrorImportacion(importacionId, fila.numeroFila(),
-                        "DIRECCION_TEXTO", "PERSONA_DIRECCION_INCONSISTENTE", NivelError.ADVERTENCIA,
-                        "La persona " + rutKey + " tiene direcciones distintas del mismo tipo " +
-                                dirKey + " (fila " + fila.numeroFila() + ")"));
+            // Consistencia del tipo de operación: mismo numero → mismo tipo
+            String tipoPrev = tipoPorOperacion.get(fila.operacionNumero());
+            if (tipoPrev != null) {
+                if (!Objects.equals(tipoPrev, fila.operacionTipo())) {
+                    errores.add(new ErrorImportacion(importacionId, fila.numeroFila(),
+                            "OPERACION_TIPO", "OPERACION_DATOS_INCONSISTENTES", NivelError.ERROR,
+                            "Operación " + fila.operacionNumero() +
+                                    " tiene tipo inconsistente: '" + tipoPrev +
+                                    "' vs '" + fila.operacionTipo() + "' en fila " + fila.numeroFila()));
+                }
+            } else {
+                tipoPorOperacion.put(fila.operacionNumero(), fila.operacionTipo());
             }
         }
 

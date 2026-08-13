@@ -126,17 +126,33 @@ describe('ImportacionService', () => {
     req.flush(null);
   });
 
-  it('crear envía multipart/form-data con todos los campos', () => {
+  it('crear envía multipart/form-data con archivo y sistemaOrigen (contrato v2)', () => {
     const archivo = new File(['rut;nombre'], 'test.csv', { type: 'text/csv' });
-    service.crear('cart-001', '2026-08', 'LEGADO', archivo).subscribe();
+    service.crear('LEGADO', archivo).subscribe();
     const req = httpMock.expectOne(BASE);
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toBeInstanceOf(FormData);
     const body = req.request.body as FormData;
-    expect(body.get('carteraId')).toBe('cart-001');
-    expect(body.get('periodo')).toBe('2026-08');
     expect(body.get('sistemaOrigen')).toBe('LEGADO');
     expect(body.get('archivo')).toBeInstanceOf(File);
-    req.flush({ importacionId: 'imp-001', estado: 'RECIBIDA', periodo: '2026-08', nombreArchivoOriginal: 'test.csv' });
+    req.flush({ importacionId: 'imp-001', estado: 'RECIBIDA', periodo: null, nombreArchivoOriginal: 'test.csv' });
+  });
+
+  it('crear NO incluye carteraId en el FormData (viene en el CSV)', () => {
+    const archivo = new File(['rut;nombre'], 'test.csv', { type: 'text/csv' });
+    service.crear('LEGADO', archivo).subscribe();
+    const req = httpMock.expectOne(BASE);
+    const body = req.request.body as FormData;
+    expect(body.get('carteraId')).toBeNull();
+    req.flush({ importacionId: 'imp-001', estado: 'RECIBIDA', periodo: null, nombreArchivoOriginal: 'test.csv' });
+  });
+
+  it('crear NO incluye periodo en el FormData (viene en el CSV)', () => {
+    const archivo = new File(['rut;nombre'], 'test.csv', { type: 'text/csv' });
+    service.crear('LEGADO', archivo).subscribe();
+    const req = httpMock.expectOne(BASE);
+    const body = req.request.body as FormData;
+    expect(body.get('periodo')).toBeNull();
+    req.flush({ importacionId: 'imp-001', estado: 'RECIBIDA', periodo: null, nombreArchivoOriginal: 'test.csv' });
   });
 });

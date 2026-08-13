@@ -8,15 +8,10 @@ import { type Mocked } from 'vitest';
 import { ImportacionNuevaComponent } from './importacion-nueva.component';
 import { ImportacionService } from '../../services/importacion.service';
 
-const mockCarteras = [
-  { id: 'cart-001', nombre: 'Cartera Test' },
-  { id: 'cart-002', nombre: 'Cartera B' },
-];
-
 const mockRespuesta = {
   importacionId: 'imp-nuevo',
   estado: 'RECIBIDA',
-  periodo: '2026-08',
+  periodo: null,
   nombreArchivoOriginal: 'importacion.csv',
 };
 
@@ -25,7 +20,7 @@ describe('ImportacionNuevaComponent', () => {
 
   beforeEach(async () => {
     serviceMock = {
-      listarCarteras: vi.fn().mockReturnValue(of(mockCarteras)),
+      listarCarteras: vi.fn(),
       crear: vi.fn().mockReturnValue(of(mockRespuesta)),
       listar: vi.fn(),
       obtener: vi.fn(),
@@ -45,62 +40,31 @@ describe('ImportacionNuevaComponent', () => {
     }).compileComponents();
   });
 
-  it('carga carteras al inicializar', async () => {
+  // ── Contrato v2: sin selector de cartera ni campo de período ──────────────
+
+  it('el formulario NO muestra selector de cartera (contrato v2)', async () => {
     const fixture = TestBed.createComponent(ImportacionNuevaComponent);
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(serviceMock.listarCarteras).toHaveBeenCalled();
-    expect(fixture.componentInstance.carteras()).toHaveLength(2);
-    expect(fixture.componentInstance.cargandoCarteras()).toBe(false);
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('[data-testid="selector-cartera"]')).toBeNull();
   });
 
-  it('formulario es inválido si carteraId está vacío', () => {
+  it('el formulario NO muestra campo de período (contrato v2)', async () => {
     const fixture = TestBed.createComponent(ImportacionNuevaComponent);
     fixture.detectChanges();
-    const comp = fixture.componentInstance;
-    comp.form.setValue({ carteraId: '', periodo: '2026-08' });
-    expect(comp.form.invalid).toBe(true);
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('[data-testid="input-periodo"]')).toBeNull();
   });
 
-  it('formulario es inválido si período no cumple el patrón YYYY-MM', () => {
+  it('el componente NO llama a listarCarteras (cartera viene en el CSV)', () => {
     const fixture = TestBed.createComponent(ImportacionNuevaComponent);
     fixture.detectChanges();
-    const comp = fixture.componentInstance;
-    comp.form.setValue({ carteraId: 'cart-001', periodo: '08-2026' });
-    expect(comp.form.get('periodo')?.hasError('pattern')).toBe(true);
+    expect(serviceMock.listarCarteras).not.toHaveBeenCalled();
   });
 
-  it('formulario es válido con carteraId y período correcto', () => {
-    const fixture = TestBed.createComponent(ImportacionNuevaComponent);
-    fixture.detectChanges();
-    const comp = fixture.componentInstance;
-    comp.form.setValue({ carteraId: 'cart-001', periodo: '2026-08' });
-    expect(comp.form.valid).toBe(true);
-  });
-
-  it('periodo 2026-01 es válido', () => {
-    const fixture = TestBed.createComponent(ImportacionNuevaComponent);
-    fixture.detectChanges();
-    const comp = fixture.componentInstance;
-    comp.form.setValue({ carteraId: 'cart-001', periodo: '2026-01' });
-    expect(comp.form.get('periodo')?.valid).toBe(true);
-  });
-
-  it('periodo 2026-12 es válido', () => {
-    const fixture = TestBed.createComponent(ImportacionNuevaComponent);
-    fixture.detectChanges();
-    const comp = fixture.componentInstance;
-    comp.form.setValue({ carteraId: 'cart-001', periodo: '2026-12' });
-    expect(comp.form.get('periodo')?.valid).toBe(true);
-  });
-
-  it('periodo 2026-13 es inválido', () => {
-    const fixture = TestBed.createComponent(ImportacionNuevaComponent);
-    fixture.detectChanges();
-    const comp = fixture.componentInstance;
-    comp.form.setValue({ carteraId: 'cart-001', periodo: '2026-13' });
-    expect(comp.form.get('periodo')?.hasError('pattern')).toBe(true);
-  });
+  // ── Selector de archivo ───────────────────────────────────────────────────
 
   it('onArchivoSeleccionado actualiza archivoSeleccionado', () => {
     const fixture = TestBed.createComponent(ImportacionNuevaComponent);
@@ -113,36 +77,58 @@ describe('ImportacionNuevaComponent', () => {
     expect(comp.mostrarErrorArchivo()).toBe(false);
   });
 
+  // ── Envío — validación de archivo ─────────────────────────────────────────
+
   it('enviar muestra error de archivo si no hay archivo seleccionado', () => {
     const fixture = TestBed.createComponent(ImportacionNuevaComponent);
     fixture.detectChanges();
     const comp = fixture.componentInstance;
-    comp.form.setValue({ carteraId: 'cart-001', periodo: '2026-08' });
     comp.enviar();
     expect(comp.mostrarErrorArchivo()).toBe(true);
     expect(serviceMock.crear).not.toHaveBeenCalled();
   });
 
-  it('enviar no procede si el formulario es inválido', () => {
-    const fixture = TestBed.createComponent(ImportacionNuevaComponent);
-    fixture.detectChanges();
-    const comp = fixture.componentInstance;
-    comp.form.setValue({ carteraId: '', periodo: '' });
-    comp.enviar();
-    expect(serviceMock.crear).not.toHaveBeenCalled();
-  });
+  // ── Envío correcto — contrato v2 ──────────────────────────────────────────
 
-  it('enviar llama crear con los parámetros correctos', async () => {
+  it('enviar llama crear con sistemaOrigen y archivo únicamente (sin carteraId, sin periodo)', async () => {
     const fixture = TestBed.createComponent(ImportacionNuevaComponent);
     fixture.detectChanges();
     await fixture.whenStable();
     const comp = fixture.componentInstance;
-    comp.form.setValue({ carteraId: 'cart-001', periodo: '2026-08' });
     const file = new File(['rut;nombre'], 'importacion.csv', { type: 'text/csv' });
     comp.archivoSeleccionado.set(file);
     comp.enviar();
-    expect(serviceMock.crear).toHaveBeenCalledWith('cart-001', '2026-08', 'LEGADO', file);
+    expect(serviceMock.crear).toHaveBeenCalledWith('LEGADO', file);
+    expect(serviceMock.crear).toHaveBeenCalledTimes(1);
   });
+
+  it('enviar NO pasa carteraId como segundo argumento', async () => {
+    const fixture = TestBed.createComponent(ImportacionNuevaComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const comp = fixture.componentInstance;
+    const file = new File(['x'], 'test.csv');
+    comp.archivoSeleccionado.set(file);
+    comp.enviar();
+    const args = serviceMock.crear.mock.calls[0];
+    // La firma es crear(sistemaOrigen, archivo) — solo 2 argumentos
+    expect(args).toHaveLength(2);
+    expect(args[0]).toBe('LEGADO');
+    expect(args[1]).toBe(file);
+  });
+
+  it('la subida navega a detalle de importacion cuando es exitosa', async () => {
+    const fixture = TestBed.createComponent(ImportacionNuevaComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const comp = fixture.componentInstance;
+    const file = new File(['rut;nombre'], 'importacion.csv', { type: 'text/csv' });
+    comp.archivoSeleccionado.set(file);
+    comp.enviar();
+    expect(serviceMock.crear).toHaveBeenCalled();
+  });
+
+  // ── Manejo de errores del servidor ────────────────────────────────────────
 
   it('muestra error del servidor cuando crear falla con ARCHIVO_YA_IMPORTADO', async () => {
     const errorBody = { detail: 'ARCHIVO_YA_IMPORTADO: el archivo ya fue procesado' };
@@ -151,7 +137,6 @@ describe('ImportacionNuevaComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     const comp = fixture.componentInstance;
-    comp.form.setValue({ carteraId: 'cart-001', periodo: '2026-08' });
     const file = new File(['contenido'], 'importacion.csv');
     comp.archivoSeleccionado.set(file);
     comp.enviar();
@@ -165,7 +150,6 @@ describe('ImportacionNuevaComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     const comp = fixture.componentInstance;
-    comp.form.setValue({ carteraId: 'cart-001', periodo: '2026-08' });
     comp.archivoSeleccionado.set(new File(['x'], 'f.csv'));
     comp.enviar();
     expect(comp.errorServidor()).toBeTruthy();
@@ -179,7 +163,6 @@ describe('ImportacionNuevaComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     const comp = fixture.componentInstance;
-    comp.form.setValue({ carteraId: 'cart-001', periodo: '2025-01' });
     comp.archivoSeleccionado.set(new File(['x'], 'f.csv'));
     comp.enviar();
     fixture.detectChanges();
@@ -187,19 +170,33 @@ describe('ImportacionNuevaComponent', () => {
     expect(el.querySelector('[data-testid="error-servidor"]')).toBeTruthy();
   });
 
-  it('cargandoCarteras empieza true y termina false después de carga', async () => {
+  it('enviando vuelve a false cuando crear falla', async () => {
+    serviceMock.crear.mockReturnValue(throwError(() => ({ error: { detail: 'error' } })));
     const fixture = TestBed.createComponent(ImportacionNuevaComponent);
-    expect(fixture.componentInstance.cargandoCarteras()).toBe(true);
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(fixture.componentInstance.cargandoCarteras()).toBe(false);
+    const comp = fixture.componentInstance;
+    comp.archivoSeleccionado.set(new File(['x'], 'f.csv'));
+    comp.enviar();
+    expect(comp.enviando()).toBe(false);
   });
 
-  it('cargandoCarteras termina false aunque falle la carga de carteras', async () => {
-    serviceMock.listarCarteras.mockReturnValue(throwError(() => new Error('network')));
+  it('el template muestra el selector de archivo CSV', async () => {
     const fixture = TestBed.createComponent(ImportacionNuevaComponent);
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(fixture.componentInstance.cargandoCarteras()).toBe(false);
+    const el = fixture.nativeElement as HTMLElement;
+    const inputArchivo = el.querySelector('[data-testid="input-archivo"]') as HTMLInputElement;
+    expect(inputArchivo).toBeTruthy();
+    expect(inputArchivo.accept).toContain('.csv');
+  });
+
+  it('el template muestra el botón de subir', async () => {
+    const fixture = TestBed.createComponent(ImportacionNuevaComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+    const btn = el.querySelector('[data-testid="btn-subir"]');
+    expect(btn).toBeTruthy();
   });
 });

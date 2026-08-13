@@ -559,32 +559,12 @@ else
             else fail "Escenario 4: GET con filtro carteraId — esperado 200, obtenido $_FILT_CODE"; fi
 
             # ─── ESCENARIO 5: POST crear importación con archivo válido ───────────
+            # Contrato v2: carteraId y periodo provienen del CSV, no del request
             IMP_FIXTURE="${ROOT_DIR}/apps/api/src/test/resources/fixtures/importacion/importacion_valida_2026-08.csv"
-            # Usar período dinámico para evitar idempotencia con corridas anteriores
-            IMP_PERIODO="$(date +%Y-%m)"
-            _IMP_TS=$(date +%s)
 
             _CREATE_RESP=$(curl -s -w "\n%{http_code}" \
                 -X POST \
                 -H "Authorization: Bearer $IMP_TOKEN" \
-                -F "carteraId=${IMP_CARTERA_ID}" \
-                -F "periodo=${IMP_PERIODO}-${_IMP_TS}" \
-                -F "sistemaOrigen=LEGADO" \
-                -F "archivo=@${IMP_FIXTURE};type=text/csv" \
-                --connect-timeout 5 --max-time 30 \
-                "$API_BASE/api/v1/admin/importaciones/mensuales" 2>/dev/null || echo -e "\n000")
-            _CREATE_CODE=$(echo "$_CREATE_RESP" | tail -n1)
-            _CREATE_BODY=$(echo "$_CREATE_RESP" | head -n-1)
-
-            # Período con timestamp hace que cada ejecución use un hash distinto
-            # Formato válido de período es YYYY-MM; usar timestamp como sufijo no cumple el patrón.
-            # Usar un período fijo aleatorio para smoke
-            # Reintento con período estático (el API valida el formato YYYY-MM)
-            _CREATE_RESP=$(curl -s -w "\n%{http_code}" \
-                -X POST \
-                -H "Authorization: Bearer $IMP_TOKEN" \
-                -F "carteraId=${IMP_CARTERA_ID}" \
-                -F "periodo=2025-01" \
                 -F "sistemaOrigen=LEGADO" \
                 -F "archivo=@${IMP_FIXTURE};type=text/csv" \
                 --connect-timeout 5 --max-time 30 \
@@ -697,8 +677,6 @@ else
                 _IDEM_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
                     -X POST \
                     -H "Authorization: Bearer $IMP_TOKEN" \
-                    -F "carteraId=${IMP_CARTERA_ID}" \
-                    -F "periodo=2025-01" \
                     -F "sistemaOrigen=LEGADO" \
                     -F "archivo=@${IMP_FIXTURE};type=text/csv" \
                     --connect-timeout 5 --max-time 30 \
@@ -731,8 +709,6 @@ else
             _ERR_IMPORT_RESP=$(curl -s -w "\n%{http_code}" \
                 -X POST \
                 -H "Authorization: Bearer $IMP_TOKEN" \
-                -F "carteraId=${IMP_CARTERA_ID}" \
-                -F "periodo=2025-02" \
                 -F "sistemaOrigen=LEGADO" \
                 -F "archivo=@${IMP_FIXTURE_ERR};type=text/csv" \
                 --connect-timeout 5 --max-time 30 \

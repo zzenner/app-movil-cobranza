@@ -58,7 +58,7 @@ class ImportacionProcesamientoWorker {
 
             List<FilaCsv> filas = resultadoParser.filas();
             ResultadoProcesamiento resultado = persistenciaService.procesarFilas(
-                    filas, im.getCarteraId(), im.getPeriodo(), im.getSistemaOrigen(), importacionId);
+                    filas, im.getSistemaOrigen(), importacionId);
 
             guardarResultadoProcesamiento(importacionId, resultado, im.getRutaArchivo());
 

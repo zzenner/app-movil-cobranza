@@ -500,6 +500,181 @@ components:
           format: int64
           description: Versión del registro para control de concurrencia optimista.
 
+    EstadoImportacion:
+      type: string
+      enum: [RECIBIDA, VALIDANDO, VALIDADA, CON_ERRORES, PROCESANDO, COMPLETADA, FALLIDA, EXPIRADA]
+      description: |
+        Estados del ciclo de vida de una importación mensual:
+        - `RECIBIDA`: archivo aceptado, worker de validación pendiente.
+        - `VALIDANDO`: validación intra-archivo en curso.
+        - `VALIDADA`: validación OK, pendiente confirmación.
+        - `CON_ERRORES`: validación completada con errores; requiere corrección.
+        - `PROCESANDO`: confirmada, worker de persistencia en curso.
+        - `COMPLETADA`: todos los datos persistidos.
+        - `FALLIDA`: error inesperado en procesamiento.
+        - `EXPIRADA`: TTL de validación superado sin confirmar.
+
+    RespuestaCrearImportacion:
+      type: object
+      properties:
+        importacionId:
+          type: string
+          format: uuid
+          description: ID de la importación creada.
+        estado:
+          $ref: '#/components/schemas/EstadoImportacion'
+        periodo:
+          type: string
+          nullable: true
+          description: Siempre null en el contrato v2 (el período viene en el CSV por fila).
+          example: null
+        nombreArchivoOriginal:
+          type: string
+          description: Nombre original del archivo recibido.
+          example: "importacion_2026-08.csv"
+
+    ImportacionResumen:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        carteraId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Null en contrato v2 (la cartera viene en el CSV por fila).
+        periodo:
+          type: string
+          nullable: true
+          description: Null en contrato v2 (el período viene en el CSV por fila).
+          example: null
+        sistemaOrigen:
+          type: string
+          description: Código del sistema de origen (ej. LEGADO).
+          example: "LEGADO"
+        estado:
+          $ref: '#/components/schemas/EstadoImportacion'
+        nombreArchivoOriginal:
+          type: string
+          example: "importacion_2026-08.csv"
+        filasTotales:
+          type: integer
+          nullable: true
+        filasProcesadas:
+          type: integer
+          nullable: true
+        filasRechazadas:
+          type: integer
+          nullable: true
+        filasAdvertencia:
+          type: integer
+          nullable: true
+        fechaCreacion:
+          type: string
+          format: date-time
+        fechaActualizacion:
+          type: string
+          format: date-time
+
+    ImportacionDetalle:
+      allOf:
+        - $ref: '#/components/schemas/ImportacionResumen'
+        - type: object
+          properties:
+            usuarioId:
+              type: string
+              format: uuid
+              description: ID del usuario que subió el archivo.
+            personasCreadas:
+              type: integer
+              nullable: true
+            personasActualizadas:
+              type: integer
+              nullable: true
+            operacionesCreadas:
+              type: integer
+              nullable: true
+            operacionesActualizadas:
+              type: integer
+              nullable: true
+            cuotasCreadas:
+              type: integer
+              nullable: true
+            cuotasActualizadas:
+              type: integer
+              nullable: true
+            mensajeError:
+              type: string
+              nullable: true
+            version:
+              type: integer
+              description: Versión del registro (control optimista).
+
+    RespuestaPaginaImportaciones:
+      type: object
+      properties:
+        contenido:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportacionResumen'
+        pagina:
+          type: integer
+          example: 0
+        tamanio:
+          type: integer
+          example: 20
+        totalElementos:
+          type: integer
+          format: int64
+        totalPaginas:
+          type: integer
+
+    ErrorImportacion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        numeroFila:
+          type: integer
+          nullable: true
+          description: Fila del CSV donde ocurrió el error (1-based). Null si es error global.
+        columna:
+          type: string
+          nullable: true
+          description: Nombre de la columna CSV donde ocurrió el error.
+          example: "RUT_NUMERO"
+        codigoError:
+          type: string
+          description: Código estable para máquina.
+          example: "RUT_INVALIDO_MODULO_11"
+        nivel:
+          type: string
+          enum: [ERROR, ADVERTENCIA]
+        mensaje:
+          type: string
+          description: Descripción legible del error.
+
+    RespuestaPaginaErrores:
+      type: object
+      properties:
+        contenido:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorImportacion'
+        pagina:
+          type: integer
+          example: 0
+        tamanio:
+          type: integer
+          example: 50
+        totalElementos:
+          type: integer
+          format: int64
+        totalPaginas:
+          type: integer
+
   SolicitudCrearUsuario:
     type: object
     required:
@@ -1585,3 +1760,250 @@ paths:
           description: Sin permiso USUARIOS_ADMINISTRAR.
         "404":
           description: Usuario no encontrado.
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Admin — Importaciones mensuales (Fase 5D — contrato CSV v2)
+  # Ruta base: /api/v1/admin/importaciones/mensuales
+  # Permiso requerido: PERM_DATOS_IMPORTAR
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  /api/v1/admin/importaciones/mensuales:
+    post:
+      tags:
+        - Admin — Importaciones
+      summary: Subir archivo CSV de importación mensual
+      description: |
+        Recibe un archivo CSV con el contrato v2 (26 columnas, UTF-8, YYYY-MM-DD).
+        El período y la cartera se obtienen de cada fila del CSV, no del request.
+        El archivo se valida de forma asíncrona; el estado pasa a VALIDANDO.
+
+        **Idempotencia:** si se sube el mismo archivo (mismo hash SHA-256 + sistemaOrigen),
+        retorna HTTP 409 con el ID de la importación existente.
+
+        **Permiso requerido:** `PERM_DATOS_IMPORTAR`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - archivo
+              properties:
+                sistemaOrigen:
+                  type: string
+                  default: LEGADO
+                  description: Código del sistema de origen. Default LEGADO.
+                  example: "LEGADO"
+                archivo:
+                  type: string
+                  format: binary
+                  description: Archivo CSV con el contrato v2 (26 columnas, UTF-8, YYYY-MM-DD).
+      responses:
+        "202":
+          description: Archivo recibido. Validación asíncrona iniciada.
+          headers:
+            Location:
+              description: URL del recurso creado (detalle de la importación).
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaCrearImportacion'
+        "400":
+          description: Archivo vacío, extensión no válida o encoding no UTF-8.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "401":
+          description: No autenticado.
+        "403":
+          description: Sin permiso PERM_DATOS_IMPORTAR.
+        "409":
+          description: |
+            ARCHIVO_YA_IMPORTADO — el mismo archivo ya fue importado (mismo hash SHA-256).
+            O IMPORTACION_EN_PROGRESO — ya existe una importación en estado RECIBIDA/VALIDANDO/PROCESANDO.
+          content:
+            application/problem+json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ProblemDetail'
+                  - type: object
+                    properties:
+                      importacionId:
+                        type: string
+                        format: uuid
+                        description: ID de la importación ya existente (solo en ARCHIVO_YA_IMPORTADO).
+        "422":
+          description: PERIODO_ANTERIOR_NO_PERMITIDO — el período del CSV es anterior al último completado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+    get:
+      tags:
+        - Admin — Importaciones
+      summary: Listar importaciones mensuales
+      description: |
+        Devuelve el historial paginado de importaciones, opcionalmente filtrado por cartera.
+        **Permiso requerido:** `PERM_DATOS_IMPORTAR`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: carteraId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filtrar por ID de cartera (opcional).
+        - name: pagina
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: tamanio
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Listado paginado de importaciones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaPaginaImportaciones'
+        "401":
+          description: No autenticado.
+        "403":
+          description: Sin permiso PERM_DATOS_IMPORTAR.
+
+  /api/v1/admin/importaciones/mensuales/{id}:
+    get:
+      tags:
+        - Admin — Importaciones
+      summary: Obtener detalle de una importación
+      description: |
+        Devuelve el estado actual y los contadores de una importación específica.
+        **Permiso requerido:** `PERM_DATOS_IMPORTAR`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Detalle de la importación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportacionDetalle'
+        "401":
+          description: No autenticado.
+        "403":
+          description: Sin permiso PERM_DATOS_IMPORTAR.
+        "404":
+          description: Importación no encontrada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/admin/importaciones/mensuales/{id}/errores:
+    get:
+      tags:
+        - Admin — Importaciones
+      summary: Listar errores de validación de una importación
+      description: |
+        Devuelve los errores detectados durante la validación intra-archivo.
+        Disponible cuando el estado es CON_ERRORES o VALIDADA (con advertencias).
+        **Permiso requerido:** `PERM_DATOS_IMPORTAR`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: pagina
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: tamanio
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Listado paginado de errores de validación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaPaginaErrores'
+        "401":
+          description: No autenticado.
+        "403":
+          description: Sin permiso PERM_DATOS_IMPORTAR.
+        "404":
+          description: Importación no encontrada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/admin/importaciones/mensuales/{id}/confirmar:
+    post:
+      tags:
+        - Admin — Importaciones
+      summary: Confirmar importación validada
+      description: |
+        Confirma una importación en estado VALIDADA para iniciar el procesamiento.
+        El estado pasa a PROCESANDO de forma asíncrona.
+        **Permiso requerido:** `PERM_DATOS_IMPORTAR`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "202":
+          description: Procesamiento iniciado.
+        "401":
+          description: No autenticado.
+        "403":
+          description: Sin permiso PERM_DATOS_IMPORTAR.
+        "404":
+          description: Importación no encontrada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "409":
+          description: ESTADO_INVALIDO_PARA_CONFIRMAR — la importación no está en estado VALIDADA.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'

@@ -1,7 +1,7 @@
-# Handoff de sesión — Fase 5C VALIDADA ✅ LISTA PARA CIERRE
+# Handoff de sesión — Fase 5D CERRADA ✅ COMMIT LOCAL LISTO PARA PUSH
 
-**Fecha:** 2026-08-10
-**Rama activa:** `feature/fase-5c-importacion-mensual`
+**Fecha:** 2026-08-13
+**Rama activa:** `main`
 
 ---
 
@@ -9,129 +9,113 @@
 
 | Referencia | Hash | Descripción |
 |---|---|---|
-| `main` | `b3c4c8a` | feat: implementar gestion administrativa de usuarios fase 5b-2 |
-| `feature/fase-5c-importacion-mensual` | `f34b903` | docs: preparar contexto para fase 5c importacion mensual |
-| Árbol de trabajo | sucio | Fase 5C completada — pendiente commit (sin commit/push por instrucción) |
+| `origin/main` | `4b47f7a` | feat(importacion): implementar importacion mensual fase 5c |
+| `HEAD` (local) | `9133f49` | feat(importacion): cerrar contrato csv definitivo fase 5d |
+| Árbol de trabajo | limpio | Sin cambios sin commitear — listo para amend con pendientes 5D |
+
+**Pendientes sin commitear (para amend):** docs/gestion, .claude/, contracts/openapi — se comitearán via amend antes del push.
 
 ---
 
-## Resultado de validación final
+## Resultado de validación Fase 5D — COMPLETA
 
 | Suite | Resultado |
 |---|---|
-| API Testcontainers | ✅ **404/404 tests — BUILD SUCCESS** (2 corridas consecutivas, 0 flakiness) |
-| Angular Vitest | ✅ **148/148 tests** (20 test files, cobertura ≥80%) |
-| Playwright E2E | ✅ **40/40 tests** (14 nuevos importacion + 26 existentes) |
-| Docker compose build | ✅ Imágenes api y admin-web compiladas sin errores |
-| Docker compose up | ✅ postgres + api + admin-web — 3 servicios **healthy** |
-| Smoke test | ✅ **49/49 OK** (sección 8 importacion con skip graceful sin seed) |
-| Persistencia DB | ✅ API restart → V012 persistida (23 tablas, constraints correctos) |
-| git diff --check | ✅ Sin trailing whitespace |
-| git status | ✅ Sin commit/push/tag — solo cambios locales |
+| Maven clean verify — ejecución 1 | ✅ 435/435 — 0 failures — 0 errors |
+| Maven clean verify — ejecución 2 | ✅ 435/435 — 0 failures — 0 errors |
+| `CsvImportacionParserTest` — 23 tests | ✅ PASS |
+| `ValidadorIntraArchivoTest` — 8 tests | ✅ PASS |
+| `ImportacionAdminRestTest` — 33 tests | ✅ PASS |
+| `InfraestructuraTest` (Flyway + Modulith) — 5 tests | ✅ PASS |
+| `DominioAsignacionesIntegracionTest` — 21 tests | ✅ PASS |
+| Tests totales API | ✅ **435/435 — 0 failures** |
+| Angular build | ✅ BUILD SUCCESS |
+| Angular tests (`test:ci`) — 148 tests / 20 archivos | ✅ PASS |
+| Angular coverage | ✅ Statements 85.35% |
+| Angular security audit | ✅ 0 vulnerabilidades high/critical |
+| Playwright e2e importacion — 14 tests | ✅ 14/14 PASS |
+| Docker build | ✅ cobranza-api + cobranza-admin-web |
+| Docker up (postgres, api, admin-web) | ✅ todos healthy |
+| Smoke-test | ✅ 69 OK — 0 FALLIDO |
+| OpenAPI YAML válido | ✅ 23 rutas, 24 schemas, $ref importacion resuelven |
 
 ---
 
-## Bloques completados (TODAS LAS SESIONES)
+## Defectos detectados y corregidos en validación completa
 
-### ✅ API — módulo importacion
-- `pom.xml` — Apache Commons CSV 1.11.0
-- `application.yml` — storage, multipart, recuperacion config
-- `V012__importacion_mensual.sql`:
-  - Tabla `importaciones_mensuales` + `errores_importacion`
-  - Permiso `DATOS_IMPORTAR` → roles `JEFE_SUPERVISORES` y `TECNOLOGIA`
-  - `uq_cp_persona_activa` (RN-03 revisado: 1 cartera activa por persona)
-  - `ck_operaciones_estado` ampliado: `VIGENTE`, `VENCIDO`, `CASTIGADO`
-- 30+ archivos Java: dominio, aplicación, infraestructura, web
-- `ImportacionAdminController.java` (5 endpoints, 202 Accepted en POST y confirmar)
-- `CarteraAdminController.java` (GET /api/v1/admin/carteras/activas)
-- `CsvImportacionParser.java` — fix `stripBom()` con `BufferedInputStream`
-- `ImportacionPersistenciaService.java` — fix `List<?>` para queries `SELECT id` (1 columna)
+### [Commit 9133f49 — sesión 2026-08-12]
+1. `DominioAsignacionesIntegracionTest` — fecha hardcodeada `LocalDate.of(2026, 8, 10)` → `LocalDate.now()`
+2. `ImportacionPersistenciaService.upsertAsignacionMensual` — `AND fecha_inicio = :fi` violaba índice único → eliminado
+3. `entrypoint.sh` — volumen `root:root`, appuser no podía escribir → `chown appuser:appgroup` antes de `su-exec`
+4. `smoke-test.sh` — escenarios 5, 12, 15 enviaban `carteraId`/`periodo` (v1) → eliminados
 
-### ✅ Tests API
-- `ImportacionAdminRestTest.java` — 33 tests Testcontainers (0 fallos, 2 corridas)
-- `InfraestructuraTest.java` — 23 tablas (antes 21)
-- `SeguridadIntegracionTest.java` — 8 permisos / jefe tiene 8 (antes 7)
-- `DominioCobranzaIntegracionTest.java` — RN-03 = 1 cartera activa
-- `DominioAsignacionesIntegracionTest.java` — cartera secuencial (no simultánea)
-
-### ✅ Fixtures CSV
-- `importacion_valida_2026-08.csv` — 2 personas, 5 filas, CUOTA_ESTADO VENCIDA (no VENCIDO)
-- `importacion_con_errores.csv` — RUT 12345678-9 (DV inválido módulo 11)
-
-### ✅ Angular — feature importacion
-- `importacion.models.ts` — interfaces, tipos, constantes
-- `importacion.service.ts` — 6 métodos
-- `importacion.routes.ts` — 3 rutas DATOS_IMPORTAR
-- `ImportacionListComponent`, `ImportacionNuevaComponent`, `ImportacionDetailComponent`
-- `app.routes.ts` — ruta lazy `/importacion`
-
-### ✅ Angular — specs (DT-IMX-002 RESUELTO)
-- `importacion.service.spec.ts` — 9 tests, 100% cobertura
-- `importacion-list.component.spec.ts` — 8 tests
-- `importacion-nueva.component.spec.ts` — 15 tests
-- `importacion-detail.component.spec.ts` — 22 tests (todos los estados, polling, confirmar)
-
-### ✅ Playwright E2E (14 escenarios importacion)
-- `e2e/importacion.spec.ts` — historial, nueva importación, acceso sin permiso, cartera, período, archivo, VALIDANDO, VALIDADA, confirmar, PROCESANDO, COMPLETADA, CON_ERRORES, ARCHIVO_YA_IMPORTADO, EXPIRADA
-
-### ✅ Docker
-- `compose.yaml` — volumen `cobranza_importaciones`, env `IMPORTACION_STORAGE_DIR`
-- Imágenes compiladas, 3 servicios healthy verificados
-
-### ✅ Smoke tests (DT-IMX-003 RESUELTO)
-- `scripts/smoke-test.sh` — sección 8 con 21 escenarios de importación mensual
-- Skip graceful cuando no hay carteras activas (entorno sin seed)
-- 49/49 OK en entorno Docker local
-
-### ✅ Documentación
-- `docs/adr/0049-workflow-importacion.md`
-- `docs/adr/0050-modulo-importacion-async.md`
-- `docs/operacion/FORMATO_IMPORTACION_MENSUAL.md`
-- `docs/gestion/STATUS.md` — Fase 5C VALIDADA ✅ LISTA PARA CIERRE
-- `docs/gestion/CHANGELOG.md` — entradas Fase 5C implementación + validación final
-- `docs/gestion/DEUDA_TECNICA.md` — DT-IMX-002 y DT-IMX-003 resueltas; DT-IMX-001 activa
+### [Sesión 2026-08-13 — pendientes de amend]
+5. `importacion.service.ts` — `crear()` enviaba `carteraId` y `periodo` en FormData (contrato v1) → eliminados
+6. `importacion-nueva.component.ts` — formulario tenía selector de cartera + campo de período → eliminados
+7. `contracts/openapi/cobranza-api.yaml` — endpoints de importacion completamente ausentes → agregados (5 rutas + 7 schemas)
 
 ---
 
-## Deuda técnica activa
+## Bloques completados Fase 5D (cierre total)
 
-- **DT-IMX-001** (activa) — Workers @Async sin reintentos automáticos. Migrar a RabbitMQ/Kafka cuando el volumen lo justifique.
+### ✅ Backend API (commit 9133f49)
+- V013 completo, FilaCsv 27 campos, CsvImportacionParser, ValidadorIntraArchivo
+- ImportacionService, ImportacionPersistenciaService, ImportacionProcesamientoWorker, ImportacionValidacionWorker
+- ImportacionAdminController, ImportacionMensual, ImportacionMensualRepository
+- Tests: CsvImportacionParserTest (23), ValidadorIntraArchivoTest (8), ImportacionAdminRestTest (33)
+- Fixtures: 7 CSVs actualizados/nuevos + not_a_csv.txt
+
+### ✅ Docker + Smoke-test (commit 9133f49)
+- entrypoint.sh: chown antes de su-exec
+- smoke-test.sh: contrato v2 en POST
+
+### ✅ Angular (pendiente amend)
+- `importacion.service.ts`: `crear(sistemaOrigen, archivo)` — sin carteraId, sin periodo
+- `importacion-nueva.component.ts`: formulario solo con selector de archivo
+- `importacion.service.spec.ts`: 10 tests (3 nuevos sobre contrato v2: incluye archivo, NO carteraId, NO periodo)
+- `importacion-nueva.component.spec.ts`: 14 tests (3 verifican ausencia de campos v1)
+- `importacion.spec.ts` (Playwright): 14 tests — test 13 sin pasos v1; test 5 nuevo sobre "solo CSV"
+
+### ✅ OpenAPI (pendiente amend)
+- `contracts/openapi/cobranza-api.yaml`:
+  - Schemas: EstadoImportacion, RespuestaCrearImportacion, ImportacionResumen, ImportacionDetalle, RespuestaPaginaImportaciones, ErrorImportacion, RespuestaPaginaErrores
+  - Paths: POST /mensuales, GET /mensuales, GET /mensuales/{id}, GET /mensuales/{id}/errores, POST /mensuales/{id}/confirmar
+  - Contrato v2 documentado: multipart/form-data con sistemaOrigen + archivo (sin carteraId, sin periodo)
 
 ---
 
 ## Siguiente acción exacta
 
-**La Fase 5C está completamente validada. La siguiente acción es hacer commit cuando el usuario lo autorice:**
+**Con autorización del usuario:**
 
-```
-feat(importacion): implementar importacion mensual fase 5c
+```bash
+git add contracts/openapi/cobranza-api.yaml \
+        apps/admin-web/src/app/features/importacion/ \
+        apps/admin-web/e2e/importacion.spec.ts \
+        docs/gestion/STATUS.md \
+        docs/gestion/CHANGELOG.md \
+        .claude/TASK_CURRENT.md \
+        .claude/SESSION_HANDOFF.md
+git diff --cached --check
+git diff --cached --stat
+git commit --amend --no-edit
+git push origin main    # SOLO con autorización explícita
+git tag v0.17.0-importacion-mensual   # SOLO con autorización explícita
 ```
 
-Luego crear tag `v0.17.0-importacion-mensual` (con autorización).
+**Condición:** commit HEAD `9133f49` es el único commit local no publicado. El amend es seguro.
 
 ---
 
-## Advertencias del dominio
+## Deuda técnica identificada (persistente)
 
-- `supervision_usuarios` tiene `activo` boolean (no `activa`)
-- Worker async usa `@TransactionalEventListener(AFTER_COMMIT)` + `@Async("importacionExecutor")` en bean separado
-- Queries JPA con `SELECT id` (1 columna) → Hibernate devuelve `List<UUID>`, no `List<Object[]>`. Usar `List<?>` y cast directo `(UUID) rows.get(0)`
-- `cuotas.estado` CHECK usa `VENCIDA` (femenino), no `VENCIDO`
-- `operaciones.estado` CHECK desde V012: `ACTIVA, ANULADA, CERRADA, PAGADA, VIGENTE, VENCIDO, CASTIGADO`
-- Test 70 (confirmar en RECIBIDA) usa INSERT JDBC directo para evitar race condition con async validation
-- TTL validadas en tests: PT5M, intervalo: PT30S (en `@TestPropertySource`)
-
-## Decisiones tomadas en Fase 5C
-
-- Permiso DATOS_IMPORTAR UUID: `a1b2c3d4-0002-0002-0002-000000000008`
-- sistemaOrigen default: LEGADO
-- Storage path: `{UUID}/archivo.csv` dentro del directorio base configurable
-- RN-03 revisado: 1 cartera activa por persona (`uq_cp_persona_activa`)
-- Expiración VALIDADA: job con TTL configurable (prod: 24h, test: 5m)
-- Docker volume: `cobranza_importaciones` → `/var/cobranza/importaciones` en el contenedor API
+- **DT-IMX-001**: Cola de mensajes para workers de importación (activa — no relacionada con 5D)
+- **Schemas OpenAPI usuarios/auth**: `SolicitudCrearUsuario`, `SolicitudActualizarDatosBasicosUsuario`, etc. están fuera de `components.schemas` (2-space indent). Preexistente. No bloquea Fase 5D.
 
 ## No repetir
 
+- `MalformedInputException | CharacterCodingException` en multi-catch: falla → usar solo `CharacterCodingException`
 - `List<Object[]>` + `rows.get(0)[0]` falla con queries de 1 columna → usar `List<?>` + `rows.get(0)`
-- `pollingSub` es private en `ImportacionDetailComponent` → acceder en tests con `(comp as any).pollingSub`
-- `fakeAsync/tick` no funciona en Vitest (zona no disponible) → usar tests síncronos/async ordinarios
+- `upsertAsignacionMensual`: buscar por `activa=TRUE` sin filtro de fecha
+- `entrypoint.sh`: siempre `chown appuser:appgroup` el volumen antes de `su-exec`
+- `crear()` Angular: solo `sistemaOrigen` + `archivo`, sin carteraId ni periodo

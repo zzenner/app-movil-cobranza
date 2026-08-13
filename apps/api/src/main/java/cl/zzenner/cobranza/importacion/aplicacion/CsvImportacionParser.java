@@ -13,27 +13,53 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Component
 class CsvImportacionParser {
 
+    // Contrato CSV definitivo — Fase 5D: 26 columnas
     static final String[] COLUMNAS_REQUERIDAS = {
-            "RUT_NUMERO", "RUT_DV", "NOMBRE_PERSONA", "CODIGO_EXT_PERSONA",
-            "DIRECCION_TEXTO", "DIRECCION_TIPO", "DIRECCION_COMUNA", "DIRECCION_CIUDAD", "CODIGO_EXT_DIRECCION",
-            "OPERACION_NUMERO", "OPERACION_ID_EXT", "OPERACION_TIPO", "OPERACION_ESTADO",
+            "PERIODO",
+            "RUT_NUMERO", "RUT_DV", "NOMBRE_PERSONA",
+            "OPERACION_NUMERO", "OPERACION_TIPO", "OPERACION_ESTADO",
             "OPERACION_CAPITAL", "OPERACION_INTERES_PENAL", "OPERACION_GASTOS",
             "OPERACION_TOTAL_VIGENTE", "OPERACION_FECHA_VTO",
-            "CUOTA_NUMERO", "CUOTA_ID_EXT", "CUOTA_ESTADO", "CUOTA_MONTO_TOTAL",
-            "CUOTA_CAPITAL", "CUOTA_INTERES", "CUOTA_INTERES_PENAL", "CUOTA_GASTOS",
-            "CUOTA_SALDO", "CUOTA_FECHA_VTO",
-            "EJECUTIVO_USERNAME"
+            "CUOTA_NUMERO", "CUOTA_ESTADO", "CUOTA_MONTO_TOTAL",
+            "CUOTA_CAPITAL", "CUOTA_INTERES", "CUOTA_INTERES_PENAL",
+            "CUOTA_GASTOS", "CUOTA_SALDO", "CUOTA_FECHA_VTO",
+            "CODIGO_EJECUTIVO",
+            "DIR_PARTICULAR", "DIR_COMERCIAL",
+            "CODIGO_CARTERA", "MARCA_JUDICIAL"
     };
+
+    // Notación científica: 6,00403E+11 o 6.00403E+11 o 6E+11
+    static final Pattern NOTACION_CIENTIFICA = Pattern.compile(
+            ".*[0-9][,.]?[0-9]*[Ee][+\\-][0-9]+.*");
+
+    // PERIODO: YYYY-MM
+    static final DateTimeFormatter FORMATO_PERIODO = DateTimeFormatter.ofPattern("yyyy-MM");
+
+    // Fechas del sistema origen: YYYY-MM-DD
+    static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    // UTF-8 estricto — el archivo origen debe estar en UTF-8
+    static final java.nio.charset.Charset ENCODING_REQUERIDO = StandardCharsets.UTF_8;
+
+    // Carteras válidas del catálogo (códigos de origen)
+    static final Set<String> CARTERAS_VALIDAS = Set.of("1", "2", "3", "4");
 
     record ResultadoParser(List<FilaCsv> filas, List<ErrorImportacion> errores, int totalFilas) {}
 
@@ -48,15 +74,18 @@ class CsvImportacionParser {
                 .setDelimiter(';')
                 .setIgnoreHeaderCase(true)
                 .setTrim(true)
-                .setIgnoreEmptyLines(true)
+                .setIgnoreEmptyLines(false)
                 .build();
 
-        try (InputStreamReader reader = new InputStreamReader(
-                stripBom(inputStream), StandardCharsets.UTF_8);
+        CharsetDecoder decoder = ENCODING_REQUERIDO.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT);
+
+        try (InputStreamReader reader = new InputStreamReader(stripBom(inputStream), decoder);
              CSVParser parser = CSVParser.parse(reader, formato)) {
 
             verificarColumnasRequeridas(parser.getHeaderNames(), importacionId, errores);
-            if (!errores.isEmpty()) {
+            if (errores.stream().anyMatch(e -> e.getNivel() == NivelError.ERROR)) {
                 return new ResultadoParser(filas, errores, 0);
             }
 
@@ -64,6 +93,9 @@ class CsvImportacionParser {
 
             for (CSVRecord record : parser) {
                 totalFilas++;
+                if (esFilaTotalmenteVacia(record)) {
+                    continue;
+                }
                 int numeroFila = (int) record.getRecordNumber() + 1;
                 try {
                     FilaCsv fila = parsearFila(record, numeroFila);
@@ -73,6 +105,11 @@ class CsvImportacionParser {
                             e.getColumna(), e.getCodigo(), NivelError.ERROR, e.getMessage()));
                 }
             }
+
+        } catch (CharacterCodingException e) {
+            errores.add(new ErrorImportacion(importacionId, null, null,
+                    "ENCODING_INVALIDO", NivelError.ERROR,
+                    "El archivo no está en UTF-8. El sistema origen debe exportar en UTF-8."));
         } catch (IOException e) {
             errores.add(new ErrorImportacion(importacionId, null, null,
                     "FORMATO_INVALIDO", NivelError.ERROR,
@@ -80,6 +117,14 @@ class CsvImportacionParser {
         }
 
         return new ResultadoParser(filas, errores, totalFilas);
+    }
+
+    private boolean esFilaTotalmenteVacia(CSVRecord rec) {
+        for (int i = 0; i < rec.size(); i++) {
+            String val = rec.get(i);
+            if (val != null && !val.isBlank()) return false;
+        }
+        return true;
     }
 
     private void verificarColumnasRequeridas(List<String> encabezados,
@@ -111,20 +156,14 @@ class CsvImportacionParser {
     }
 
     private FilaCsv parsearFila(CSVRecord rec, int numeroFila) {
+        String periodo = periodoRequerido(rec, numeroFila);
+
         String rutNumero = requerido(rec, "RUT_NUMERO", numeroFila);
         String rutDv = requerido(rec, "RUT_DV", numeroFila);
         String nombrePersona = requerido(rec, "NOMBRE_PERSONA", numeroFila);
-        String codigoExtPersona = opcional(rec, "CODIGO_EXT_PERSONA");
 
-        String direccionTexto = requerido(rec, "DIRECCION_TEXTO", numeroFila);
-        String direccionTipo = requerido(rec, "DIRECCION_TIPO", numeroFila);
-        String direccionComuna = opcional(rec, "DIRECCION_COMUNA");
-        String direccionCiudad = opcional(rec, "DIRECCION_CIUDAD");
-        String codigoExtDireccion = opcional(rec, "CODIGO_EXT_DIRECCION");
-
-        String operacionNumero = requerido(rec, "OPERACION_NUMERO", numeroFila);
-        String operacionIdExt = requerido(rec, "OPERACION_ID_EXT", numeroFila);
-        String operacionTipo = opcional(rec, "OPERACION_TIPO");
+        String operacionNumero = operacionNumeroRequerido(rec, "OPERACION_NUMERO", numeroFila);
+        String operacionTipo = requerido(rec, "OPERACION_TIPO", numeroFila);
         String operacionEstado = requerido(rec, "OPERACION_ESTADO", numeroFila);
         BigDecimal operacionCapital = decimal(rec, "OPERACION_CAPITAL", numeroFila);
         BigDecimal operacionInteresPenal = decimal(rec, "OPERACION_INTERES_PENAL", numeroFila);
@@ -133,7 +172,6 @@ class CsvImportacionParser {
         LocalDate operacionFechaVto = fecha(rec, "OPERACION_FECHA_VTO", numeroFila);
 
         Integer cuotaNumero = entero(rec, "CUOTA_NUMERO", numeroFila);
-        String cuotaIdExt = opcional(rec, "CUOTA_ID_EXT");
         String cuotaEstado = requerido(rec, "CUOTA_ESTADO", numeroFila);
         BigDecimal cuotaMontoTotal = decimal(rec, "CUOTA_MONTO_TOTAL", numeroFila);
         BigDecimal cuotaCapital = decimalOpcional(rec, "CUOTA_CAPITAL");
@@ -143,20 +181,73 @@ class CsvImportacionParser {
         BigDecimal cuotaSaldo = decimalOpcional(rec, "CUOTA_SALDO");
         LocalDate cuotaFechaVto = fecha(rec, "CUOTA_FECHA_VTO", numeroFila);
 
-        String ejecutivoUsername = requerido(rec, "EJECUTIVO_USERNAME", numeroFila);
+        String codigoEjecutivo = requerido(rec, "CODIGO_EJECUTIVO", numeroFila);
+        String dirParticular = requerido(rec, "DIR_PARTICULAR", numeroFila);
+        String dirComercial = opcional(rec, "DIR_COMERCIAL");
+        String codigoCartera = codigoCarteraRequerido(rec, numeroFila);
+        String marcaJudicial = marcaJudicialRequerida(rec, numeroFila);
 
         return new FilaCsv(numeroFila,
-                rutNumero, rutDv, nombrePersona, codigoExtPersona,
-                direccionTexto, direccionTipo, direccionComuna, direccionCiudad, codigoExtDireccion,
-                operacionNumero, operacionIdExt, operacionTipo, operacionEstado,
-                operacionCapital, operacionInteresPenal, operacionGastos, operacionTotalVigente, operacionFechaVto,
-                cuotaNumero, cuotaIdExt, cuotaEstado, cuotaMontoTotal,
-                cuotaCapital, cuotaInteres, cuotaInteresPenal, cuotaGastos, cuotaSaldo, cuotaFechaVto,
-                ejecutivoUsername);
+                periodo,
+                rutNumero, rutDv, nombrePersona,
+                operacionNumero, operacionTipo, operacionEstado,
+                operacionCapital, operacionInteresPenal, operacionGastos,
+                operacionTotalVigente, operacionFechaVto,
+                cuotaNumero, cuotaEstado, cuotaMontoTotal,
+                cuotaCapital, cuotaInteres, cuotaInteresPenal,
+                cuotaGastos, cuotaSaldo, cuotaFechaVto,
+                codigoEjecutivo,
+                dirParticular, dirComercial,
+                codigoCartera, marcaJudicial);
+    }
+
+    private String periodoRequerido(CSVRecord rec, int fila) {
+        String val = requerido(rec, "PERIODO", fila);
+        try {
+            YearMonth.parse(val, FORMATO_PERIODO);
+        } catch (DateTimeParseException e) {
+            throw new FilaInvalidaException(fila, "PERIODO", "FORMATO_PERIODO_INVALIDO",
+                    "PERIODO debe tener formato YYYY-MM (ej: 2026-08): " + val);
+        }
+        return val;
+    }
+
+    private String codigoCarteraRequerido(CSVRecord rec, int fila) {
+        String val = requerido(rec, "CODIGO_CARTERA", fila);
+        if (!CARTERAS_VALIDAS.contains(val)) {
+            throw new FilaInvalidaException(fila, "CODIGO_CARTERA", "CODIGO_CARTERA_INVALIDO",
+                    "CODIGO_CARTERA debe ser 1, 2, 3 o 4: " + val);
+        }
+        return val;
+    }
+
+    private String marcaJudicialRequerida(CSVRecord rec, int fila) {
+        String val = requerido(rec, "MARCA_JUDICIAL", fila);
+        if (!"S".equals(val) && !"N".equals(val)) {
+            throw new FilaInvalidaException(fila, "MARCA_JUDICIAL", "MARCA_JUDICIAL_INVALIDA",
+                    "MARCA_JUDICIAL debe ser S o N: " + val);
+        }
+        return val;
+    }
+
+    private String operacionNumeroRequerido(CSVRecord rec, String col, int fila) {
+        String val = requerido(rec, col, fila);
+        if (NOTACION_CIENTIFICA.matcher(val).matches()) {
+            throw new FilaInvalidaException(fila, col, "OPERACION_NUMERO_NOTACION_CIENTIFICA",
+                    "OPERACION_NUMERO contiene notación científica y puede haber perdido precisión: " + val +
+                    ". El origen debe exportar el número completo sin conversión.");
+        }
+        return val;
     }
 
     private String requerido(CSVRecord rec, String col, int fila) {
-        String val = rec.get(col.toLowerCase());
+        String val;
+        try {
+            val = rec.get(col.toLowerCase());
+        } catch (IllegalArgumentException e) {
+            throw new FilaInvalidaException(fila, col, "COLUMNA_REQUERIDA_FALTANTE",
+                    "Columna requerida no disponible: " + col);
+        }
         if (val == null || val.isBlank()) {
             throw new FilaInvalidaException(fila, col, "CAMPO_REQUERIDO",
                     "El campo " + col + " es requerido");
@@ -196,10 +287,10 @@ class CsvImportacionParser {
     private LocalDate fecha(CSVRecord rec, String col, int fila) {
         String raw = requerido(rec, col, fila);
         try {
-            return LocalDate.parse(raw);
+            return LocalDate.parse(raw, FORMATO_FECHA);
         } catch (DateTimeParseException e) {
             throw new FilaInvalidaException(fila, col, "FORMATO_FECHA",
-                    "El campo " + col + " no tiene formato de fecha válido (YYYY-MM-DD): " + raw);
+                    "El campo " + col + " debe tener formato YYYY-MM-DD: " + raw);
         }
     }
 
@@ -214,7 +305,6 @@ class CsvImportacionParser {
     }
 
     private InputStream stripBom(InputStream is) throws IOException {
-        // Wrap in BufferedInputStream to ensure mark/reset support
         BufferedInputStream bis = (is instanceof BufferedInputStream b) ? b : new BufferedInputStream(is);
         bis.mark(3);
         byte[] bom = bis.readNBytes(3);
