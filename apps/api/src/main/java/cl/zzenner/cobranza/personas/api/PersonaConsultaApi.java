@@ -20,4 +20,6 @@ public interface PersonaConsultaApi {
     List<DatosDireccion> findDireccionesVigentesPorPersonas(Collection<UUID> personaIds);
 
     List<DatosAval> findAvalesPorPersonas(Collection<UUID> personaIds);
+
+    List<UUID> findIdsByCarteraIdActiva(UUID carteraId, int limit);
 }

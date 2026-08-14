@@ -14,6 +14,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -76,6 +77,14 @@ class PersonaConsultaApiImpl implements PersonaConsultaApi {
         return avalRepository.findByPersonaIdIn(personaIds).stream()
                 .map(this::toAvalDto)
                 .toList();
+    }
+
+    @Override
+    public List<UUID> findIdsByCarteraIdActiva(UUID carteraId, int limit) {
+        return carteraPersonaRepository.findByCarteraIdAndActivaTrue(carteraId).stream()
+                .limit(limit)
+                .map(cp -> cp.getPersonaId())
+                .collect(Collectors.toList());
     }
 
     private DatosPersona toDto(Persona p) {

@@ -1,98 +1,61 @@
-# Estado de sesión — Fase 6B: Asignaciones Diarias y Publicación
+# SESSION_HANDOFF — App Móvil Cobranza
 
-**Fecha:** 2026-08-13
+**Última actualización:** 2026-08-13 23:20 (sesión actual)
 **Rama:** main
-**Estado:** IMPLEMENTADA ✅ — pendiente commit formal y push
+**Commit HEAD:** ec63cfc (chore(fase-6b): validaciones finales y cierre de fase 6B)
 
-## Resumen de lo implementado
+---
 
-### API (Java / Spring Boot)
+## Estado del entorno DEV
 
-| Archivo | Cambio |
-|---------|--------|
-| `V016__asignaciones_admin.sql` | `publicado_por_id UUID NULL` en `asignaciones_diarias`; permisos asignaciones a TECNOLOGIA |
-| `AsignacionDiaria.java` | `publicar(UUID publicadoPorId)` — campo `publicadoPorId` + getter |
-| `AsignacionService.java` | `publicarAsignacionDiaria(UUID, UUID)` — 2do arg propagado |
-| `AsignacionDiariaPersonaRepository.java` | `deleteByAsignacionDiariaIdAndPersonaId` añadido |
-| `AsignacionAdminQueryService.java` | Consultas nativas: periodos, mensuales, personas-disponibles, diarias, detalle |
-| `AsignacionAdminService.java` | crearBorrador, actualizarPersonas, publicar, cancelar |
-| `AsignacionAdminController.java` | 9 endpoints en /api/v1/admin/asignaciones |
-| `AsignacionAdminRestTest.java` | 12 escenarios @Order(10–120) |
-| 4 test files existentes | `publicarAsignacionDiaria(id, null)` en AsignacionDescargaRestTest, GestionRestTest, GestionesIntegracionTest, DominioAsignacionesIntegracionTest |
-| `AsignacionDiariaDominioTest.java` | `ad.publicar(null)` y `() -> ad.publicar(null)` en assertThatThrownBy |
+- Docker: API + PostgreSQL corriendo en localhost:8080
+- Seed completado: 1 admin, 3 supervisores demo, 18 ejecutivos demo, supervisión asignada
+- Escenario asignación demo: 1 diaria PUBLICADA para ej_demo_133 / 2026-08-13 / 5 personas
 
-### Angular (Admin Web)
+## Cambios en esta sesión (pendientes de commit)
 
-| Archivo | Cambio |
-|---------|--------|
-| `features/asignaciones/models/asignacion.models.ts` | Interfaces: ItemPeriodo, ItemAsignacionMensualAdmin, ItemPersonaDisponible, ItemAsignacionDiariaAdmin, DetalleAsignacionDiariaAdmin, ItemPersonaEnDiaria + DTOs |
-| `features/asignaciones/services/asignaciones.service.ts` | 9 métodos HTTP |
-| `features/asignaciones/components/asignaciones-list/` | Tabla con filtros fecha/estado |
-| `features/asignaciones/components/asignacion-create/` | Stepper: mensual → personas → guardar |
-| `features/asignaciones/components/asignacion-detail/` | Detalle, publicar, cancelar |
-| `features/asignaciones/asignaciones.routes.ts` | Rutas con permissionGuard |
-| `app/app.routes.ts` | Ruta /asignaciones añadida |
-| `core/layout/layout.component.ts` | Ítem menú Asignaciones + tienePermisoAsignaciones signal |
-| Specs (4 archivos) | 196/196 tests totales |
+### Archivos nuevos
+- `apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/api/DemoAsignacionSeedApi.java`
+- `apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/aplicacion/DemoAsignacionSeedService.java`
+- `apps/api/src/main/java/cl/zzenner/cobranza/usuarios/api/SupervisionSeedApi.java`
+- `apps/api/src/main/java/cl/zzenner/cobranza/usuarios/aplicacion/SupervisionSeedService.java`
 
-## Estado de pruebas
+### Archivos modificados
+- `DevSeedRunner.java` — agrega DemoAsignacionSeedApi, captura ejDemo133Id, llama prepararEscenarioDemo
+- `DevSeedRunnerTest.java` — mock DemoAsignacionSeedApi, test nuevo prepara_escenario_asignacion_demo
+- `PersonaConsultaApi.java` — agrega findIdsByCarteraIdActiva(UUID, int)
+- `PersonaConsultaApiImpl.java` — implementa findIdsByCarteraIdActiva
+- `UsuarioSeedApi.java` — agrega findIdByNombreUsuario(String)
+- `UsuarioSeedService.java` — implementa findIdByNombreUsuario
+- `scripts/smoke-test.sh` — paso 7.16 usa ?tamanio=50
 
-| Suite | Resultado |
-|-------|-----------|
-| API unit tests (domain) | 29/29 ✅ |
-| API integration tests | No ejecutados — Docker no disponible en WSL2 |
-| Angular unit tests (Vitest) | 196/196 ✅ |
-| Angular build (ng build) | Limpio — 0 warnings ✅ |
+## Resultados de validación
 
-## Estado del repositorio
-
-- Rama: main
-- HEAD: 0f1bd24 (docs: documentar conectividad Android con entorno Docker local)
-- Todos los cambios de Fase 6B están en working tree (sin commit aún)
-- origin/main: pendiente push (requiere autorización)
+- `mvn test`: 494/494 OK, BUILD SUCCESS
+- Smoke tests: 79/79 OK
+- Endpoint Android /api/v1/asignaciones/diaria/activa: 200 con 5 personas para ej_demo_133
+- No hay PII, CSV ni secretos en ningún archivo rastreado
 
 ## Siguiente acción exacta
 
-```bash
-cd /home/msalazar/app-movil-cobranza
+Commit pendiente con mensaje:
+  "chore(dev): preparar datos y entorno demo para pruebas end-to-end"
 
-git add \
-  apps/api/src/main/resources/db/migration/V016__asignaciones_admin.sql \
-  apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/dominio/AsignacionDiaria.java \
-  apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/aplicacion/AsignacionService.java \
-  apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/infraestructura/AsignacionDiariaPersonaRepository.java \
-  apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/aplicacion/AsignacionAdminQueryService.java \
-  apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/aplicacion/AsignacionAdminService.java \
-  apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/web/AsignacionAdminController.java \
-  apps/api/src/test/java/cl/zzenner/cobranza/AsignacionAdminRestTest.java \
-  apps/api/src/test/java/cl/zzenner/cobranza/AsignacionDescargaRestTest.java \
-  apps/api/src/test/java/cl/zzenner/cobranza/DominioAsignacionesIntegracionTest.java \
-  apps/api/src/test/java/cl/zzenner/cobranza/GestionRestTest.java \
-  apps/api/src/test/java/cl/zzenner/cobranza/GestionesIntegracionTest.java \
-  apps/api/src/test/java/cl/zzenner/cobranza/asignaciones/AsignacionDiariaDominioTest.java \
-  apps/admin-web/src/app/app.routes.ts \
-  apps/admin-web/src/app/core/layout/layout.component.ts \
-  apps/admin-web/src/app/core/layout/layout.component.spec.ts \
-  apps/admin-web/src/app/features/asignaciones/ \
-  docs/gestion/STATUS.md \
-  docs/gestion/CHANGELOG.md \
-  docs/gestion/ROADMAP.md \
-  .claude/TASK_CURRENT.md \
-  .claude/SESSION_HANDOFF.md
+Archivos a incluir:
+- apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/api/DemoAsignacionSeedApi.java
+- apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/aplicacion/DemoAsignacionSeedService.java
+- apps/api/src/main/java/cl/zzenner/cobranza/usuarios/api/SupervisionSeedApi.java
+- apps/api/src/main/java/cl/zzenner/cobranza/usuarios/aplicacion/SupervisionSeedService.java
+- apps/api/src/main/java/cl/zzenner/cobranza/DevSeedRunner.java
+- apps/api/src/main/java/cl/zzenner/cobranza/personas/api/PersonaConsultaApi.java
+- apps/api/src/main/java/cl/zzenner/cobranza/personas/infraestructura/PersonaConsultaApiImpl.java
+- apps/api/src/main/java/cl/zzenner/cobranza/usuarios/api/UsuarioSeedApi.java
+- apps/api/src/main/java/cl/zzenner/cobranza/usuarios/aplicacion/UsuarioSeedService.java
+- apps/api/src/test/java/cl/zzenner/cobranza/DevSeedRunnerTest.java
+- scripts/smoke-test.sh
+- .claude/SESSION_HANDOFF.md
 
-git commit -m "feat(asignaciones): implementar asignaciones diarias fase 6b"
-
-git tag v0.21.0-asignaciones-diarias
-```
-
-Luego (requiere autorización explícita):
-```bash
-git push origin main
-git push origin v0.21.0-asignaciones-diarias
-```
-
-## Deuda técnica
-
-- Integration tests requieren Docker Desktop WSL2 integration habilitado.
-- OpenAPI YAML (`contracts/openapi/cobranza-api.yaml`) no actualizado aún con los nuevos endpoints de admin/asignaciones.
-- No hay Playwright E2E para el flujo de asignaciones (pendiente si se requiere cobertura E2E).
+Pendiente después del commit:
+- Actualizar STATUS.md y CHANGELOG.md
+- Solicitar autorización para push a origin/main
+- Validación visual del Admin Web (opcional si hay emulador disponible)

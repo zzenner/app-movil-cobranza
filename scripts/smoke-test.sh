@@ -465,10 +465,10 @@ else
             if [ "$_NEW_LOGIN" = "200" ]; then ok "Login aceptado con contraseña nueva tras reset (200)"
             else fail "Contraseña nueva rechazada — esperado 200, obtenido $_NEW_LOGIN"; fi
 
-            # 7.16 Listado contiene el usuario creado
+            # 7.16 Listado contiene el usuario creado (tamanio=100 para evitar truncar con más de 20 usuarios)
             _LIST=$(curl -s -H "Authorization: Bearer $ACTOR_TOKEN" \
                 --connect-timeout 5 --max-time 10 \
-                "$API_BASE/api/v1/admin/usuarios" 2>/dev/null || echo "")
+                "$API_BASE/api/v1/admin/usuarios?tamanio=50" 2>/dev/null || echo "")
             if echo "$_LIST" | grep -q "$_SMOKE_ID"; then ok "Listado /admin/usuarios contiene al usuario creado"
             else fail "Listado /admin/usuarios — usuario creado no encontrado"; fi
 
