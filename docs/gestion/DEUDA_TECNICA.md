@@ -4,6 +4,15 @@ Este documento registra deuda técnica real identificada, con contexto suficient
 
 ## Deuda activa
 
+### DT-010 — AVD local con imagen de sistema experimental (16KB page size) rompe el renderizado de Compose
+**Área:** Android, entorno de desarrollo local (no código de la app).
+**Descripción:** El AVD `Medium_Phone` creado localmente usaba la imagen de sistema `system-images;android-37.1;google_apis_playstore_ps16k;x86_64` (imagen preview/experimental de Android 17 con page-size de 16KB). En ese AVD, **ningún** contenido de Jetpack Compose se pinta en pantalla (queda negro), aunque el árbol de composición se construye correctamente (confirmado con `uiautomator dump`) y los frames se entregan/intercambian en HWUI (confirmado con logs `Davey!`/`SwapBuffersCompleted`). Se demostró reemplazando toda la UI por un `Box` rojo de pantalla completa: seguía renderizando negro. Solo la barra de estado del sistema (vistas nativas, no-Compose) se veía. Se creó un AVD nuevo (`Cobranza_API36_Stable`, imagen estable `system-images;android-36;google_apis_playstore;x86_64`) y la misma APK renderizó correctamente (título "Cobranza", botón "Ingresar" visibles).
+**Impacto:** Cualquier desarrollador que cree un AVD nuevo eligiendo por error una imagen de sistema "preview"/experimental (ej. variantes `_ps16k`, `_pgagnostic`, canary) puede reproducir una pantalla negra indistinguible de un bug real de la app, perdiendo tiempo de diagnóstico. No afecta builds de CI ni dispositivos físicos.
+**Decisión recomendada:** Usar siempre imágenes de sistema **estables** (no preview/canary) para emuladores de desarrollo — p. ej. `system-images;android-36;google_apis_playstore;x86_64` (o la que corresponda a `targetSdk`). Documentar esto en el README de onboarding Android. No se requiere ningún cambio de código.
+**Referencia:** Investigación de incidencia "pantalla negra + ANR en MainActivity" (2026-08-16).
+
+---
+
 ### DT-IMX-001 — Cola de mensajes para workers de importación
 **Área:** API, infraestructura.
 **Descripción:** Los workers de validación y procesamiento (`@Async`) no tienen reintentos automáticos. Si el worker falla (OOM, error no controlado), el estado queda en VALIDANDO/PROCESANDO y el job de recuperación lo marca FALLIDA. El operador debe volver a subir el archivo.
