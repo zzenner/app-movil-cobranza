@@ -1,75 +1,155 @@
 # SESSION_HANDOFF — App Móvil Cobranza
 
-**Última actualización:** 2026-08-16 04:15 (sesión actual)
+**Última actualización:** 2026-08-16 20:10 (sesión actual — ronda de validación "Asignación diaria" en Android)
 **Rama:** main
-**Commit HEAD:** 8eb4cd9 (chore(dev): preparar escenario demo para android)
+**Commit HEAD antes de esta ronda:** e79064f (fix(android): restaurar sesión tras reapertura y revocar sesión en logout)
 
-## Incidencia investigada 2026-08-16 — Pantalla negra + ANR en MainActivity (Android)
+## Ronda de validación — Asignación diaria del ejecutivo (Android)
 
-**Síntoma:** Al ejecutar la app Android desde Android Studio, quedaba en pantalla negra con ANR "Input dispatching timed out (Application does not have a focused window)".
+Alcance: login → Home → Mi asignación diaria → descarga/consulta → persistencia local →
+reapertura → comportamiento offline → recuperación. Sin tocar registro de gestiones,
+fotografías, compromisos de pago, ni sincronización de gestiones (fuera de alcance).
 
-**Causa raíz:** NO es un bug de la app. El AVD local `Medium_Phone` usaba la imagen de sistema experimental `android-37.1;google_apis_playstore_ps16k;x86_64` (preview de 16KB page-size). En esa imagen, ningún contenido de Compose se pinta (demostrado con un `Box` rojo de pantalla completa — seguía negro), aunque el árbol de composición y los frames se generan correctamente. Ver detalle completo en `docs/gestion/DEUDA_TECNICA.md` (DT-010).
+### Flujo técnico confirmado
 
-**No relacionado con:** sesión/auth, threading (no se encontró ningún `runBlocking`/bloqueo en el main thread), navegación, Room, WorkManager, ni con la corrección previa de conectividad `10.0.2.2:8081` (esa sigue vigente y correcta).
+`HomeScreen` dispara `LaunchedEffect(Unit) { viewModel.iniciarSincronizacion() }` en cada
+composición (incluida la reapertura) → `AsignacionSyncScheduler.programarInmediato()`
+(WorkManager, `ExistingWorkPolicy.KEEP`) → `DescargaAsignacionWorker` → `GET
+/api/v1/asignaciones/diaria/activa` → `AsignacionRepository.descargarAsignacion()` (Mutex
+single-flight) → `BundleReplacementTransaction.reemplazar()` (Room: DELETE total + INSERT
+completo, transacción atómica) → `AsignacionViewModel` combina flujos Room → Compose
+(`AsignacionListScreen`). La pantalla de asignación solo lee Room; no dispara red por sí
+misma.
 
-**Acción tomada:** Se instaló `cmdline-tools`, se descargó la imagen estable `android-36;google_apis_playstore;x86_64`, y se creó el AVD `Cobranza_API36_Stable`. La misma APK renderiza correctamente ahí (verificado con screenshot: título "Cobranza" y botón "Ingresar" visibles).
+### Bug encontrado y corregido — sesión no persistía offline tras reapertura
 
-**Sin cambios de código** — no hay commit asociado a esta incidencia. El único diff pendiente en el árbol (`gradle.properties`, `org.gradle.tooling.parallel=true`) es preexistente y no relacionado; no se tocó.
+**Severidad:** Alta (rompe el caso de uso principal de MVP: trabajo offline con datos ya
+descargados).
 
-**Siguiente acción para quien continúe:** Usar el AVD `Cobranza_API36_Stable` (o cualquier imagen NO preview) para desarrollo/pruebas Android. El AVD `Medium_Phone` (ps16k) puede eliminarse o dejarse solo para pruebas específicas de compatibilidad 16KB.
+**Síntoma:** Con la API inaccesible, al hacer force-stop y reabrir la app, el usuario
+quedaba deslogueado (pantalla de login) en vez de ver Home con la asignación ya
+descargada localmente. La sesión local (`sessionExpiresAt`) seguía vigente y el refresh
+token seguía almacenado.
 
----
+**Causa raíz:** `SessionRepository.verificarSesionInicial()`
+(`feature/auth/src/main/.../data/SessionRepository.kt`) evaluaba
+`else if (accessTokenInMemory == null)` para decidir si mostrar `NoAutenticado` tras un
+`refreshTokens()` fallido. Como el access token **nunca se persiste** (vive solo en
+memoria, por diseño), esa condición era `true` en *todo* arranque en frío, sin importar si
+el fallo de `refreshTokens()` fue por red (transitorio, sesión aún válida) o por 401/403
+(sesión realmente inválida). El propio comentario del código ya advertía "Error de red —
+sesión potencialmente válida aún; no limpiar", pero el flujo posterior no respetaba esa
+intención.
+
+**Evidencia:** logcat muestra `POST /api/v1/auth/refresh` → `ConnectException` → la app
+navega a `NoAutenticado` a pesar de que `SecureTokenStore` conservaba el refresh token
+(`clearRefreshToken()` nunca se invocó).
+
+**Corrección:** `verificarSesionInicial()` ahora distingue si el refresh token sigue
+presente tras el intento de renovación (`secureTokenStore.getRefreshToken() == null`
+⇒ la sesión fue invalidada por el servidor dentro de `refreshTokens()`, p. ej. 401/403).
+Si el refresh token sigue presente, el fallo fue transitorio (red/servidor caído) y se
+mantiene `AuthState.Autenticado(nombreUsuario)` con los datos ya cacheados localmente.
+
+**Archivo:** `apps/mobile-android/feature/auth/src/main/java/cl/zzenner/cobranza/feature/auth/data/SessionRepository.kt`
+
+**Pruebas agregadas** en `SessionRepositoryTest.kt`:
+- `sesion vigente con error de red en refresh mantiene Autenticado con datos cacheados`
+- `sesion vigente con refresh 401 durante verificacion inicial cae a NoAutenticado` (evita
+  regresión: un 401/403 real sigue deslogueando correctamente)
+
+Verificado end-to-end tras el fix: reinstalado el APK, con la API caída la app reabre
+directo en Home y "Mi Asignación" muestra las 5 personas cacheadas sin conexión, sin
+crash, sin ANR (WorkManager reintenta la descarga en segundo plano con `Result.retry()`).
+
+### Otros hallazgos (no bloqueantes)
+
+- **Bug visual menor (no corregido, fuera de alcance de esta corrección puntual):** en la
+  lista de "Mi Asignación", cuando el nombre de una persona ocupa dos líneas (ej. "SARA
+  ANTONIETA DE LOURDES HERNANDEZ SILVA"), la etiqueta "0 op." a la derecha se parte
+  carácter por carácter en vertical ("0" / "o" / "p" / ".") en vez de mantenerse en una
+  línea. Cosmético, no afecta datos ni funcionalidad. Reproducible en
+  `AsignacionListScreen` (feature:asignacion). Pendiente de layout fix (probablemente
+  `Row` sin `Modifier.weight`/`maxLines` adecuado en el ítem de lista).
+- El mapeo `ConnectException → ErrorTipo.ERROR_SERVIDOR` ("Error en el servidor. Intente
+  más tarde.") en `LoginViewModel` es intencional y correcto para el escenario de API
+  caída con red del dispositivo disponible (distinto de `SIN_CONEXION`, reservado para
+  falta de red física). No es un bug.
+- La API `/api/v1/asignaciones/diaria/activa` no expone campo `cartera`; la UI
+  correctamente no lo muestra. Confirmado contra OpenAPI.
+- No existe detección activa de conectividad en `feature:asignacion` (`AuthState`/
+  `AsignacionUiState.isOnline` nunca se asigna); el modo offline se infiere solo de forma
+  reactiva ante fallos de red. No es un defecto para el alcance de esta ronda, pero es una
+  limitación a tener presente para UX futura (ej. banner "sin conexión" persistente).
+
+### Datos de prueba — nota operativa (no código)
+
+El usuario semilla `ej_demo_133` tenía una contraseña desincronizada respecto a
+`DEV_ADMIN_PASSWORD` (`.env`) porque el seed usa "crear si no existe" y no resetea
+contraseñas de usuarios ya existentes en el volumen Postgres local. Se actualizó
+`contrasena_hash` de `ej_demo_133` directamente en la BD local de desarrollo (vía
+`pgcrypto`, instalado como extensión en `cobranza_db`) para que coincida con
+`DEV_ADMIN_PASSWORD=123456` del `.env` actual. **Cambio de datos, no de código ni
+esquema versionado; no requiere migración Flyway.** La asignación diaria de
+`ej_demo_133` se regenera automáticamente cada día (confirmado: existían PUBLICADAS para
+2026-08-13 a 2026-08-16, 5 personas, cartera "Temprana" en las cuatro).
+
+### Consistencia de datos verificada
+
+Comparación BD Postgres (fuente de verdad) vs Room local vs UI, para la asignación
+`8b9fd562-ac5f-4773-a109-d1e79d1735ac` (2026-08-16, PUBLICADA, ej_demo_133): 5/5 personas
+coinciden exactamente (RUT y nombre) en las tres capas, en cuatro ciclos de
+descarga/reapertura distintos, sin duplicados (`asignacion_diaria`: 1 fila,
+`asignacion_persona`: 5 filas, `persona`: 5 filas, siempre).
 
 ## Estado del entorno DEV
 
-- Docker: API + PostgreSQL corriendo en localhost:8080
-- Seed completado: 1 admin, 3 supervisores demo, 18 ejecutivos demo, supervisión asignada
-- Escenario asignación demo: 1 diaria PUBLICADA para ej_demo_133 / 2026-08-13 / 5 personas
+- Docker: API + PostgreSQL + Admin Web corriendo (`cobranza-api-1`, `cobranza_postgres`,
+  `cobranza-admin-web-1`), todos healthy al cierre de la sesión.
+- AVD usado: `Cobranza_API36_Stable` (correcto; NO usar `Medium_Phone`, ver DT-010).
 
 ## Cambios en esta sesión (pendientes de commit)
 
-### Archivos nuevos
-- `apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/api/DemoAsignacionSeedApi.java`
-- `apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/aplicacion/DemoAsignacionSeedService.java`
-- `apps/api/src/main/java/cl/zzenner/cobranza/usuarios/api/SupervisionSeedApi.java`
-- `apps/api/src/main/java/cl/zzenner/cobranza/usuarios/aplicacion/SupervisionSeedService.java`
-
 ### Archivos modificados
-- `DevSeedRunner.java` — agrega DemoAsignacionSeedApi, captura ejDemo133Id, llama prepararEscenarioDemo
-- `DevSeedRunnerTest.java` — mock DemoAsignacionSeedApi, test nuevo prepara_escenario_asignacion_demo
-- `PersonaConsultaApi.java` — agrega findIdsByCarteraIdActiva(UUID, int)
-- `PersonaConsultaApiImpl.java` — implementa findIdsByCarteraIdActiva
-- `UsuarioSeedApi.java` — agrega findIdByNombreUsuario(String)
-- `UsuarioSeedService.java` — implementa findIdByNombreUsuario
-- `scripts/smoke-test.sh` — paso 7.16 usa ?tamanio=50
+- `apps/mobile-android/feature/auth/src/main/java/cl/zzenner/cobranza/feature/auth/data/SessionRepository.kt`
+  — fix del bug de sesión offline descrito arriba.
+- `apps/mobile-android/feature/auth/src/test/java/cl/zzenner/cobranza/feature/auth/SessionRepositoryTest.kt`
+  — 2 pruebas nuevas de regresión.
+- `.claude/SESSION_HANDOFF.md` — este archivo.
+
+### No incluir en el commit
+- `apps/mobile-android/gradle.properties` — cambio preexistente ajeno a esta tarea
+  (`org.gradle.tooling.parallel=true`), ya señalado en la sesión anterior.
 
 ## Resultados de validación
 
-- `mvn test`: 494/494 OK, BUILD SUCCESS
-- Smoke tests: 79/79 OK
-- Endpoint Android /api/v1/asignaciones/diaria/activa: 200 con 5 personas para ej_demo_133
-- No hay PII, CSV ni secretos en ningún archivo rastreado
+- `feature:auth:testDebugUnitTest`: 18/18 OK (incluye las 2 pruebas nuevas).
+- `feature:asignacion:testDebugUnitTest`: 31/31 OK (AsignacionMapperTest,
+  AsignacionRepositoryTest, AsignacionViewModelTest, BigDecimalSerializerTest,
+  DescargaAsignacionWorkerTest).
+- `app:assembleDebug`: BUILD SUCCESSFUL.
+- `core:database:testDebugUnitTest` y `feature:gestion:testDebugUnitTest`: fallan
+  íntegramente por el problema conocido JDK25/Robolectric/ASM
+  (`java.lang.IllegalArgumentException` en `ClassReader.java:200`), no relacionado con
+  los cambios de esta sesión. No se intentó corregir (fuera de alcance, según
+  instrucciones vigentes).
+- Matriz completa de 17 escenarios manuales ejecutada y documentada en el informe de la
+  ronda (login, apertura de asignación, consistencia API/UI, listado, duplicados,
+  navegación, force-stop, persistencia, offline con datos, offline sin datos,
+  recuperación, ausencia de crashes/ANR).
+
+## Incidencias API para WSL
+
+Ninguna. Todo el trabajo de esta ronda fue Android-only.
 
 ## Siguiente acción exacta
 
-Commit pendiente con mensaje:
-  "chore(dev): preparar datos y entorno demo para pruebas end-to-end"
-
-Archivos a incluir:
-- apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/api/DemoAsignacionSeedApi.java
-- apps/api/src/main/java/cl/zzenner/cobranza/asignaciones/aplicacion/DemoAsignacionSeedService.java
-- apps/api/src/main/java/cl/zzenner/cobranza/usuarios/api/SupervisionSeedApi.java
-- apps/api/src/main/java/cl/zzenner/cobranza/usuarios/aplicacion/SupervisionSeedService.java
-- apps/api/src/main/java/cl/zzenner/cobranza/DevSeedRunner.java
-- apps/api/src/main/java/cl/zzenner/cobranza/personas/api/PersonaConsultaApi.java
-- apps/api/src/main/java/cl/zzenner/cobranza/personas/infraestructura/PersonaConsultaApiImpl.java
-- apps/api/src/main/java/cl/zzenner/cobranza/usuarios/api/UsuarioSeedApi.java
-- apps/api/src/main/java/cl/zzenner/cobranza/usuarios/aplicacion/UsuarioSeedService.java
-- apps/api/src/test/java/cl/zzenner/cobranza/DevSeedRunnerTest.java
-- scripts/smoke-test.sh
-- .claude/SESSION_HANDOFF.md
-
-Pendiente después del commit:
-- Actualizar STATUS.md y CHANGELOG.md
-- Solicitar autorización para push a origin/main
-- Validación visual del Admin Web (opcional si hay emulador disponible)
+1. Revisar y, si se aprueba, corregir el bug visual menor de "0 op." partido
+   verticalmente en `AsignacionListScreen` (feature:asignacion) — bajo impacto, no
+   bloqueante.
+2. Evaluar si conviene agregar detección activa de conectividad
+   (`ConnectivityManager`/`NetworkCallback`) para mostrar un indicador proactivo de modo
+   offline en `feature:asignacion`, en vez de inferirlo solo reactivamente.
+3. Retomar Fase 7 (Despliegue en VPS) según lo indicado en `TASK_CURRENT.md`, o continuar
+   con el siguiente bloque funcional de Android (registro de gestiones) — pendiente de
+   decisión del usuario.

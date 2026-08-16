@@ -207,6 +207,42 @@ class SessionRepositoryTest {
         assertEquals(AuthState.Autenticado("ej_demo_133"), repository.authState.value)
     }
 
+    // ── Sesión vigente con fallo transitorio de red (offline) ──────────────────
+
+    @Test
+    fun `sesion vigente con error de red en refresh mantiene Autenticado con datos cacheados`() = runTest {
+        coEvery { installationIdStore.sessionExpiresAtFlow() } returns
+                kotlinx.coroutines.flow.flowOf("2099-01-01T00:00:00Z")
+        coEvery { installationIdStore.nombreUsuarioFlow() } returns
+                kotlinx.coroutines.flow.flowOf("ej_demo_133")
+        coEvery { secureTokenStore.getRefreshToken() } returns "refresh-vigente"
+        coEvery { api.renovar(any()) } throws java.io.IOException("sin red")
+
+        repository.verificarSesionInicial()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(AuthState.Autenticado("ej_demo_133"), repository.authState.value)
+        coVerify(exactly = 0) { secureTokenStore.clearRefreshToken() }
+    }
+
+    @Test
+    fun `sesion vigente con refresh 401 durante verificacion inicial cae a NoAutenticado`() = runTest {
+        coEvery { installationIdStore.sessionExpiresAtFlow() } returns
+                kotlinx.coroutines.flow.flowOf("2099-01-01T00:00:00Z")
+        coEvery { installationIdStore.nombreUsuarioFlow() } returns
+                kotlinx.coroutines.flow.flowOf("ej_demo_133")
+        coEvery { secureTokenStore.getRefreshToken() } returnsMany listOf("refresh-expirado", null)
+        coEvery { api.renovar(any()) } returns Response.error(
+            401,
+            "{}".toResponseBody("application/json".toMediaType())
+        )
+
+        repository.verificarSesionInicial()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(AuthState.NoAutenticado, repository.authState.value)
+    }
+
     @Test
     fun `sesion vigente con refresh exitoso pero sin nombre persistido cae a NoAutenticado`() = runTest {
         coEvery { installationIdStore.sessionExpiresAtFlow() } returns

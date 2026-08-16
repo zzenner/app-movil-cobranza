@@ -107,15 +107,15 @@ class SessionRepository @Inject constructor(
         }
 
         val renovado = refreshTokens()
-        if (renovado) {
-            val nombreUsuario = installationIdStore.nombreUsuarioFlow().first()
-            _authState.value = if (nombreUsuario != null) {
-                AuthState.Autenticado(nombreUsuario)
-            } else {
-                AuthState.NoAutenticado
-            }
-        } else if (accessTokenInMemory == null) {
-            _authState.value = AuthState.NoAutenticado
+        val nombreUsuario = installationIdStore.nombreUsuarioFlow().first()
+        // Si el refresh token sigue presente, el fallo de renovación fue transitorio
+        // (red/servidor caído) y no invalidó la sesión: se mantiene Autenticado con
+        // los datos ya cacheados localmente (soporte offline tras reapertura).
+        val sesionInvalidadaPorServidor = secureTokenStore.getRefreshToken() == null
+        _authState.value = when {
+            nombreUsuario == null -> AuthState.NoAutenticado
+            renovado || !sesionInvalidadaPorServidor -> AuthState.Autenticado(nombreUsuario)
+            else -> AuthState.NoAutenticado
         }
     }
 

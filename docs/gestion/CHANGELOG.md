@@ -5,6 +5,26 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-16 — Fix Android: sesión offline tras reapertura
+
+### Corregido
+
+- `SessionRepository.verificarSesionInicial()` (Android, `feature:auth`) — con la API
+  inaccesible, al reabrir la app (force-stop o proceso nuevo) el usuario quedaba
+  deslogueado aunque la sesión local siguiera vigente y el refresh token siguiera
+  almacenado. Causa: la comprobación de estado dependía de `accessTokenInMemory`, que
+  nunca se persiste y por lo tanto siempre es `null` en un arranque en frío. Ahora se
+  distingue un fallo transitorio de red (refresh token conservado) de una invalidación
+  real del servidor (401/403, refresh token borrado), manteniendo `Autenticado` con los
+  datos cacheados en el primer caso. Ver `.claude/SESSION_HANDOFF.md` para detalle y
+  evidencia.
+
+### Añadido
+
+- 2 pruebas de regresión en `SessionRepositoryTest` para el escenario anterior.
+
+---
+
 ## [v0.21.0] — 2026-08-13 — Fase 6B: Asignaciones Diarias y Publicación — COMPLETADA
 
 ### Añadido
