@@ -4,6 +4,25 @@ Este documento registra deuda técnica real identificada, con contexto suficient
 
 ## Deuda activa
 
+### DT-011 — Test instrumentado de `core:security` no ejecuta por runner faltante en el classpath
+**Área:** Android, entorno de pruebas (`core:security`).
+**Descripción:** `SecureTokenStoreInstrumentedTest` (androidTest) falla al arrancar con
+`ClassNotFoundException: androidx.test.runner.AndroidJUnitRunner` — `testInstrumentationRunner`
+en `core/security/build.gradle.kts:13` apunta a la clase del artefacto legacy `androidx.test:runner`,
+que no está declarado como dependencia `androidTestImplementation` del módulo (solo está
+`androidx.test.ext:junit`, que provee `androidx.test.ext.junit.runners.AndroidJUnitRunner`, una
+clase distinta). No relacionado con JDK/Robolectric — es un test instrumentado real (requiere
+emulador/dispositivo), separado de los tests JVM unitarios.
+**Impacto:** El único test instrumentado del proyecto (cifrado/descifrado AES-GCM del refresh
+token vía Android Keystore) no puede ejecutarse ni en CI ni localmente contra un emulador.
+**Decisión recomendada:** Agregar la dependencia `androidx.test:runner` a
+`androidTestImplementation` en `core/security/build.gradle.kts`, o cambiar
+`testInstrumentationRunner` a `androidx.test.ext.junit.runners.AndroidJUnitRunner` si esa es la
+única clase disponible en el classpath del módulo.
+**Referencia:** Detectado durante la ronda de estabilización del entorno Java (2026-08-16).
+
+---
+
 ### DT-010 — AVD local con imagen de sistema experimental (16KB page size) rompe el renderizado de Compose
 **Área:** Android, entorno de desarrollo local (no código de la app).
 **Descripción:** El AVD `Medium_Phone` creado localmente usaba la imagen de sistema `system-images;android-37.1;google_apis_playstore_ps16k;x86_64` (imagen preview/experimental de Android 17 con page-size de 16KB). En ese AVD, **ningún** contenido de Jetpack Compose se pinta en pantalla (queda negro), aunque el árbol de composición se construye correctamente (confirmado con `uiautomator dump`) y los frames se entregan/intercambian en HWUI (confirmado con logs `Davey!`/`SwapBuffersCompleted`). Se demostró reemplazando toda la UI por un `Box` rojo de pantalla completa: seguía renderizando negro. Solo la barra de estado del sistema (vistas nativas, no-Compose) se veía. Se creó un AVD nuevo (`Cobranza_API36_Stable`, imagen estable `system-images;android-36;google_apis_playstore;x86_64`) y la misma APK renderizó correctamente (título "Cobranza", botón "Ingresar" visibles).
@@ -108,6 +127,25 @@ Ver **DT-R06** en la sección de deuda resuelta.
 ---
 
 ## Deuda resuelta
+
+### DT-R07 — Gradle/tests JVM ejecutándose bajo JDK incorrecto (JDK 25) rompía Robolectric (resuelto 2026-08-16)
+**Descripción:** El proyecto fija `sourceCompatibility`/`targetCompatibility = VERSION_17` en todos
+los módulos, pero no declaraba ningún `kotlin { jvmToolchain(17) }` que forzara el JDK real del
+daemon de Gradle. En Windows, sin `JAVA_HOME` explícito, Gradle terminaba ejecutándose bajo el
+JBR de Android Studio (JDK 25.0.2), causando que **todos** los tests Robolectric de
+`core:database` (39/39) y parte de `feature:gestion` (4/27) fallaran con
+`java.lang.IllegalArgumentException: Unsupported class file major version 69` en
+`org.objectweb.asm.ClassReader` — el ASM embebido en Robolectric 4.14.1 no soporta parsear
+bytecode de JDK 25 al instrumentar clases (`InstrumentingClassWriter.getCommonSuperClass`). Los
+tests JVM puros sin Robolectric (feature:auth, feature:asignacion) no se veían afectados.
+**Resolución:** Se estandarizó JDK 17 (Microsoft Build of OpenJDK 17.0.20+8 LTS) como JDK del
+proyecto para Windows. Instalado vía `winget install Microsoft.OpenJDK.17`. `JAVA_HOME`
+configurado a nivel de Usuario de Windows (`[Environment]::SetEnvironmentVariable`, scope
+`User`), persistente para nuevas terminales/sesiones. Confirmado que con JDK 17 los 39 tests de
+`core:database` y los 27 de `feature:gestion` pasan sin modificar Robolectric, ASM, AGP, Gradle
+Wrapper ni ninguna otra dependencia — la causa era puramente el JDK de ejecución, no una
+incompatibilidad de versiones de librerías.
+**Referencia:** `.claude/SESSION_HANDOFF.md` (sección "Entorno Java del proyecto").
 
 ### DT-R04 — Mecanismo de reapertura de la app estando offline (resuelto 2026-07-26)
 **Descripción:** No se usa PIN local ni biometría dentro de la app en el MVP. La sesión local Android persiste hasta que el usuario ejecute logout explícitamente. La seguridad física del dispositivo la gestiona el SO del teléfono corporativo (bloqueo de pantalla del sistema).

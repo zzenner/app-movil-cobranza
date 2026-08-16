@@ -32,6 +32,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import cl.zzenner.cobranza.feature.asignacion.domain.PersonaResumen
@@ -180,10 +181,14 @@ private fun PersonaItem(
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column {
+        // weight(1f) reserva primero el ancho natural de la etiqueta de operaciones
+        // (medida sin peso) y solo entonces le da el resto al nombre/RUT; sin esto,
+        // un nombre de dos líneas mide su línea más larga como ancho "natural" y deja
+        // casi nada para la etiqueta, que termina partiéndose carácter por carácter.
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = persona.nombre,
                 style = MaterialTheme.typography.bodyLarge,
@@ -198,7 +203,37 @@ private fun PersonaItem(
             text = "${persona.numOperaciones} op.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            softWrap = false,
         )
     }
     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PersonaItemNombreCortoPreview() {
+    PersonaItem(
+        persona = PersonaResumen(
+            id = "1",
+            nombre = "JUAN PEREZ",
+            rutFormateado = "12.345.678-9",
+            numOperaciones = 3,
+        ),
+        onClick = {},
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PersonaItemNombreLargoPreview() {
+    PersonaItem(
+        persona = PersonaResumen(
+            id = "2",
+            nombre = "SARA ANTONIETA DE LOURDES HERNANDEZ SILVA",
+            rutFormateado = "12.001.181-2",
+            numOperaciones = 12,
+        ),
+        onClick = {},
+    )
 }

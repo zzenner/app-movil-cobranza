@@ -37,6 +37,12 @@ Antes de implementar, modificar o proponer cambios, leer en este orden:
 - Ejecutar las pruebas y validaciones disponibles.
 - No ocultar errores ni omitir advertencias relevantes.
 - No declarar una tarea completada si existen pruebas fallidas o errores no resueltos.
+- **Android (`apps/mobile-android`) en Windows: usar siempre JDK 17 para Gradle/tests.**
+  Verificar con `java -version` y `.\gradlew --version` antes de ejecutar tests o builds. El
+  JBR de Android Studio (JDK 25+) rompe los tests Robolectric (`core:database`,
+  `feature:gestion`) con `Unsupported class file major version`. `JAVA_HOME` debe apuntar a un
+  JDK 17 (configurado a nivel de Usuario de Windows). Detalle y evidencia en
+  `.claude/SESSION_HANDOFF.md` y `docs/gestion/DEUDA_TECNICA.md` (DT-R07).
 
 ### Documentación
 - Actualizar `docs/gestion/STATUS.md` y `docs/gestion/CHANGELOG.md` al completar cada tarea.

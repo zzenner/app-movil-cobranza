@@ -1,8 +1,151 @@
 # SESSION_HANDOFF — App Móvil Cobranza
 
-**Última actualización:** 2026-08-16 20:10 (sesión actual — ronda de validación "Asignación diaria" en Android)
+**Última actualización:** 2026-08-16 22:35 (sesión actual — estabilización entorno Java + fix visual asignación)
 **Rama:** main
-**Commit HEAD antes de esta ronda:** e79064f (fix(android): restaurar sesión tras reapertura y revocar sesión en logout)
+**Commit HEAD antes de esta ronda:** 6653752 (fix(android): mantener sesion autenticada offline tras reapertura sin red)
+
+## Ronda — Entorno Java (JDK 17) + fix visual "0 op." + regresión (2026-08-16, tarde)
+
+Alcance: NO se tocó backend/API/WSL. Solo Android/Windows.
+
+### Entorno Java del proyecto — JDK estándar: 17
+
+**Diagnóstico inicial (antes de esta ronda):**
+
+| Componente | Java detectado |
+|---|---|
+| PowerShell `java` (PATH) | Oracle JDK 8 (`1.8.0_471`) — `C:\Program Files (x86)\Common Files\Oracle\Java\java8path\java.exe` |
+| Git Bash `java` (PATH) | Mismo JDK 8 del sistema (falla con "Gradle requires JVM 17 or later") |
+| Android Studio JBR (bundled) | OpenJDK 25.0.2 (JetBrains) — `C:\Program Files\Android\Android Studio\jbr` |
+| `JAVA_HOME` | No definido |
+| `.idea/gradle.xml` (no versionado) | `gradleJvm = #GRADLE_LOCAL_JAVA_HOME` (ya delega a la variable de entorno `JAVA_HOME`, sin necesidad de tocar este archivo) |
+
+**Causa raíz confirmada de los ~43 fallos Robolectric:** ninguno de los `build.gradle.kts` del
+proyecto declara `kotlin { jvmToolchain(17) }` — solo fijan `sourceCompatibility`/
+`targetCompatibility = VERSION_17` (bytecode target), sin forzar qué JDK ejecuta el *daemon* de
+Gradle. Sin `JAVA_HOME` explícito en Windows, Gradle terminaba corriendo bajo el JBR de Android
+Studio (JDK 25.0.2). Reproducido y confirmado con evidencia exacta:
+`java.lang.IllegalArgumentException: Unsupported class file major version 69` en
+`org.objectweb.asm.ClassReader.<init>(ClassReader.java:200)`, invocado desde
+`org.robolectric.internal.bytecode.InstrumentingClassWriter.getCommonSuperClass` — el ASM
+embebido en Robolectric 4.14.1 no soporta parsear class files de JDK 25 (major version 69) al
+instrumentar clases. Detalle completo en `docs/gestion/DEUDA_TECNICA.md` (DT-R07, resuelta).
+
+**Resolución (sin tocar ninguna dependencia):**
+- Instalado **Microsoft Build of OpenJDK 17.0.20+8 LTS** vía
+  `winget install --id Microsoft.OpenJDK.17` → `C:\Program Files\Microsoft\jdk-17.0.20.8-hotspot`.
+  No se desinstaló ni modificó el JDK 8 existente ni el JBR de Android Studio.
+- `JAVA_HOME` configurado a nivel de **Usuario de Windows** (`[Environment]::SetEnvironmentVariable`,
+  scope `User`) apuntando a esa ruta, y `%JAVA_HOME%\bin` antepuesto al `PATH` de Usuario. Es
+  persistente para toda terminal/sesión **nueva** (incluidas futuras sesiones de Claude Code).
+- **Importante:** la sesión de shell de *esta* conversación ya estaba iniciada antes del cambio,
+  por lo que no heredó la variable automáticamente (limitación del harness, no de la
+  configuración — el registro de Windows quedó correcto, verificado). Durante el resto de esta
+  sesión se exportó `JAVA_HOME` explícitamente por comando. Una terminal nueva fuera de esta
+  sesión ya lo hereda sin pasos adicionales.
+- Confirmado con JDK 17: `core:database` pasa de 39/39 fallando a **39/39 OK**;
+  `feature:gestion` pasa de 4/27 fallando a **27/27 OK**. Cero cambios de código de producción o
+  de dependencias para lograrlo.
+- Nota para Android Studio: como `.idea/gradle.xml` ya usaba `#GRADLE_LOCAL_JAVA_HOME`, el IDE
+  recogerá el nuevo `JAVA_HOME` de Usuario automáticamente en el próximo *Gradle sync* (puede
+  requerir reiniciar Android Studio o invalidar caches si ya estaba abierto durante el cambio).
+
+**Verificación rápida para cualquier sesión futura:**
+```powershell
+java -version        # debe reportar 17.x
+.\gradlew --version  # sección "JVM" debe reportar 17.x
+```
+
+### Suite de tests completa (JDK 17) — todos los módulos declarados en `settings.gradle.kts`
+
+| Módulo | Tests | Pasan | Fallan | Skipped |
+|---|---|---|---|---|
+| `app` | 8 | 8 | 0 | 0 |
+| `core:network` | 13 | 13 | 0 | 0 |
+| `core:security` | 3 | 3 | 0 | 0 |
+| `core:database` | 39 | 39 | 0 | 0 |
+| `feature:auth` | 30 | 30 | 0 | 0 |
+| `feature:asignacion` | 31 | 31 | 0 | 0 |
+| `feature:gestion` | 27 | 27 | 0 | 0 |
+| `feature:busqueda` | 22 | 22 | 0 | 0 |
+| **Total** | **173** | **173** | **0** | **0** |
+
+`./gradlew lint` → BUILD SUCCESSFUL (todos los módulos). `./gradlew :app:assembleDebug` → BUILD
+SUCCESSFUL.
+
+**Instrumented tests:** existe un único test instrumentado en el proyecto,
+`core:security:SecureTokenStoreInstrumentedTest` (cifrado/descifrado AES-GCM del refresh token
+vía Android Keystore real). No pudo ejecutarse: `testInstrumentationRunner` apunta a una clase
+(`androidx.test.runner.AndroidJUnitRunner`) cuyo artefacto no está en el classpath de
+`androidTest` del módulo — falla con `ClassNotFoundException` al arrancar la instrumentación, no
+relacionado con JDK/Robolectric. Ver DT-011 en `docs/gestion/DEUDA_TECNICA.md`. No se corrigió
+(fuera del foco de esta ronda: entorno Java + fix visual).
+
+### Corrección visual — "0 op." partido verticalmente en `AsignacionListScreen`
+
+**Causa raíz:** en `PersonaItem` (composable privado de `AsignacionListScreen.kt`), el `Column`
+con el nombre y el RUT no tenía `Modifier.weight()`. En un `Row`, un hijo sin peso mide su ancho
+"natural" según su línea más larga ya envuelta; con un nombre de dos líneas (ej. "SARA ANTONIETA
+DE LOURDES HERNANDEZ SILVA"), esa línea más larga ocupa casi todo el ancho de la fila, dejando
+casi nada de espacio para el `Text` "0 op." siguiente, que termina envolviendo carácter por
+carácter en vertical.
+
+**Fix:** `Modifier.weight(1f)` en el `Column` del nombre/RUT — esto hace que Compose mida
+primero el `Text` "0 op." (sin peso) con su ancho natural de una sola línea, y solo después le
+da el espacio restante al nombre, que puede envolver a tantas líneas como necesite sin invadir
+el espacio del contador. Se cambió `Arrangement.SpaceBetween` → `Arrangement.spacedBy(8.dp)` (ya
+no hace falta SpaceBetween porque el peso ya empuja el contador al final) y se agregó
+`maxLines = 1, softWrap = false` al contador como defensa adicional. No se truncó el nombre
+(sin `overflow = Ellipsis`) para no cortar información importante, según lo pedido.
+
+**Archivo:** `apps/mobile-android/feature/asignacion/src/main/java/.../ui/AsignacionListScreen.kt`
+
+**Validación:** 2 nuevas `@Preview` (nombre corto / nombre largo) — no existían previews en el
+módulo. No se agregó test Compose automatizado (no existía infraestructura de UI testing en el
+módulo; crear una para un fix cosmético habría sido desproporcionado). Verificado visualmente en
+`Cobranza_API36_Stable`: las 5 personas de la asignación demo se ven correctamente, incluida
+"SARA ANTONIETA DE LOURDES HERNANDEZ SILVA" (2 líneas) con "0 op." en una sola línea alineado a
+la derecha. Navegación probada explícitamente hacia una persona de nombre corto y una de nombre
+largo, con retorno correcto a la lista en ambos casos.
+
+### Decisión de sesión offline — formalizada
+
+La regla ya implementada en el commit `6653752` (fallo transitorio de red en refresh ⇒ mantener
+`Autenticado` con datos offline; 401/403 del servidor ⇒ cerrar sesión) se agregó explícitamente
+a **RN-24** en `docs/dominio/REGLAS_NEGOCIO.md` (antes solo estaba implícita en "la pérdida de
+red no cierra la sesión"). No se creó un ADR nuevo — ADR-0032 (stack Android) no es el lugar
+correcto para una regla de negocio, y RN-24 ya era la sección apropiada.
+
+### Regresión funcional mínima — resultado
+
+App inicia ✅ · Restauración de sesión ✅ (sin volver a pedir login tras el APK actualizado) ·
+Home visible ✅ · Mi asignación diaria abre ✅ · 5 personas visibles con el layout corregido ✅ ·
+Navegación persona (nombre corto y largo) → volver ✅ (sin corromper la lista) · Sin crashes en
+logcat ✅ · Sin ANR ✅.
+
+### Archivos modificados en esta ronda
+
+- `apps/mobile-android/feature/asignacion/src/main/java/cl/zzenner/cobranza/feature/asignacion/ui/AsignacionListScreen.kt`
+- `CLAUDE.md` — nota durable sobre JDK 17.
+- `docs/dominio/REGLAS_NEGOCIO.md` — precisión en RN-24.
+- `docs/gestion/DEUDA_TECNICA.md` — DT-011 (nueva, activa) y DT-R07 (resuelta).
+- `docs/gestion/CHANGELOG.md` — entrada de esta ronda.
+- `.claude/SESSION_HANDOFF.md` — este archivo.
+
+### No incluir en el commit
+
+- `apps/mobile-android/gradle.properties` — cambio preexistente ajeno a esta tarea, sigue sin
+  tocar.
+
+### Siguiente acción exacta
+
+`feature:gestion` queda técnicamente listo (173/173 tests OK a nivel de proyecto, entorno Java
+estabilizado) para iniciar su ronda de pruebas funcionales — pendiente de que el usuario la
+autorice explícitamente. Pendientes menores no bloqueantes: DT-011 (instrumented test runner) y
+evaluar detección proactiva de conectividad en `feature:asignacion` (ya registrado en la ronda
+anterior).
+
+---
 
 ## Ronda de validación — Asignación diaria del ejecutivo (Android)
 

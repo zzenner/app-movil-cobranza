@@ -200,6 +200,12 @@ Tres conceptos separados:
 Reglas:
 - La app puede operar offline con los datos descargados.
 - No se usa PIN local ni biometría en el MVP.
+- Al reabrir la app, si existe una sesión/refresh token local previamente válido y el intento de
+  renovación falla por un problema transitorio de conectividad (sin respuesta del servidor), la
+  app mantiene al usuario autenticado localmente para permitir el uso de los datos offline ya
+  descargados. En cambio, si el servidor responde indicando explícitamente que el refresh token
+  ya no es válido/autorizado (401/403), la sesión local se elimina y se retorna a la pantalla de
+  login. Implementado en `SessionRepository.verificarSesionInicial()` (Android, `feature:auth`).
 - Al recuperar conectividad, la app valida o renueva la autenticación, verifica que el usuario esté activo y que el dispositivo no esté revocado, y sincroniza.
 - La revocación administrativa es efectiva cuando el teléfono recupera conectividad.
 - Cerrar la aplicación (background/kill) **no equivale** a cerrar sesión.

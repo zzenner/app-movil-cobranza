@@ -5,6 +5,32 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-16 — Estabilización entorno Java (JDK 17) y fix visual asignación
+
+### Corregido
+
+- **Entorno de build/tests Android en Windows:** ningún módulo declaraba
+  `kotlin { jvmToolchain(17) }`, por lo que Gradle podía ejecutarse bajo el JBR de Android
+  Studio (JDK 25), rompiendo Robolectric (`Unsupported class file major version 69` en
+  `org.objectweb.asm.ClassReader`) en `core:database` (39 tests) y parcialmente en
+  `feature:gestion` (4 tests). Resuelto estandarizando JDK 17 (Microsoft Build of OpenJDK
+  17.0.20 LTS) como JDK del proyecto en Windows, sin modificar Robolectric, ASM, AGP, Kotlin
+  ni Gradle Wrapper. Ver DT-R07 en `docs/gestion/DEUDA_TECNICA.md`.
+- `AsignacionListScreen.PersonaItem` — el nombre de una persona sin `Modifier.weight()` podía
+  consumir casi todo el ancho de la fila cuando envolvía a dos líneas, dejando la etiqueta de
+  operaciones ("0 op.") comprimida y partida carácter por carácter en vertical.
+
+### Añadido
+
+- 2 `@Preview` de `PersonaItem` (nombre corto / nombre largo) en `AsignacionListScreen.kt`.
+- RN-24 (`docs/dominio/REGLAS_NEGOCIO.md`) — se formaliza explícitamente la diferencia entre
+  fallo transitorio de red (mantiene sesión offline) e invalidación real del servidor
+  (401/403, cierra sesión) al renovar el refresh token en el arranque de la app.
+- DT-011 (`docs/gestion/DEUDA_TECNICA.md`) — test instrumentado de `core:security` no ejecuta
+  por runner de instrumentación faltante en el classpath (`androidx.test:runner`).
+
+---
+
 ## [Sin versión] — 2026-08-16 — Fix Android: sesión offline tras reapertura
 
 ### Corregido
