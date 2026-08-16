@@ -190,6 +190,71 @@ class SessionRepositoryTest {
         assertEquals(AuthState.NoAutenticado, repository.authState.value)
     }
 
+    // ── Sesión vigente con refresh exitoso ─────────────────────────────────────
+
+    @Test
+    fun `sesion vigente con refresh exitoso establece Autenticado con nombre persistido`() = runTest {
+        coEvery { installationIdStore.sessionExpiresAtFlow() } returns
+                kotlinx.coroutines.flow.flowOf("2099-01-01T00:00:00Z")
+        coEvery { installationIdStore.nombreUsuarioFlow() } returns
+                kotlinx.coroutines.flow.flowOf("ej_demo_133")
+        coEvery { secureTokenStore.getRefreshToken() } returns "refresh-vigente"
+        coEvery { api.renovar(any()) } returns Response.success(respuestaTokenValida())
+
+        repository.verificarSesionInicial()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(AuthState.Autenticado("ej_demo_133"), repository.authState.value)
+    }
+
+    @Test
+    fun `sesion vigente con refresh exitoso pero sin nombre persistido cae a NoAutenticado`() = runTest {
+        coEvery { installationIdStore.sessionExpiresAtFlow() } returns
+                kotlinx.coroutines.flow.flowOf("2099-01-01T00:00:00Z")
+        coEvery { installationIdStore.nombreUsuarioFlow() } returns
+                kotlinx.coroutines.flow.flowOf(null)
+        coEvery { secureTokenStore.getRefreshToken() } returns "refresh-vigente"
+        coEvery { api.renovar(any()) } returns Response.success(respuestaTokenValida())
+
+        repository.verificarSesionInicial()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(AuthState.NoAutenticado, repository.authState.value)
+    }
+
+    // ── guardarSesion persiste el nombre de usuario ────────────────────────────
+
+    @Test
+    fun `guardar sesion persiste nombreUsuario en installationIdStore`() = runTest {
+        repository.guardarSesion(respuestaTokenValida(), "ej_demo_133")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { installationIdStore.saveNombreUsuario("ej_demo_133") }
+    }
+
+    // ── Logout envia el access token vigente ───────────────────────────────────
+
+    @Test
+    fun `logout envia el access token como Bearer al backend`() = runTest {
+        coEvery { api.logout(any()) } returns Response.success(Unit)
+        repository.guardarSesion(respuestaTokenValida(), "usuario")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        repository.logout()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { api.logout("Bearer access.token.valido") }
+    }
+
+    @Test
+    fun `logout sin access token en memoria no llama al backend`() = runTest {
+        repository.logout()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { api.logout(any()) }
+        assertEquals(AuthState.NoAutenticado, repository.authState.value)
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private fun respuestaTokenValida() = RespuestaToken(

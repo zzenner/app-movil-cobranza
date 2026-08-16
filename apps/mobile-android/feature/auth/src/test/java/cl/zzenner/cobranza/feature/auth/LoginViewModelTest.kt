@@ -213,7 +213,7 @@ class LoginViewModelTest {
     fun `logout limpia sesion y regresa a NoAutenticado`() = runTest {
         // Primero establecer una sesión
         coEvery { api.login(any()) } returns Response.success(respuestaTokenValida())
-        coEvery { api.logout() } returns Response.success(Unit)
+        coEvery { api.logout(any()) } returns Response.success(Unit)
         coEvery { secureTokenStore.saveRefreshToken(any()) } returns Unit
         coEvery { installationIdStore.saveSessionExpiresAt(any()) } returns Unit
         coEvery { secureTokenStore.clearRefreshToken() } returns Unit

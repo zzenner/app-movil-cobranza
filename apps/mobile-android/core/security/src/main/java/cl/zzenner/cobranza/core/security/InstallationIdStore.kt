@@ -35,6 +35,7 @@ class InstallationIdStore @Inject constructor(
     private object Keys {
         val INSTALLATION_ID = stringPreferencesKey("installation_id")
         val SESSION_EXPIRES_AT = stringPreferencesKey("session_expires_at")
+        val NOMBRE_USUARIO = stringPreferencesKey("nombre_usuario")
     }
 
     /**
@@ -57,7 +58,17 @@ class InstallationIdStore @Inject constructor(
         dataStore.edit { prefs -> prefs[Keys.SESSION_EXPIRES_AT] = expiresAt }
     }
 
+    fun nombreUsuarioFlow(): Flow<String?> =
+        dataStore.data.map { it[Keys.NOMBRE_USUARIO] }
+
+    suspend fun saveNombreUsuario(nombreUsuario: String) {
+        dataStore.edit { prefs -> prefs[Keys.NOMBRE_USUARIO] = nombreUsuario }
+    }
+
     suspend fun clearSessionData() {
-        dataStore.edit { prefs -> prefs.remove(Keys.SESSION_EXPIRES_AT) }
+        dataStore.edit { prefs ->
+            prefs.remove(Keys.SESSION_EXPIRES_AT)
+            prefs.remove(Keys.NOMBRE_USUARIO)
+        }
     }
 }

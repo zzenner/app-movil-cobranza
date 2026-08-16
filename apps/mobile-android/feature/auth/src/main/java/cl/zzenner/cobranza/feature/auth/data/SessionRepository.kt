@@ -107,10 +107,15 @@ class SessionRepository @Inject constructor(
         }
 
         val renovado = refreshTokens()
-        if (!renovado) {
-            if (accessTokenInMemory == null) {
-                _authState.value = AuthState.NoAutenticado
+        if (renovado) {
+            val nombreUsuario = installationIdStore.nombreUsuarioFlow().first()
+            _authState.value = if (nombreUsuario != null) {
+                AuthState.Autenticado(nombreUsuario)
+            } else {
+                AuthState.NoAutenticado
             }
+        } else if (accessTokenInMemory == null) {
+            _authState.value = AuthState.NoAutenticado
         }
     }
 
@@ -128,12 +133,15 @@ class SessionRepository @Inject constructor(
 
     suspend fun guardarSesion(tokens: RespuestaToken, nombreUsuario: String) {
         applyNewTokens(tokens)
+        installationIdStore.saveNombreUsuario(nombreUsuario)
         _authState.value = AuthState.Autenticado(nombreUsuario)
     }
 
     suspend fun logout() {
         try {
-            publicAuthApi.logout()
+            accessTokenInMemory?.let { token ->
+                publicAuthApi.logout("Bearer $token")
+            }
         } catch (_: Exception) {
             // El logout remoto no es crítico; siempre limpiar localmente
         }
