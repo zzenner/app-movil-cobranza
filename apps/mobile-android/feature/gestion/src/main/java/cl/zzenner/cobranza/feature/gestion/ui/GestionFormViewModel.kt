@@ -136,7 +136,11 @@ class GestionFormViewModel @Inject constructor(
 
     fun guardar() {
         val s = _state.value
-        if (s.isSubmitting) return
+        // guardadoExitoso se mantiene true hasta que la navegación de salida ocurra; sin este
+        // chequeo, un segundo tap en la ventana entre "guardado local completo" (isSubmitting
+        // vuelve a false) y la navegación efectiva (LaunchedEffect en la pantalla) reenvía el
+        // mismo formulario y crea una gestión local duplicada con un UUID distinto.
+        if (s.isSubmitting || s.guardadoExitoso) return
 
         val ubicacion = (s.gpsState as? GpsState.Capturado)?.ubicacion ?: run {
             _state.update { it.copy(errores = listOf(ErrorValidacion.UbicacionRequerida)) }

@@ -142,7 +142,7 @@ fun GestionFormScreen(
             Button(
                 onClick = viewModel::guardar,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !state.isSubmitting && state.gpsState is GpsState.Capturado,
+                enabled = !state.isSubmitting && !state.guardadoExitoso && state.gpsState is GpsState.Capturado,
             ) {
                 Text(if (state.isSubmitting) "Guardando..." else "Registrar gestión")
             }

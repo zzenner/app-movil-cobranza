@@ -1,8 +1,121 @@
 # SESSION_HANDOFF — App Móvil Cobranza
 
-**Última actualización:** 2026-08-16 22:35 (sesión actual — estabilización entorno Java + fix visual asignación)
+**Última actualización:** 2026-08-18 04:40 (sesión actual — ronda funcional de Gestiones)
 **Rama:** main
-**Commit HEAD antes de esta ronda:** 6653752 (fix(android): mantener sesion autenticada offline tras reapertura sin red)
+**Commit HEAD antes de esta ronda:** ed75ffb (fix(android): estabilizar entorno de pruebas y layout de asignaciones)
+
+## Ronda — Gestiones: flujo funcional completo online/offline (2026-08-17/18)
+
+Alcance: NO se tocó backend/API/WSL. Solo Android/Windows. Cubre:
+persona asignada → registrar gestión → persistencia local → offline → sincronización → recuperación.
+
+### Flujo técnico confirmado
+
+`PersonaDetalleScreen` (feature:asignacion) → botón "Registrar gestión" → `GestionFormScreen`
+(feature:gestion) con `personaId`+`asignacionDiariaId`. El formulario expone: tipo de gestión
+(chips `SIN_CONTACTO`/`CONTACTO_FAMILIAR`/`COMPROMISO_PAGO`, obligatorio), captura de GPS
+(obligatoria, botón "Capturar", el botón "Registrar gestión" está deshabilitado hasta tenerla),
+observación (opcional, ≤500), observación de dirección (opcional, ≤200), fecha de compromiso
+(solo visible/obligatoria si tipo=COMPROMISO_PAGO, debe ser hoy o posterior). Sin campo de
+fotografía — **no implementada** en UI, DTO ni esquema de BD (confirmado en los tres niveles).
+
+Al guardar: `GestionRepository.guardarLocal()` inserta en Room `gestion_local` con un **UUID
+generado en el cliente** como PK — este mismo UUID se envía como `id` en el POST y es el
+mecanismo de idempotencia (servidor responde 200/IDEMPOTENTE si mismo id+contenido, 409/CONFLICTO
+si mismo id+contenido distinto). Guardado 100% local primero (offline-first real, no espera red)
+y dispara `GestionSyncScheduler.programarEnvioInmediato()` (WorkManager, red requerida).
+
+`GestionRepository.procesarOutbox()` usa un patrón de lease (CAS) para concurrencia segura,
+clasifica la respuesta HTTP: 200/201→SINCRONIZADA; 401→vuelve a PENDIENTE_ENVIO y detiene el lote
+(el 401 real ya pasó por `SingleFlightAuthenticator` antes de llegar aquí, confirmado — la
+sincronización de gestiones usa el mismo cliente autenticado que el resto de la app); 409→CONFLICTO;
+422→ERROR_PERMANENTE; 5xx e IOException→ERROR_REINTENTABLE con backoff exponencial manual
+(30s·2^intentos, máx 24h, vía `fechaProximoIntentoEpoch`). **Importante:** `getElegibles()` solo
+recoge `PENDIENTE_ENVIO`/`ERROR_REINTENTABLE` — `ERROR_PERMANENTE` y `CONFLICTO` nunca se
+reintentan automáticamente ni tienen UI de reintento/descarte manual (ver deuda técnica).
+
+Logout con pendientes: `HomeViewModel.solicitarLogout()` bloquea si
+`gestionRepository.contarNoResueltas() > 0` (cualquier estado != SINCRONIZADA); ofrece
+"Sincronizar y cerrar sesión" → `procesarOutbox()` → si quedan pendientes, permanece bloqueado
+("No se pudo sincronizar"). Coincide exactamente con RN-24.
+
+### Bugs encontrados y corregidos
+
+**1. Endpoint de gestiones apuntaba a la ruta incorrecta (crítico, ya estaba parcialmente
+corregido sin commitear al iniciar esta ronda).** `GestionApi.crearGestion()` usaba
+`@POST("gestiones")` en vez de `@POST("api/v1/gestiones")` (todos los demás endpoints usan el
+prefijo `api/v1/`). Efecto: **todo intento de sincronizar una gestión fallaba con 404 real**
+contra el backend, clasificándose como `ERROR_PERMANENTE` (sin reintento posible). Este fix y su
+test de regresión (`GestionApiTest`, verifica la ruta HTTP real vía MockWebServer) ya existían sin
+commitear al comenzar esta ronda — se conservaron, verificaron y se incluyen en el commit.
+
+**2. Duplicación real por doble-tap en "Registrar gestión" (encontrado y corregido en esta
+ronda).** Severidad: Alta — genera una **gestión duplicada real en el backend** (2 filas
+Postgres con mismo contenido, IDs distintos), no solo un artefacto local.
+- **Síntoma:** doble-tap sobre "Registrar gestión" crea 2 gestiones locales distintas (2 UUID),
+  ambas eventualmente sincronizadas como 2 filas independientes en `cobranza.gestiones`.
+- **Causa raíz:** `GestionFormViewModel.guardar()` solo comprobaba `isSubmitting`. Ese flag
+  vuelve a `false` en cuanto el guardado local (rápido, síncrono) termina — **antes** de que la
+  navegación de salida (`LaunchedEffect(guardadoExitoso) { onNavigateBack() }`) surta efecto. En
+  esa ventana el botón vuelve a estar habilitado y el formulario sigue con los mismos datos
+  cargados; un segundo tap real (no simultáneo, ~400ms después) reenvía el mismo formulario.
+- **Evidencia:** reproducido con `adb shell input tap` encadenado dos veces sobre el botón;
+  logcat mostró un único POST en el instante del doble-tap pero un segundo registro quedó
+  `PENDIENTE_ENVIO` en Room y se confirmó como segunda fila en Postgres tras forzar la
+  sincronización. Test `GestionFormViewModelTest` reproduce el fallo determinísticamente (sin el
+  fix, `doble tap tras guardado exitoso no crea una segunda gestion local` falla; con el fix,
+  pasa) — confirmado revirtiendo temporalmente el guard y re-ejecutando.
+- **Solución:** `guardar()` ahora también se bloquea si `guardadoExitoso == true`
+  (`if (s.isSubmitting || s.guardadoExitoso) return`), y el botón en `GestionFormScreen` agrega
+  `!state.guardadoExitoso` a su condición `enabled` como defensa adicional en la UI.
+- **Archivos:** `GestionFormViewModel.kt`, `GestionFormScreen.kt`.
+- **Test de regresión:** `GestionFormViewModelTest.kt` (nuevo, 3 casos).
+
+### Escenarios validados con evidencia
+
+- Validaciones de formulario: sin tipo, fecha compromiso requerida, fecha pasada inválida,
+  observación >500 caracteres — todas correctas, mensajes controlados, sin crash.
+- Creación ONLINE: UI = Room = API idénticos (mismo UUID, persona, tipo, observación, GPS,
+  `asignacion_diaria_id`) — verificado consultando las tres capas directamente.
+- Creación OFFLINE (API detenida vía `docker stop`): gestión con `COMPROMISO_PAGO` + fecha se
+  guarda localmente sin bloquear la UI, clasificada `ERROR_REINTENTABLE` (IOException/
+  ConnectException correctamente distinguido de error permanente). GPS se captura 100% offline
+  (no depende de red).
+- Force-stop con gestión pendiente + API caída: sesión, asignación y la gestión pendiente
+  siguen disponibles tras reabrir — sin pérdida, sin duplicación.
+- Recuperación de conectividad: no hay disparador proactivo por reconexión (ver deuda técnica);
+  al disparar cualquier sincronización real (crear otra gestión), el lote completo —incluida la
+  pendiente offline— se envía y ambas quedan `SINCRONIZADA`, confirmado en Postgres con los
+  mismos IDs y timestamps de creación local preservados.
+- Se detectó una ventana transitoria real (no bug) de "Sin personas en la asignación" al cruzar
+  la medianoche del entorno: el job de generación de asignación diaria del backend aún no había
+  corrido para el nuevo día; se resolvió sola minutos después sin intervención. El logout SÍ
+  limpia todo el caché local (`BundleReplacementTransaction.limpiarTodo()`), comportamiento
+  esperado y ya documentado en RN-24.
+
+### Deuda técnica nueva (no corregida, documentada)
+
+- Sin mecanismo de reintento proactivo de gestiones al recuperar conectividad — depende del
+  trabajo periódico (1h) o de una acción del usuario que dispare sync (crear otra gestión,
+  intentar logout). Asignación diaria sí tiene un botón manual de "Sincronizar"; Gestiones no.
+- Sin UI para reintentar o descartar manualmente una gestión en `ERROR_PERMANENTE`/`CONFLICTO`
+  — al no ser elegibles para `getElegibles()`, quedan bloqueando `contarNoResueltas() > 0`
+  **indefinidamente**, impidiendo el logout normal en ese dispositivo sin intervención técnica
+  directa en la base de datos.
+
+### No incluir en el commit
+
+- `apps/mobile-android/gradle.properties` — cambio preexistente ajeno, sigue sin tocar.
+
+### Siguiente acción exacta
+
+Suite completa 180/180 OK, lint y assembleDebug exitosos. Gestiones queda técnicamente
+**aprobado con observaciones** (2 bugs corregidos, 2 deudas de UX documentadas, sin bloqueantes).
+Pendiente: decidir si priorizar un mecanismo de reintento/descarte manual para gestiones en
+error permanente antes de producción, dado que bloquea el logout sin vía de escape para el
+usuario final.
+
+---
 
 ## Ronda — Entorno Java (JDK 17) + fix visual "0 op." + regresión (2026-08-16, tarde)
 

@@ -4,6 +4,41 @@ Este documento registra deuda técnica real identificada, con contexto suficient
 
 ## Deuda activa
 
+### DT-012 — Gestiones en `ERROR_PERMANENTE`/`CONFLICTO` bloquean el logout indefinidamente sin vía de resolución
+**Área:** Android, `feature:gestion`.
+**Descripción:** `GestionLocalDao.getElegibles()` solo recoge registros en `PENDIENTE_ENVIO` o
+`ERROR_REINTENTABLE` — por diseño, una gestión en `ERROR_PERMANENTE` (422, u otro código HTTP no
+2xx/401/409/5xx) o `CONFLICTO` (409) nunca vuelve a intentarse automáticamente. No existe en la
+UI actual ninguna pantalla ni acción para que el ejecutivo revise, reintente manualmente o
+descarte esa gestión. Como `HomeViewModel.solicitarLogout()` bloquea el cierre de sesión mientras
+`gestionRepository.contarNoResueltas() > 0` (cualquier estado distinto de `SINCRONIZADA`), una
+sola gestión en estos estados terminales deja al ejecutivo **sin forma de cerrar sesión en ese
+dispositivo** desde la UI.
+**Impacto:** Bloqueo real de logout en producción ante cualquier gestión con datos rechazados
+por validación del servidor (422) o conflicto de idempotencia (409). Requiere intervención
+técnica directa sobre la base de datos del dispositivo para desbloquear.
+**Decisión recomendada:** Diseñar una pantalla o sección (posiblemente dentro de
+`GestionHistorialScreen`) que permita ver el detalle del error y ofrecer "reintentar" (vuelve a
+`PENDIENTE_ENVIO`) o "descartar" (requiere definir la regla de negocio — RN-24 dice "no se
+eliminan silenciosamente gestiones pendientes bajo ninguna circunstancia", por lo que descartar
+probablemente deba quedar auditado, no ser un borrado silencioso).
+**Referencia:** Detectado durante la ronda funcional de Gestiones (2026-08-18).
+
+### DT-013 — Sin sincronización proactiva de gestiones al recuperar conectividad
+**Área:** Android, `feature:gestion`.
+**Descripción:** A diferencia de `feature:asignacion` (que expone un ícono manual de
+"Sincronizar" en `AsignacionListScreen`), `GestionSyncScheduler` solo se dispara desde
+`programarEnvioInmediato()` (al guardar una gestión nueva) o `programarPeriodico()` (cada 1
+hora). No hay `ConnectivityManager`/`NetworkCallback` ni botón manual visible para forzar el
+reenvío de gestiones pendientes. Una gestión offline puede quedar sin sincronizar hasta 1 hora
+después de recuperar conexión, salvo que el usuario registre otra gestión mientras tanto.
+**Impacto:** Bajo — no hay pérdida de datos, solo demora en la visibilidad de la gestión en el
+backend/supervisión.
+**Decisión recomendada:** Evaluar agregar un botón manual de "Sincronizar" en
+`PersonaDetalleScreen`/`GestionHistorialScreen` equivalente al de asignación, y/o un
+`NetworkCallback` que dispare `programarEnvioInmediato()` al recuperar conectividad.
+**Referencia:** Detectado durante la ronda funcional de Gestiones (2026-08-18).
+
 ### DT-011 — Test instrumentado de `core:security` no ejecuta por runner faltante en el classpath
 **Área:** Android, entorno de pruebas (`core:security`).
 **Descripción:** `SecureTokenStoreInstrumentedTest` (androidTest) falla al arrancar con

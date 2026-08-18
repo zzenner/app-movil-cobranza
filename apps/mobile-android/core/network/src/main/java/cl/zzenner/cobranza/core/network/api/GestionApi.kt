@@ -6,6 +6,6 @@ import retrofit2.http.POST
 
 interface GestionApi {
 
-    @POST("gestiones")
+    @POST("api/v1/gestiones")
     suspend fun crearGestion(@Body dto: SolicitudGestionDto): Response<RespuestaGestionDto>
 }

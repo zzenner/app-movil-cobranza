@@ -5,6 +5,26 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-18 — Fix Android: endpoint y duplicado de Gestiones
+
+### Corregido
+
+- `GestionApi.crearGestion()` apuntaba a `POST gestiones` en vez de `POST api/v1/gestiones`,
+  causando 404 real en todo intento de sincronización de una gestión (quedaba en
+  `ERROR_PERMANENTE` sin reintento posible).
+- `GestionFormViewModel.guardar()` — un doble-tap sobre "Registrar gestión" creaba dos gestiones
+  locales (dos UUID) para la misma acción del usuario, ambas sincronizadas como filas
+  independientes en el backend. El guard `isSubmitting` no cubría la ventana entre el guardado
+  local exitoso y la navegación de salida efectiva. Ahora también se bloquea cuando
+  `guardadoExitoso` ya es true.
+
+### Añadido
+
+- `GestionApiTest` — verifica la ruta HTTP real del endpoint de gestiones vía MockWebServer.
+- `GestionFormViewModelTest` — 3 pruebas, incluida la regresión de doble-tap.
+
+---
+
 ## [Sin versión] — 2026-08-16 — Estabilización entorno Java (JDK 17) y fix visual asignación
 
 ### Corregido
