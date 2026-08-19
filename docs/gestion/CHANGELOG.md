@@ -5,6 +5,30 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-19 — Validación funcional Android: Búsqueda de persona por RUT
+
+### Validado
+
+- Flujo completo de "Buscar persona por RUT" (`feature:busqueda`) verificado en emulador contra
+  API/Postgres reales: formulario y validaciones (vacío, DV inválido, formato con puntos),
+  búsqueda de persona en la asignación del día, búsqueda de persona existente fuera de la
+  asignación (confirma regla de autorización de RN-18: cualquier ejecutivo puede acceder a
+  cualquier persona del sistema — no es un bug), RUT inexistente, búsquedas consecutivas sin
+  residuales, doble-tap sin duplicar requests, navegación a "Registrar gestión" y vuelta,
+  force-stop/reapertura, comportamiento offline (sin resolución local por diseño — la búsqueda
+  global siempre requiere API), recuperación de conectividad sin reinstalar la app, persistencia
+  idempotente en `persona_directa` (Room), y ausencia de datos sensibles (RUT, nombre, token) en
+  Logcat.
+- **No se encontraron bugs.** Suite completa: 189/189 tests, 0 fallos (sin cambios respecto al
+  baseline).
+
+### Registrado
+
+- DT-014 (`docs/gestion/DEUDA_TECNICA.md`): `GestionFormScreen` no muestra nombre/RUT de la
+  persona al registrar una gestión (afecta ambos orígenes de gestión, impacto bajo).
+
+---
+
 ## [Sin versión] — 2026-08-19 — Fix Android: logout seguro con gestiones no recuperables (DT-012)
 
 ### Corregido

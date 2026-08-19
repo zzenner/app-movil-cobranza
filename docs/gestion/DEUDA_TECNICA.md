@@ -23,6 +23,25 @@ backend/supervisión.
 `NetworkCallback` que dispare `programarEnvioInmediato()` al recuperar conectividad.
 **Referencia:** Detectado durante la ronda funcional de Gestiones (2026-08-18).
 
+### DT-014 — `GestionFormScreen` no muestra nombre ni RUT de la persona al registrar una gestión
+**Área:** Android, `app` (`GestionFormScreen.kt`), compartido por los orígenes `ASIGNACION_DIARIA` y `BUSQUEDA_DIRECTA`.
+**Descripción:** Tras una búsqueda exitosa en "Buscar persona por RUT" (`feature:busqueda`), la
+navegación abre directamente `Registrar gestión` sin ningún encabezado o card que confirme el
+nombre/RUT de la persona encontrada — el título de la TopAppBar es genérico ("Registrar
+gestión") y el resto del formulario (tipo de gestión, GPS, observaciones) no referencia a la
+persona. Se verificó leyendo `GestionFormScreen.kt` completo: no existe ningún `Text` que
+muestre `persona.nombre` ni RUT. El mismo formulario se usa para el origen `ASIGNACION_DIARIA`,
+así que la carencia no es exclusiva de búsqueda directa.
+**Impacto:** El ejecutivo no tiene una confirmación visual explícita de qué persona está
+gestionando en este formulario específico, especialmente relevante en búsqueda directa donde el
+usuario recién tecleó un RUT manualmente (mayor probabilidad de error de tipeo que en asignación,
+donde la persona se elige de una lista con nombre visible). No se detectó ningún caso en que se
+muestre el nombre equivocado — es una omisión de UI, no un error de datos.
+**Decisión recomendada:** Agregar un encabezado o card en `GestionFormScreen` con nombre y RUT
+formateado de la persona (dato ya disponible vía `personaId` → `PersonaDao`/`PersonaDirectaDao`
+según origen). Bajo riesgo, cambio acotado a una pantalla.
+**Referencia:** Detectado durante la ronda de validación de Búsqueda por RUT (2026-08-19).
+
 ### DT-011 — Test instrumentado de `core:security` no ejecuta por runner faltante en el classpath
 **Área:** Android, entorno de pruebas (`core:security`).
 **Descripción:** `SecureTokenStoreInstrumentedTest` (androidTest) falla al arrancar con

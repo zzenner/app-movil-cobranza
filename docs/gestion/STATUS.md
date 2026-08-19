@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-**Última actualización:** 2026-08-13
+**Última actualización:** 2026-08-19
 **Fase actual:** Fase 6B — Asignaciones Diarias y Publicación — COMPLETADA ✅ — tag v0.21.0-asignaciones-diarias
 **Fase anterior:** Fase 6A — Carteras y Supervisión — COMPLETADA ✅ — tag v0.20.0-carteras-supervision
 
@@ -29,7 +29,7 @@
 | **App Android — Fase 4A (base auth + red + seguridad)**   | **Completado ✅**                   |
 | **App Android — Fase 4B (cartera offline Room + WorkManager)** | **Cerrada ✅**               |
 | **App Android — Fase 4C-A (gestiones ASIGNACION_DIARIA offline)**  | **Cerrada ✅**          |
-| **App Android + API — Fase 4C-B (búsqueda directa por RUT)**       | **Implementada ✅ — pendiente commit** |
+| **App Android + API — Fase 4C-B (búsqueda directa por RUT)**       | **VALIDADA ✅ — 189/189 tests, sin bugs** |
 | **Admin Web — Fase 5B-2 gestión usuarios (escritura)**             | **VALIDADA ✅ — LISTA PARA CIERRE** |
 | **API + Admin Web — Fase 5C importación mensual**                  | **VALIDADA ✅ — 404/404 tests** |
 | **API + Admin Web + OpenAPI — Fase 5D contrato CSV v2 (26 columnas)** | **CERRADA ✅ — commit 9133f49 (pendiente push)** |

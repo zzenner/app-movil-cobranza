@@ -1,8 +1,189 @@
 # SESSION_HANDOFF — App Móvil Cobranza
 
-**Última actualización:** 2026-08-19 02:35 (sesión actual — DT-012: logout seguro con gestiones no recuperables)
+**Última actualización:** 2026-08-19 03:25 (sesión actual — validación funcional de Búsqueda por RUT)
 **Rama:** main
 **Commit HEAD antes de esta ronda:** 141ad7d (fix(android): corregir endpoint y duplicado por doble-tap en gestiones)
+
+## Ronda — Búsqueda de persona por RUT: validación funcional completa (2026-08-19)
+
+Alcance: solo `feature:busqueda` + verificación de su integración (`PersonaBusquedaApi`,
+`NetworkModule`, navegación, `PersonaDirectaDao`). DT-013 no se tocó. NO se tocó backend/API/WSL
+(solo lectura de código en `apps/api` para confirmar la regla de autorización real).
+**No se encontraron bugs.** Toda la validación fue de lectura/observación; no hubo cambios de
+código ni de tests en esta ronda.
+
+### Flujo técnico confirmado
+
+`HomeScreen` → botón "Buscar persona por RUT" → `RUTA_BUSQUEDA_DIRECTA` → `BusquedaDirectaScreen`
+(feature:busqueda). `BusquedaDirectaViewModel.buscar()` primero valida localmente con
+`RutValidator.esValido()` (módulo 11 estándar, sin llamar a la red si el RUT es inválido) y luego
+llama a `BusquedaDirectaRepository.buscar()` → `PersonaBusquedaApi.buscarPersona()`
+(`POST api/v1/personas/busquedas`, RUT en el body — ADR-0041). Si la API responde 200, el
+resultado se persiste como snapshot en Room `persona_directa` (`PersonaDirectaDao.upsert`,
+ADR-0042) y la UI navega de inmediato a `GestionFormScreen` (sin pantalla de detalle intermedia).
+Confirmado en `NetworkModule.kt` que `PersonaBusquedaApi` se construye desde el Retrofit
+`@Named("authenticated")` — mismo `SingleFlightAuthenticator` y mismo interceptor de token que
+`GestionApi`/`SincronizacionApi`; no existe lógica de tokens propia en `feature:busqueda`.
+
+**Este flujo es 100% online — no consulta Room antes de llamar a la API, ni para personas de la
+asignación del día.** RN-18 distingue explícitamente "búsqueda local" (filtro en la lista de
+asignación descargada, vive en `feature:asignacion`, no alcanzable desde este botón de Home) de
+"búsqueda global" (este flujo, siempre requiere red). Confirmado leyendo
+`BusquedaDirectaRepository.buscar()` línea por línea: no hay ninguna consulta a
+`PersonaDao`/`AsignacionDiariaDao` antes del `api.buscarPersona()`.
+
+### Regla de autorización encontrada (punto crítico del encargo)
+
+**Un ejecutivo puede buscar y acceder a CUALQUIER persona del sistema, no solo a las de su
+asignación diaria — comportamiento intencional y documentado, no un bug de seguridad.**
+Confirmado en tres niveles:
+1. **RN-18** (`docs/dominio/REGLAS_NEGOCIO.md`): "Búsqueda global: `POST
+   /api/v1/personas/busquedas`... Rol requerido: `EJECUTIVO_TERRENO`" — sin mención de scoping por
+   asignación.
+2. **Código backend** (`BusquedaPersonaService.buscar()`, leído completo): `ejecutivoId` se usa
+   **únicamente** para el log de auditoría `[BUSQUEDA_AUDITORIA]`, nunca para filtrar o restringir
+   el resultado de `personaConsultaApi.findByRut()`. `BusquedaPersonaController` solo exige
+   `@PreAuthorize("hasRole('EJECUTIVO_TERRENO')")`, sin chequeo adicional de pertenencia a cartera
+   o asignación.
+3. **Prueba real en el emulador**: se buscó el RUT 12520996-3 (Mauricio Antonio Verdugo
+   Rebolledo), confirmado por consulta SQL directa que **nunca** ha estado en ninguna asignación
+   diaria de `ej_demo_133` — la búsqueda lo encontró y navegó normalmente a "Registrar gestión".
+No se clasifica como incidencia de seguridad: es la razón de ser de `BUSQUEDA_DIRECTA` como origen
+de gestión distinto de `ASIGNACION_DIARIA` (permitir gestionar a alguien fuera de la asignación
+del día, ej. un aval o referencia que aparece en terreno).
+
+### Validación de RUT
+
+`RutValidator.esValido()` (feature:busqueda): número y DV en campos separados (coherente con
+ADR-0007/DT-R01), módulo 11 estándar, rechaza vacío, no-dígitos, número >8 dígitos, DV que no sea
+0-9/K. La validación es **puramente local** — nunca llega a la API si el RUT es inválido (ahorra
+tráfico). `BusquedaDirectaViewModel` filtra la entrada en tiempo real: campo Número solo acepta
+dígitos (los puntos de formato chileno, ej. "14.503.973", se eliminan automáticamente al tipear,
+quedando "14503973" — tolerancia silenciosa ya implementada, no se agregó ninguna nueva), campo DV
+acepta 1 carácter y lo fuerza a mayúscula. DV incorrecto (probado: 14503973-**5** en vez de
+14503973-**8**) se rechaza localmente con "El RUT ingresado no es válido..." sin llamar a la API —
+confirmado con logcat limpio (cero requests HTTP en ese intento).
+
+### Comportamiento online (verificado en emulador, `Cobranza_API36_Stable`, API real)
+
+- **Formulario vacío:** botón "Buscar" deshabilitado (`enabled = !buscando && rutNumero.isNotBlank
+  () && rutDv.isNotBlank()`) — imposible disparar una búsqueda vacía.
+- **RUT de persona en la asignación del día** (14503973-8, Cristian Marcelo Agusto González):
+  encontrado, navega a "Registrar gestión", se persiste en `persona_directa` (verificado por
+  extracción binaria de Room — ver nota WAL abajo).
+- **RUT de persona existente pero fuera de la asignación** (12520996-3): encontrado y accesible —
+  ver sección de autorización arriba.
+- **RUT inexistente** (11111111-1, formato y DV válidos, confirmado ausente en Postgres): mensaje
+  "No se encontró ninguna persona con el RUT ingresado.", sin crash, sin navegación, sin datos
+  inventados, permanece en la pantalla de búsqueda.
+- **DV incorrecto:** ver sección de validación de RUT arriba.
+- **Búsquedas consecutivas** (persona A → inexistente → persona B → DV incorrecto → persona A de
+  nuevo): cada resultado reemplaza limpiamente al anterior, sin residuales, sin mezclar estados de
+  error/éxito, sin duplicar la fila en Room (`persona_directa` terminó con exactamente 2 filas tras
+  3 búsquedas repetidas de la misma persona — upsert por `id` del servidor funciona correctamente).
+- **Doble/triple-tap sobre "Buscar"** (3 taps rápidos consecutivos): solo se disparó **1** request
+  HTTP real (confirmado contando líneas `--> POST`/`<-- 200` en Logcat con el tag `OkHttp`) — el
+  guard síncrono `if (s.buscando) return` en `BusquedaDirectaViewModel.buscar()` previene
+  correctamente la condición de carrera antes de que la corrutina ceda el hilo.
+- **Navegación a "Registrar gestión" y vuelta atrás:** confirma persona correcta implícitamente
+  (mismo RUT recién buscado), back del sistema regresa limpio a la pantalla de búsqueda (con los
+  últimos valores de número/DV aún visibles — el ViewModel no limpia esos campos, solo
+  `personaEncontradaId`; no está mal, RN-18 no exige limpiar ni preservar, y la tarea explícitamente
+  no lo exige tampoco), nueva búsqueda funciona sin arrastrar estado previo.
+- **Force-stop + reapertura:** sesión sobrevive, Home visible, "Buscar persona por RUT" abre en
+  estado limpio (formulario vacío, sin mensaje de error residual) — no hay corrupción de estado.
+- **Recuperación de conectividad:** con la API caída, la búsqueda de una persona no descargada
+  (12520996-3) devolvió correctamente "Sin conexión. Verifique su red e intente nuevamente." Tras
+  reiniciar el contenedor (`docker start cobranza-api-1`, sin reinstalar la app ni reiniciar el
+  emulador) y confirmar `/actuator/health` UP, **repetir el mismo tap** sobre "Buscar" completó la
+  búsqueda con éxito (200 real, confirmado en Logcat) — recuperación limpia.
+- **401/renovación de sesión:** no se re-probó end-to-end en esta ronda (el mecanismo es idéntico
+  al ya validado para `GestionApi` en la ronda anterior — mismo cliente `@Named("authenticated")`,
+  mismo `SingleFlightAuthenticator`, confirmado por lectura de código en `NetworkModule.kt`); no se
+  fabricó un 401 real para no introducir lógica de tokens ni tocar backend solo para esta prueba.
+
+### Comportamiento offline (con API caída vía `docker stop cobranza-api-1`)
+
+**No hay resolución local para ningún caso** — ni para una persona que sí está en la asignación
+del día ya descargada en Room. Esto es el comportamiento **correcto según el diseño actual**, no
+un bug: `BusquedaDirectaRepository.buscar()` no consulta Room antes de llamar a la API (ver "Flujo
+técnico" arriba); la búsqueda local real (offline, sobre la asignación ya descargada) es una
+funcionalidad distinta que vive en `feature:asignacion`, no alcanzable desde este botón de Home.
+Ambos casos probados (persona en asignación local: 14503973-8; persona no descargada: 12520996-3)
+devolvieron el mismo mensaje "Sin conexión..." — sin crash, sin ANR, sin spinner infinito, sin
+inventar datos.
+
+### Errores API mapeados en código (no todos re-probados con fallas reales para no tocar backend)
+
+- 404 → `NoEncontrada` (probado real).
+- 400 con cuerpo conteniendo `RUT_INVALIDO` → `RutInvalido` (mapeo verificado por lectura de
+  código; el caso real de RUT inválido nunca llega a la API porque se filtra antes en el cliente,
+  así que este branch del repository cubre el caso de que la validación local y la del servidor
+  llegaran a divergir — no reproducido, cubierto por diseño defensivo).
+- Otro código HTTP no 200/404/400 → `Error("Error del servidor: <code>")` (no reproducido; no se
+  fabricó un 500 real para no modificar backend).
+- `IOException` (API caída, timeout de red) → `SinConexion` (probado real).
+- Cualquier otra excepción → `Error(e.message)` (no reproducido).
+
+### Privacidad y Logcat
+
+Revisado con logcat real durante toda la sesión de pruebas: **ningún RUT completo, nombre
+completo ni token Bearer aparece en Logcat.** `feature:busqueda` no tiene ninguna llamada a
+`Log.*`. El único logging de red (`HttpLoggingInterceptor`, `NetworkModule.kt`) está configurado
+en `Level.HEADERS` (no `BODY`), así que el cuerpo de la solicitud/respuesta (que contiene RUT y
+nombre) nunca se imprime. Confirmado además que el header `Authorization` tampoco aparece en el
+log (verificado con un request real y logcat limpio): el interceptor de logging se agrega al
+`OkHttpClient` público antes de que el interceptor de token se añada en el cliente autenticado
+(`publicClient.newBuilder().addInterceptor { token }`), por lo que el logging captura la solicitud
+antes de que el header `Authorization` se inserte. No se requirió ningún cambio.
+
+### Datos de Room verificados (extracción binaria, ver nota WAL)
+
+`persona_directa` tras la sesión de pruebas: exactamente 2 filas (14503973-8 Cristian Marcelo
+Agusto González; 12520996-3 Mauricio Antonio Verdugo Rebolledo), sin duplicados pese a múltiples
+búsquedas repetidas de la misma persona — `upsert` por `id` (UUID del servidor) funciona
+correctamente como llave de idempotencia.
+
+**Nota operativa para futuras sesiones:** Room usa journal mode WAL. Para leer datos recién
+escritos con `run-as cat` + `sqlite3` local, es indispensable copiar también `cobranza.db-wal` y
+`cobranza.db-shm` junto a `cobranza.db` (mismo directorio, mismo prefijo) — copiar solo el `.db`
+principal devuelve datos desactualizados o tablas vacías si hay escrituras recientes sin
+checkpoint. Ruta: `/data/data/cl.zzenner.cobranza/databases/`. Usar el prefijo `//` en las rutas
+remotas de `adb exec-out run-as ... cat` para evitar el mangling de MSYS/Git Bash en Windows.
+
+### Deuda técnica registrada
+
+**DT-014** (nueva, ver `docs/gestion/DEUDA_TECNICA.md`): `GestionFormScreen` no muestra nombre ni
+RUT de la persona al registrar una gestión (afecta ambos orígenes, no exclusivo de búsqueda
+directa). Impacto bajo (omisión de UI, no error de datos), decisión recomendada documentada.
+
+### Anomalía investigada y descartada (no es un bug)
+
+Al iniciar esta ronda, una consulta SQL directa con `CURRENT_DATE` (zona horaria de la sesión de
+Postgres, efectivamente UTC) devolvía 0 filas para la asignación de hoy de `ej_demo_133`. Era un
+falso negativo de la consulta, no un problema real: la API resuelve "hoy" en **America/Santiago**
+(`SincronizacionApi.kt`, comentario explícito), y a esa hora (03:06 UTC del 19-ago) el día vigente
+en Santiago aún era el 18-ago — la asignación PUBLICADA de esa fecha existe y la API la devuelve
+correctamente (HTTP 200, confirmado con login real + llamada directa al endpoint). No se modificó
+nada; solo se corrigió el criterio de búsqueda de datos de prueba para esta ronda.
+
+### Tests
+
+Sin cambios de código → sin tests nuevos. Suite completa ejecutada al final:
+`testDebugUnitTest` + `lint` + `:app:assembleDebug` → BUILD SUCCESSFUL, **189/189 tests, 0
+fallos** (feature:busqueda: 22/22, igual al baseline reportado al inicio de la ronda). Ver tabla
+completa en el informe final de la tarea.
+
+### No incluir en el commit
+
+- `apps/mobile-android/gradle.properties` — cambio preexistente ajeno, sigue sin tocar.
+
+### Incidencias API para WSL
+
+Ninguna. No se encontró ningún comportamiento del backend que requiera corrección — la regla de
+autorización "cualquier persona, cualquier ejecutivo" es la documentada en RN-18, no un defecto.
+
+---
 
 ## Ronda — DT-012: logout no queda atrapado por gestiones en error permanente (2026-08-19)
 
