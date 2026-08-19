@@ -111,6 +111,31 @@ fun HomeScreen(
             )
         }
 
+        is EstadoLogout.ConfirmarLogoutConNoRecuperables -> {
+            AlertDialog(
+                onDismissRequest = viewModel::cancelarLogout,
+                title = { Text("Hay gestiones que no se pudieron enviar") },
+                text = {
+                    Text(
+                        "Tiene ${logout.cantidad} gestión(es) que el sistema no podrá enviar " +
+                            "de forma automática. Quedarán guardadas en este dispositivo, pero " +
+                            "no se enviarán solas: avise a su supervisor para resolverlas.\n\n" +
+                            "Cerrar sesión no significa que esos datos ya fueron enviados.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = viewModel::confirmarLogoutConNoRecuperables) {
+                        Text("Cerrar sesión de todas formas")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = viewModel::cancelarLogout) {
+                        Text("Cancelar")
+                    }
+                },
+            )
+        }
+
         else -> {}
     }
 

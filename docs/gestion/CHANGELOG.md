@@ -5,6 +5,30 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-19 — Fix Android: logout seguro con gestiones no recuperables (DT-012)
+
+### Corregido
+
+- `HomeViewModel` bloqueaba el logout indefinidamente ante una gestión en `ERROR_PERMANENTE`/
+  `CONFLICTO` (nunca reintentada por diseño), sin ninguna vía de salida para el usuario. Ahora
+  distingue gestiones reintentables (comportamiento sin cambios) de no recuperables, y ofrece un
+  diálogo en lenguaje simple para cerrar sesión mediante confirmación explícita en este último
+  caso, priorizando siempre resolver primero lo reintentable.
+- `BundleReplacementTransaction.limpiarTodo()` borraba `gestion_local` de forma incondicional en
+  cada logout — hallazgo adicional detectado al corregir lo anterior. Ahora solo elimina las
+  gestiones ya `SINCRONIZADA`; cualquier gestión pendiente, en reintento o con error permanente
+  sobrevive al logout con su registro y error intactos (RN-24).
+
+### Añadido
+
+- `GestionLocalDao`/`GestionRepository` — `contarReintentables()`, `contarNoRecuperables()`,
+  `deleteSincronizadas()`.
+- `HomeViewModelTest` (8 tests) y actualización de `LogoutIntegrationTest` (regresión DT-012 y
+  retención de datos).
+- RN-24 actualizada con la regla de logout para gestiones en error permanente.
+
+---
+
 ## [Sin versión] — 2026-08-18 — Fix Android: endpoint y duplicado de Gestiones
 
 ### Corregido

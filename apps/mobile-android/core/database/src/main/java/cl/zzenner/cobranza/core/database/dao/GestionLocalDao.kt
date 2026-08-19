@@ -76,6 +76,22 @@ interface GestionLocalDao {
     @Query("SELECT COUNT(*) FROM gestion_local WHERE estadoSincronizacion != 'SINCRONIZADA'")
     suspend fun contarNoResueltas(): Int
 
+    /** Aún pueden sincronizarse automáticamente (backoff/próximo intento). */
+    @Query("SELECT COUNT(*) FROM gestion_local WHERE estadoSincronizacion IN ('PENDIENTE_ENVIO', 'ERROR_REINTENTABLE')")
+    suspend fun contarReintentables(): Int
+
+    /** Requieren intervención — el worker nunca las vuelve a seleccionar (ver getElegibles). */
+    @Query("SELECT COUNT(*) FROM gestion_local WHERE estadoSincronizacion IN ('ERROR_PERMANENTE', 'CONFLICTO')")
+    suspend fun contarNoRecuperables(): Int
+
     @Query("DELETE FROM gestion_local")
     suspend fun deleteAll()
+
+    /**
+     * Borrado de logout: solo las ya confirmadas por el servidor. Las no sincronizadas
+     * (pendientes, en reintento o con error permanente) nunca se pierden en un logout —
+     * RN-24 prohíbe eliminar silenciosamente gestiones no enviadas.
+     */
+    @Query("DELETE FROM gestion_local WHERE estadoSincronizacion = 'SINCRONIZADA'")
+    suspend fun deleteSincronizadas(): Int
 }

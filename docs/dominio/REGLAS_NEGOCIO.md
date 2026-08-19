@@ -218,9 +218,27 @@ Se consideran pendientes: gestiones no enviadas, fotografías no enviadas, ubica
 - Si **no hay pendientes**: logout permitido. Se eliminan sesión y credenciales locales.
 - Si **hay pendientes y hay conexión**: la app intenta sincronizar.
   - Si la sincronización termina correctamente: logout permitido.
-  - Si la sincronización falla: la sesión se mantiene abierta.
-- Si **hay pendientes y no hay conexión**: no se permite logout.
+  - Si la sincronización falla **y el reintento automático sigue siendo posible** (sin
+    conectividad, timeout, error temporal de servidor): la sesión se mantiene abierta, igual
+    que antes.
+  - Si lo único que queda sin sincronizar es una gestión con **error permanente** (rechazada
+    por validación del servidor, o conflicto de idempotencia no recuperable) — es decir, algo
+    que el reintento automático nunca va a resolver por sí solo — la app informa al usuario en
+    lenguaje simple que esos datos no se enviarán solos y que debe avisar a su supervisor, y
+    permite cerrar sesión mediante una decisión explícita del usuario. Cerrar sesión en este
+    caso no implica que los datos fueron enviados. Si además queda alguna gestión que todavía
+    puede reintentarse, esa sigue teniendo prioridad: no se ofrece la salida "de todas formas"
+    hasta que el conteo de reintentables llegue a cero.
+- Si **hay pendientes y no hay conexión**: no se permite logout (aplica igual si lo pendiente es
+  reintentable; una gestión con error permanente detectado previamente se rige por la regla
+  anterior independientemente de la conectividad, ya que un error permanente no se resuelve
+  recuperando la red).
 - No se eliminan silenciosamente gestiones ni fotografías pendientes bajo ninguna circunstancia.
+  Esto aplica también en logout: solo se elimina localmente lo que el servidor ya confirmó como
+  sincronizado; cualquier gestión pendiente, en reintento o con error permanente sobrevive al
+  logout con su registro y error intactos. Implementado en
+  `BundleReplacementTransaction.limpiarTodo()` / `GestionLocalDao.deleteSincronizadas()`
+  (Android, `core:database`).
 
 ### RN-25 Observación de dirección
 - Entidad `observacion_direccion` registrada por el ejecutivo desde terreno.

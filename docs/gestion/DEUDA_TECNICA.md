@@ -4,25 +4,9 @@ Este documento registra deuda técnica real identificada, con contexto suficient
 
 ## Deuda activa
 
-### DT-012 — Gestiones en `ERROR_PERMANENTE`/`CONFLICTO` bloquean el logout indefinidamente sin vía de resolución
-**Área:** Android, `feature:gestion`.
-**Descripción:** `GestionLocalDao.getElegibles()` solo recoge registros en `PENDIENTE_ENVIO` o
-`ERROR_REINTENTABLE` — por diseño, una gestión en `ERROR_PERMANENTE` (422, u otro código HTTP no
-2xx/401/409/5xx) o `CONFLICTO` (409) nunca vuelve a intentarse automáticamente. No existe en la
-UI actual ninguna pantalla ni acción para que el ejecutivo revise, reintente manualmente o
-descarte esa gestión. Como `HomeViewModel.solicitarLogout()` bloquea el cierre de sesión mientras
-`gestionRepository.contarNoResueltas() > 0` (cualquier estado distinto de `SINCRONIZADA`), una
-sola gestión en estos estados terminales deja al ejecutivo **sin forma de cerrar sesión en ese
-dispositivo** desde la UI.
-**Impacto:** Bloqueo real de logout en producción ante cualquier gestión con datos rechazados
-por validación del servidor (422) o conflicto de idempotencia (409). Requiere intervención
-técnica directa sobre la base de datos del dispositivo para desbloquear.
-**Decisión recomendada:** Diseñar una pantalla o sección (posiblemente dentro de
-`GestionHistorialScreen`) que permita ver el detalle del error y ofrecer "reintentar" (vuelve a
-`PENDIENTE_ENVIO`) o "descartar" (requiere definir la regla de negocio — RN-24 dice "no se
-eliminan silenciosamente gestiones pendientes bajo ninguna circunstancia", por lo que descartar
-probablemente deba quedar auditado, no ser un borrado silencioso).
-**Referencia:** Detectado durante la ronda funcional de Gestiones (2026-08-18).
+### ~~DT-012 — Gestiones en `ERROR_PERMANENTE`/`CONFLICTO` bloquean el logout indefinidamente~~ → Resuelto
+
+Ver **DT-R08** en la sección de deuda resuelta.
 
 ### DT-013 — Sin sincronización proactiva de gestiones al recuperar conectividad
 **Área:** Android, `feature:gestion`.
@@ -162,6 +146,49 @@ Ver **DT-R06** en la sección de deuda resuelta.
 ---
 
 ## Deuda resuelta
+
+### DT-R08 — Gestiones en `ERROR_PERMANENTE`/`CONFLICTO` bloqueaban el logout indefinidamente (resuelto 2026-08-19)
+**Descripción original:** `GestionLocalDao.getElegibles()` solo recoge `PENDIENTE_ENVIO`/
+`ERROR_REINTENTABLE` — una gestión en `ERROR_PERMANENTE` o `CONFLICTO` nunca vuelve a intentarse
+sola, pero `HomeViewModel.solicitarLogout()` bloqueaba el logout mientras
+`contarNoResueltas() > 0` (cualquier estado != `SINCRONIZADA`), sin distinguir "el worker todavía
+puede enviarla" de "nadie la va a enviar sola". Una sola gestión en esos estados terminales dejaba
+al ejecutivo sin forma de cerrar sesión en ese dispositivo desde la UI.
+
+**Hallazgo adicional durante la corrección:** `BundleReplacementTransaction.limpiarTodo()`
+(invocado en cada logout) borraba `gestion_local` de forma **incondicional**
+(`DELETE FROM gestion_local` sin filtro), incluyendo registros no sincronizados — un test
+existente (`LogoutIntegrationTest`) documentaba literalmente ese comportamiento. Esto nunca se
+manifestaba en producción porque el logout jamás se alcanzaba con pendientes reales, pero
+representaba una violación latente de RN-24 ("no se eliminan silenciosamente gestiones... bajo
+ninguna circunstancia") que quedaría expuesta en cuanto se permitiera salir con gestiones
+permanentes sin resolver. Se corrigió como parte necesaria de este mismo fix.
+
+**Resolución:**
+- `GestionLocalDao`/`GestionRepository` — nuevos `contarReintentables()` (PENDIENTE_ENVIO +
+  ERROR_REINTENTABLE) y `contarNoRecuperables()` (ERROR_PERMANENTE + CONFLICTO), separando lo
+  que el propio código anterior de `getElegibles()` ya distinguía implícitamente pero
+  `contarNoResueltas()` no exponía.
+- `HomeViewModel` — `solicitarLogout()`/`sincronizarYLogout()` verifican primero reintentables
+  (comportamiento RN-24 sin cambios: bloquea, ofrece sincronizar) y solo si ese conteo llega a 0
+  revisan no-recuperables. Si hay no-recuperables, nuevo estado
+  `ConfirmarLogoutConNoRecuperables` — requiere una acción explícita del usuario
+  (`confirmarLogoutConNoRecuperables()`), no cierra sesión automáticamente.
+- `HomeScreen` — nuevo diálogo en lenguaje simple ("Hay gestiones que no se pudieron enviar...
+  avise a su supervisor... cerrar sesión no significa que esos datos ya fueron enviados"), sin
+  exponer `ERROR_PERMANENTE` ni otros tecnicismos al usuario.
+- `GestionLocalDao.deleteSincronizadas()` (nuevo) + `BundleReplacementTransaction.limpiarTodo()`
+  ahora solo borra `gestion_local` con `estadoSincronizacion = 'SINCRONIZADA'` — cualquier
+  gestión no sincronizada (pendiente, en reintento o con error permanente) sobrevive al logout,
+  con su código y mensaje de error intactos para trazabilidad.
+- Verificado end-to-end: gestión forzada a `ERROR_PERMANENTE` (manipulación controlada de Room,
+  sin tocar backend) → diálogo correcto → "Cerrar sesión de todas formas" → logout exitoso → la
+  gestión permanece íntegra en Room tras el logout (`asignacion_diaria`/`persona` sí se limpian,
+  como corresponde a caché re-descargable) → relogin sin crash ni ANR.
+- Tests: `HomeViewModelTest` (nuevo, 8 casos incluida la combinación reintentable+permanente) y
+  `LogoutIntegrationTest` actualizado (la aserción que documentaba el borrado incondicional se
+  corrigió para reflejar la retención correcta).
+**Referencia:** `.claude/SESSION_HANDOFF.md`, RN-24.
 
 ### DT-R07 — Gradle/tests JVM ejecutándose bajo JDK incorrecto (JDK 25) rompía Robolectric (resuelto 2026-08-16)
 **Descripción:** El proyecto fija `sourceCompatibility`/`targetCompatibility = VERSION_17` en todos

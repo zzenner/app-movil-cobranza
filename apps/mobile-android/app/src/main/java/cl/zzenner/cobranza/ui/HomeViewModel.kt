@@ -20,6 +20,13 @@ sealed class EstadoLogout {
     data class GestionesPendientes(val cantidad: Int) : EstadoLogout()
     data class SincronizandoParaCerrar(val pendientesIniciales: Int) : EstadoLogout()
     data class ErrorSincronizacion(val pendientes: Int) : EstadoLogout()
+
+    /**
+     * Ya no quedan gestiones reintentables, pero sí gestiones que el servidor rechazó de forma
+     * permanente (DT-012). El worker nunca volverá a intentarlas solo; se requiere una decisión
+     * explícita del usuario para salir de todas formas, sin perder el registro local.
+     */
+    data class ConfirmarLogoutConNoRecuperables(val cantidad: Int) : EstadoLogout()
 }
 
 @HiltViewModel
@@ -45,13 +52,12 @@ class HomeViewModel @Inject constructor(
     fun solicitarLogout() {
         _estadoLogout.value = EstadoLogout.Procesando
         viewModelScope.launch {
-            val pendientes = gestionRepository.contarNoResueltas()
-            if (pendientes == 0) {
-                logoutUseCase()
-                _estadoLogout.value = EstadoLogout.Inactivo
-            } else {
-                _estadoLogout.value = EstadoLogout.GestionesPendientes(pendientes)
+            val reintentables = gestionRepository.contarReintentables()
+            if (reintentables > 0) {
+                _estadoLogout.value = EstadoLogout.GestionesPendientes(reintentables)
+                return@launch
             }
+            continuarLogoutTrasReintentables()
         }
     }
 
@@ -65,17 +71,37 @@ class HomeViewModel @Inject constructor(
         _estadoLogout.value = EstadoLogout.SincronizandoParaCerrar(pendientesIniciales)
         viewModelScope.launch {
             gestionRepository.procesarOutbox()
-            val restantes = gestionRepository.contarNoResueltas()
-            if (restantes == 0) {
-                logoutUseCase()
-                _estadoLogout.value = EstadoLogout.Inactivo
-            } else {
-                _estadoLogout.value = EstadoLogout.ErrorSincronizacion(restantes)
+            val reintentables = gestionRepository.contarReintentables()
+            if (reintentables > 0) {
+                // Prioridad: mientras haya algo que el worker aún pueda enviar solo, no se
+                // ofrece la salida "de todas formas" — evita saltarse una reintentable real.
+                _estadoLogout.value = EstadoLogout.ErrorSincronizacion(reintentables)
+                return@launch
             }
+            continuarLogoutTrasReintentables()
+        }
+    }
+
+    /** Cierra sesión aceptando explícitamente que quedan gestiones no recuperables sin enviar. */
+    fun confirmarLogoutConNoRecuperables() {
+        viewModelScope.launch {
+            logoutUseCase()
+            _estadoLogout.value = EstadoLogout.Inactivo
         }
     }
 
     fun cancelarLogout() {
         _estadoLogout.value = EstadoLogout.Inactivo
+    }
+
+    /** Ya se descartó que haya reintentables; solo falta decidir qué hacer con las permanentes. */
+    private suspend fun continuarLogoutTrasReintentables() {
+        val noRecuperables = gestionRepository.contarNoRecuperables()
+        if (noRecuperables > 0) {
+            _estadoLogout.value = EstadoLogout.ConfirmarLogoutConNoRecuperables(noRecuperables)
+        } else {
+            logoutUseCase()
+            _estadoLogout.value = EstadoLogout.Inactivo
+        }
     }
 }

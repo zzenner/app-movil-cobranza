@@ -159,4 +159,10 @@ class GestionRepository @Inject constructor(
         }
 
     suspend fun contarNoResueltas(): Int = gestionLocalDao.contarNoResueltas()
+
+    /** Aún elegibles para el worker (backoff/reintento automático). */
+    suspend fun contarReintentables(): Int = gestionLocalDao.contarReintentables()
+
+    /** ERROR_PERMANENTE/CONFLICTO — el worker nunca las vuelve a seleccionar (ver getElegibles). */
+    suspend fun contarNoRecuperables(): Int = gestionLocalDao.contarNoRecuperables()
 }

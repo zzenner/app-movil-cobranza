@@ -103,11 +103,17 @@ class BundleReplacementTransaction @Inject constructor(
     }
 
     /**
-     * Limpia toda la base de datos. Usar en logout.
+     * Limpia la base de datos local en logout.
+     *
+     * gestion_local es la ÚNICA copia de gestiones que el ejecutivo generó y que el servidor
+     * aún no confirmó (pendientes, en reintento o con error permanente) — RN-24 prohíbe
+     * eliminarlas silenciosamente, así que aquí solo se borran las ya SINCRONIZADA. El resto
+     * de las tablas es caché de solo lectura (se vuelve a descargar en el próximo login) y sí
+     * se limpia por completo.
      */
     suspend fun limpiarTodo() {
         db.withTransaction {
-            db.gestionLocalDao().deleteAll()
+            db.gestionLocalDao().deleteSincronizadas()
             db.personaDirectaDao().deleteAll()
             db.gestionHistoricaDao().deleteAll()
             db.operacionDao().deleteAllCuotas()

@@ -23,6 +23,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.verify
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -114,10 +115,13 @@ class LogoutIntegrationTest {
         )
     }
 
-    private suspend fun insertarGestionLocal() {
+    private suspend fun insertarGestionLocal(
+        id: String = "g-local-1",
+        estado: String = "PENDIENTE_ENVIO",
+    ) {
         db.gestionLocalDao().insert(
             GestionLocalEntity(
-                id = "g-local-1",
+                id = id,
                 personaId = "p-1",
                 personaRutNumero = "27000001",
                 personaRutDv = "0",
@@ -135,7 +139,7 @@ class LogoutIntegrationTest {
                 ubicacionSimulada = false,
                 proveedorGps = "gps",
                 fechaCompromiso = null,
-                estadoSincronizacion = "PENDIENTE_ENVIO",
+                estadoSincronizacion = estado,
                 fechaCreacionLocalEpoch = 2000L,
                 cantidadIntentos = 0,
                 leaseHastaEpoch = null,
@@ -147,18 +151,33 @@ class LogoutIntegrationTest {
     }
 
     @Test
-    fun `logout elimina todos los datos financieros incluyendo gestion_local`() = runTest {
+    fun `logout elimina datos financieros pero preserva gestiones no sincronizadas`() = runTest {
         insertarDatosFinancieros()
-        insertarGestionLocal()
+        insertarGestionLocal(id = "g-pendiente", estado = "PENDIENTE_ENVIO")
+        insertarGestionLocal(id = "g-permanente", estado = "ERROR_PERMANENTE")
 
         assertEquals("asig-1", db.asignacionDiariaDao().getActiva()?.id)
-        assertEquals(1, db.gestionLocalDao().contarNoResueltas())
+        assertEquals(2, db.gestionLocalDao().contarNoResueltas())
 
         useCase()
 
+        // Datos financieros (caché re-descargable): se limpian por completo.
         assertNull(db.asignacionDiariaDao().getActiva())
         assertNull(db.syncMetadataDao().getMetadata())
-        assertEquals(0, db.gestionLocalDao().contarNoResueltas())
+        // Gestiones no sincronizadas (única copia local): RN-24 prohíbe perderlas en logout.
+        assertEquals(2, db.gestionLocalDao().contarNoResueltas())
+    }
+
+    @Test
+    fun `logout elimina gestiones ya sincronizadas`() = runTest {
+        insertarDatosFinancieros()
+        insertarGestionLocal(id = "g-sincronizada", estado = "SINCRONIZADA")
+
+        assertEquals(1, db.gestionLocalDao().getGestionesPorPersona("p-1").first().size)
+
+        useCase()
+
+        assertEquals(0, db.gestionLocalDao().getGestionesPorPersona("p-1").first().size)
     }
 
     @Test
@@ -192,6 +211,7 @@ class LogoutIntegrationTest {
         useCaseFallido()
 
         assertNull(db.asignacionDiariaDao().getActiva())
-        assertEquals(0, db.gestionLocalDao().contarNoResueltas())
+        // La gestión pendiente no se pierde aunque el logout remoto haya fallado.
+        assertEquals(1, db.gestionLocalDao().contarNoResueltas())
     }
 }

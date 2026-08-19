@@ -1,8 +1,85 @@
 # SESSION_HANDOFF — App Móvil Cobranza
 
-**Última actualización:** 2026-08-18 04:40 (sesión actual — ronda funcional de Gestiones)
+**Última actualización:** 2026-08-19 02:35 (sesión actual — DT-012: logout seguro con gestiones no recuperables)
 **Rama:** main
-**Commit HEAD antes de esta ronda:** ed75ffb (fix(android): estabilizar entorno de pruebas y layout de asignaciones)
+**Commit HEAD antes de esta ronda:** 141ad7d (fix(android): corregir endpoint y duplicado por doble-tap en gestiones)
+
+## Ronda — DT-012: logout no queda atrapado por gestiones en error permanente (2026-08-19)
+
+Alcance: solo DT-012. DT-013 (sin sincronización proactiva por reconexión) permanece diferida,
+sin cambios. NO se tocó backend/API/WSL.
+
+### Causa raíz
+
+`HomeViewModel.solicitarLogout()`/`sincronizarYLogout()` usaban
+`gestionRepository.contarNoResueltas()` (cuenta cualquier estado != `SINCRONIZADA`) para decidir
+si bloquear el logout. Esto trata igual una gestión que el worker todavía puede reenviar solo
+(`PENDIENTE_ENVIO`/`ERROR_REINTENTABLE`) que una que el worker **nunca** vuelve a seleccionar
+(`ERROR_PERMANENTE`/`CONFLICTO` — excluidas explícitamente de `GestionLocalDao.getElegibles()`).
+Sin esa distinción, una sola gestión rechazada por validación del servidor dejaba al ejecutivo
+sin ninguna vía de salida desde la UI — reproducido y documentado como DT-012 en la ronda
+anterior con evidencia real (Tasty Maule Spa, HTTP 404 antes del fix de endpoint).
+
+**Hallazgo adicional durante esta corrección:** `BundleReplacementTransaction.limpiarTodo()`
+borraba `gestion_local` sin ningún filtro — un test existente (`LogoutIntegrationTest`)
+documentaba literalmente ese borrado incondicional, incluyendo gestiones `PENDIENTE_ENVIO`. Esto
+nunca ocurría en producción porque el logout jamás se alcanzaba con pendientes reales, pero de
+haber implementado el fix de DT-012 sin corregir esto, la primera vez que un usuario saliera con
+una gestión permanente sin resolver, esa **única copia local se habría perdido** — justo lo que
+RN-24 prohíbe. Se corrigió como parte necesaria del mismo cambio, antes de tocar `HomeViewModel`.
+
+### Regla final de logout (ver RN-24 actualizada)
+
+| Estado | Comportamiento |
+|---|---|
+| Sin pendientes | Logout inmediato, sin diálogo. |
+| `PENDIENTE_ENVIO`/`ERROR_REINTENTABLE` | Sin cambios: bloquea, ofrece "Sincronizar y cerrar sesión". |
+| `ERROR_PERMANENTE`/`CONFLICTO` (y ya no quedan reintentables) | Diálogo nuevo en lenguaje simple; requiere confirmación explícita ("Cerrar sesión de todas formas") o cancelar. |
+| Combinación (reintentable + permanente) | Se resuelve primero la reintentable (comportamiento sin cambios); el diálogo de "confirmar salida" solo aparece cuando el conteo de reintentables ya es 0. |
+
+### Retención de datos (crítico)
+
+Tras el logout: `gestion_local` **solo pierde las filas ya `SINCRONIZADA`**
+(`GestionLocalDao.deleteSincronizadas()`). Cualquier gestión pendiente, en reintento o con error
+permanente sobrevive íntegra (id, contenido, `codigoErrorServidor`, `mensajeError`) — verificado
+end-to-end en el emulador. El resto de las tablas (`asignacion_diaria`, `persona`,
+`gestion_historica`, `operacion`, `persona_directa`, `sync_metadata`) sí se limpia por completo,
+por ser caché de solo lectura que se vuelve a descargar en el próximo login.
+
+### Cambio UX
+
+Nuevo diálogo (`HomeScreen`, estado `EstadoLogout.ConfirmarLogoutConNoRecuperables`): "Hay
+gestiones que no se pudieron enviar. Tiene N gestión(es) que el sistema no podrá enviar de forma
+automática. Quedarán guardadas en este dispositivo, pero no se enviarán solas: avise a su
+supervisor para resolverlas. Cerrar sesión no significa que esos datos ya fueron enviados." Sin
+mencionar `ERROR_PERMANENTE` ni otros tecnicismos. Botones: "Cerrar sesión de todas formas" /
+"Cancelar".
+
+### Verificación funcional (emulador, `Cobranza_API36_Stable`)
+
+Logout normal (0 pendientes): sin diálogo, directo a login — sin regresión. Gestión forzada a
+`ERROR_PERMANENTE` mediante manipulación controlada de Room (sin tocar backend, ya que
+reproducir un 422/409 real requeriría cambios de API fuera de alcance Windows): diálogo correcto
+→ confirmación → logout exitoso → gestión persiste en Room tras el logout con su error intacto →
+relogin sin crash ni ANR.
+
+### Deuda derivada NO resuelta (fuera de alcance de esta tarea)
+
+`gestion_local` no tiene columna `ejecutivoId`. Si un ejecutivo distinto llega a loguearse en el
+mismo dispositivo mientras queda una gestión permanente sin resolver del ejecutivo anterior
+(ahora posible gracias a este fix), esa gestión huérfana seguiría en Room sin asociación clara al
+usuario que la generó. No se evaluó ni corrigió en esta ronda — el foco fue exclusivamente
+desbloquear el logout sin perder datos. Registrar como deuda técnica futura si se prioriza.
+
+### No incluir en el commit
+
+- `apps/mobile-android/gradle.properties` — cambio preexistente ajeno, sigue sin tocar.
+
+### DT-013
+
+Sin cambios. Permanece diferida y documentada, según lo indicado explícitamente para esta ronda.
+
+---
 
 ## Ronda — Gestiones: flujo funcional completo online/offline (2026-08-17/18)
 
