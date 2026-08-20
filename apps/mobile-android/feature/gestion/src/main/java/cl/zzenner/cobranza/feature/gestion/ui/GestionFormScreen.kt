@@ -82,6 +82,8 @@ fun GestionFormScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            SeccionIdentidadPersona(identidad = state.identidad)
+
             SeccionTipoGestion(
                 seleccionado = state.tipoGestion,
                 onSeleccionar = viewModel::onTipoGestionChanged,
@@ -179,6 +181,52 @@ private fun SeccionTipoGestion(
             )
         }
     }
+}
+
+@Composable
+private fun SeccionIdentidadPersona(identidad: PersonaIdentidadState) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (identidad is PersonaIdentidadState.NoDisponible) {
+                MaterialTheme.colorScheme.errorContainer
+            } else {
+                MaterialTheme.colorScheme.secondaryContainer
+            },
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text("Persona", style = MaterialTheme.typography.labelMedium)
+            when (identidad) {
+                PersonaIdentidadState.Cargando ->
+                    Text("Cargando datos de la persona…", style = MaterialTheme.typography.bodyMedium)
+                is PersonaIdentidadState.Disponible ->
+                    Column {
+                        Text(identidad.nombre, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "RUT: ${formatearRut(identidad.rutNumero, identidad.rutDv)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                PersonaIdentidadState.NoDisponible ->
+                    Text(
+                        "No se pudo cargar la información de la persona",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+            }
+        }
+    }
+}
+
+private fun formatearRut(rutNumero: String, rutDv: String): String {
+    val numero = rutNumero.reversed().chunked(3).joinToString(".").reversed()
+    return "$numero-${rutDv.uppercase()}"
 }
 
 @Composable

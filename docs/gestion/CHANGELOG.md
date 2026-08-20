@@ -5,6 +5,25 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/).
 
 ---
 
+## [Sin versión] — 2026-08-20 — Fix Android: identificar persona al registrar gestión (DT-014)
+
+### Corregido
+
+- `GestionFormScreen` no mostraba nombre ni RUT de la persona al registrar una gestión, tanto
+  desde asignación diaria como desde búsqueda directa — riesgo de registrar una gestión sobre la
+  persona equivocada, especialmente tras una búsqueda por RUT tecleado manualmente.
+
+### Añadido
+
+- `GestionFormViewModel` expone `PersonaIdentidadState` (`Cargando`/`Disponible`/`NoDisponible`)
+  en el estado, poblado desde los mismos datos de Room ya leídos (sin llamadas de red nuevas).
+- `GestionFormScreen` — nueva card "Persona" (nombre + RUT formateado) como primer elemento del
+  formulario, con manejo estable de los tres estados de identidad.
+- `GestionFormViewModelTest` +3 casos (identidad vía asignación diaria, vía búsqueda directa,
+  persona no disponible bloquea el guardado).
+
+---
+
 ## [Sin versión] — 2026-08-19 — Validación funcional Android: Búsqueda de persona por RUT
 
 ### Validado

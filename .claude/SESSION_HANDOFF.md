@@ -1,8 +1,85 @@
 # SESSION_HANDOFF — App Móvil Cobranza
 
-**Última actualización:** 2026-08-19 03:25 (sesión actual — validación funcional de Búsqueda por RUT)
+**Última actualización:** 2026-08-20 03:00 (sesión actual — DT-014: identificar persona al registrar gestión)
 **Rama:** main
-**Commit HEAD antes de esta ronda:** 141ad7d (fix(android): corregir endpoint y duplicado por doble-tap en gestiones)
+**Commit HEAD antes de esta ronda:** c07979d (docs: validar funcionalmente Busqueda de persona por RUT)
+
+## Ronda — DT-014: identificar persona al registrar gestión (2026-08-20)
+
+Alcance: solo `feature:gestion` (`GestionFormViewModel.kt`, `GestionFormScreen.kt`) + su test.
+DT-013 no se tocó. NO se tocó backend/API/WSL.
+
+### Causa raíz
+
+`GestionFormViewModel.init` ya leía nombre/RUT desde Room (`PersonaDao.getPersonaConDetalle()`
+para origen `ASIGNACION_DIARIA`, `PersonaDirectaDao.findById()` para `BUSQUEDA_DIRECTA`), pero el
+resultado se guardaba en variables privadas (`personaRutNumero`, `personaRutDv`, `personaNombre`)
+usadas solo al construir el `GestionForm` en `guardar()` — nunca expuestas al `StateFlow` que
+observa `GestionFormScreen`. La pantalla no tenía forma de mostrar quién era la persona porque el
+dato nunca llegaba a la capa de Compose, no porque faltara consultarlo. **No se necesitó ninguna
+llamada de red nueva.**
+
+### Solución
+
+- Nuevo `PersonaIdentidadState` (`Cargando`/`Disponible(nombre, rutNumero, rutDv)`/`NoDisponible`)
+  en `GestionFormViewModel.kt`, expuesto como `GestionFormState.identidad`. Las variables privadas
+  se eliminaron; `guardar()` ahora exige `Disponible` (si es `NoDisponible`, bloquea con
+  `errorGeneral` en vez de guardar con datos vacíos).
+- `GestionFormScreen` — nueva card "Persona" (nombre + `RUT: 12.345.678-9` formateado) como primer
+  elemento del formulario, antes de "Tipo de gestión". Solo nombre y RUT — sin dirección,
+  operaciones ni teléfonos. RUT formateado con una función local (mismo patrón que
+  `feature:asignacion/domain/formatearRut`, reimplementada en el propio archivo para no introducir
+  una dependencia de `feature:gestion` hacia `feature:asignacion` solo por 3 líneas de formato).
+  Los tres estados de identidad mantienen la misma estructura de Card (evita parpadeo de layout).
+
+### Verificación funcional (emulador, `Cobranza_API36_Stable`, API real)
+
+- **Camino A (asignación diaria):** Home → Mi asignación → Cristian Marcelo Agusto González
+  (14.503.973-8) → Registrar gestión. Card muestra "CRISTIAN MARCELO AGUSTO GONZALEZ / RUT:
+  14.503.973-8" — coincide exactamente con `PersonaDetalleScreen`. Gestión `COMPROMISO_PAGO`
+  guardada con éxito (validación de fecha de compromiso funcionando sin cambios), visible en
+  "Gestiones en este dispositivo" de esa misma persona tras volver — asociación correcta
+  confirmada.
+- **Camino B (búsqueda directa):** Home → Buscar persona por RUT → 12.520.996-3 (Mauricio Antonio
+  Verdugo Rebolledo, **fuera** de la asignación diaria de `ej_demo_133`) → Registrar gestión. Card
+  muestra la identidad correcta. Búsqueda posterior de una persona distinta (14.503.973-8) desde
+  la misma pantalla de búsqueda confirmó que la card **no arrastra** la persona anterior — muestra
+  "CRISTIAN MARCELO AGUSTO GONZALEZ" de inmediato, sin residuo de Mauricio.
+- Sin crash, sin ANR, sin parpadeo visible de layout en ningún tránsito.
+
+### Privacidad
+
+Logcat revisado durante toda la verificación manual (búsquedas, navegación, guardado real de una
+gestión): **ningún RUT ni nombre aparece en ningún log**, ni antes ni después del cambio — la
+identidad solo vive en el `StateFlow`/Compose, nunca se pasa a `Log.*` ni a analytics.
+
+### Tests
+
+`GestionFormViewModelTest` +3 casos: identidad disponible vía asignación diaria (Flow de
+`PersonaDao`), identidad disponible vía búsqueda directa (ya cubierto implícitamente por los tests
+existentes, ahora con aserción explícita), y persona no disponible (`personaDirectaDao.findById`
+retorna `null`) bloqueando `guardar()` sin invocar `repository.guardarLocal()`. Sin infraestructura
+de test de Compose nueva — el proyecto no tenía ninguna (único test instrumentado existente es
+`SecureTokenStoreInstrumentedTest`, no relacionado, ver DT-011), y el cambio de UI es
+suficientemente simple para no justificarla.
+
+Suite completa: `testDebugUnitTest` + `lint` + `:app:assembleDebug` → BUILD SUCCESSFUL, **192/192
+tests, 0 fallos** (189 baseline + 3 nuevos; `feature:gestion` pasó de 30/30 a 33/33). Lint: 0
+issues en los 8 módulos.
+
+### No incluir en el commit
+
+- `apps/mobile-android/gradle.properties` — cambio preexistente ajeno, sigue sin tocar.
+
+### DT-013
+
+Sin cambios. Permanece diferida y documentada.
+
+### DT-014
+
+Resuelta — ver **DT-R09** en `docs/gestion/DEUDA_TECNICA.md`.
+
+---
 
 ## Ronda — Búsqueda de persona por RUT: validación funcional completa (2026-08-19)
 

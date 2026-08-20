@@ -3,8 +3,10 @@ package cl.zzenner.cobranza.feature.gestion.ui
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cl.zzenner.cobranza.core.database.dao.PersonaConDetalle
 import cl.zzenner.cobranza.core.database.dao.PersonaDao
 import cl.zzenner.cobranza.core.database.dao.PersonaDirectaDao
+import cl.zzenner.cobranza.core.database.entity.PersonaDirectaEntity
 import cl.zzenner.cobranza.feature.gestion.data.GestionRepository
 import cl.zzenner.cobranza.feature.gestion.domain.ErrorValidacion
 import cl.zzenner.cobranza.feature.gestion.domain.GestionForm
@@ -26,6 +28,7 @@ import java.time.LocalDate
 import javax.inject.Inject
 
 data class GestionFormState(
+    val identidad: PersonaIdentidadState = PersonaIdentidadState.Cargando,
     val tipoGestion: TipoGestion? = null,
     val observacion: String = "",
     val observacionDireccion: String = "",
@@ -36,6 +39,12 @@ data class GestionFormState(
     val guardadoExitoso: Boolean = false,
     val errorGeneral: String? = null,
 )
+
+sealed class PersonaIdentidadState {
+    data object Cargando : PersonaIdentidadState()
+    data class Disponible(val nombre: String, val rutNumero: String, val rutDv: String) : PersonaIdentidadState()
+    data object NoDisponible : PersonaIdentidadState()
+}
 
 sealed class GpsState {
     data object Idle : GpsState()
@@ -60,30 +69,26 @@ class GestionFormViewModel @Inject constructor(
     private val _state = MutableStateFlow(GestionFormState())
     val state: StateFlow<GestionFormState> = _state.asStateFlow()
 
-    private var personaRutNumero: String = ""
-    private var personaRutDv: String = ""
-    private var personaNombre: String = ""
-
     init {
         viewModelScope.launch {
             if (asignacionDiariaId != null) {
                 personaDao.getPersonaConDetalle(personaId).collect { pcd ->
-                    if (pcd != null) {
-                        personaRutNumero = pcd.persona.rutNumero
-                        personaRutDv = pcd.persona.rutDv
-                        personaNombre = pcd.persona.nombre
-                    }
+                    _state.update { it.copy(identidad = pcd.toIdentidadState()) }
                 }
             } else {
                 val pd = personaDirectaDao.findById(personaId)
-                if (pd != null) {
-                    personaRutNumero = pd.rutNumero
-                    personaRutDv = pd.rutDv
-                    personaNombre = pd.nombre
-                }
+                _state.update { it.copy(identidad = pd.toIdentidadState()) }
             }
         }
     }
+
+    private fun PersonaConDetalle?.toIdentidadState(): PersonaIdentidadState =
+        this?.let { PersonaIdentidadState.Disponible(it.persona.nombre, it.persona.rutNumero, it.persona.rutDv) }
+            ?: PersonaIdentidadState.NoDisponible
+
+    private fun PersonaDirectaEntity?.toIdentidadState(): PersonaIdentidadState =
+        this?.let { PersonaIdentidadState.Disponible(it.nombre, it.rutNumero, it.rutDv) }
+            ?: PersonaIdentidadState.NoDisponible
 
     fun onTipoGestionChanged(tipo: TipoGestion) {
         _state.update { it.copy(tipoGestion = tipo, errores = emptyList()) }
@@ -142,6 +147,11 @@ class GestionFormViewModel @Inject constructor(
         // mismo formulario y crea una gestión local duplicada con un UUID distinto.
         if (s.isSubmitting || s.guardadoExitoso) return
 
+        val identidad = s.identidad as? PersonaIdentidadState.Disponible ?: run {
+            _state.update { it.copy(errorGeneral = "No se pudo cargar la información de la persona") }
+            return
+        }
+
         val ubicacion = (s.gpsState as? GpsState.Capturado)?.ubicacion ?: run {
             _state.update { it.copy(errores = listOf(ErrorValidacion.UbicacionRequerida)) }
             return
@@ -156,9 +166,9 @@ class GestionFormViewModel @Inject constructor(
 
         val form = GestionForm(
             personaId = personaId,
-            personaRutNumero = personaRutNumero,
-            personaRutDv = personaRutDv,
-            personaNombre = personaNombre,
+            personaRutNumero = identidad.rutNumero,
+            personaRutDv = identidad.rutDv,
+            personaNombre = identidad.nombre,
             origenGestion = origenGestion,
             asignacionDiariaId = asignacionDiariaId,
             tipoGestion = tipo,
